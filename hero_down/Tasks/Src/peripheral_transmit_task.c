@@ -20,6 +20,7 @@ extern GimbalControl gimbalControl;
 extern const GimbalControl* _gimbalControl;
 extern DMJ4310MotorRec stirMotorRec;
 extern const NormRemoteCmd* _normRemoteCmd;
+extern volatile float gimbal_yaw_rx_d;           /* RS485接收的实际yaw */
 extern volatile float gimbal_yaw_target_rx_d;   /* RS485接收的目标yaw */
 extern volatile float gimbal_pitch_target_rx_d;  /* RS485接收的目标pitch */
 extern volatile float gimbal_pitch_rx_d;         /* RS485接收的实际pitch */
@@ -310,75 +311,55 @@ extern float predict_speed0;
 extern float w_d;
 int16_t trans[6];
 int cnt;
-static float yaw_dps_lpf = 0.0f;
-static void DebugTransmit(void) 
+static void DebugTransmit(void)
 {
 	cnt++;
-	float yaw_f = gimbalControl.GimbalEstimate.yaw_angle_d;
-	float yaw_dps_raw = gimbalPose.yaw_radps * 57.29578f;
-	float fric_rpm_f[6] = {0.0f};
+	/* 帧格式:
+	 * 偏移  长度  类型    说明
+	 * 0-1    2   uint8   帧头 0xAA 0xBB
+	 * 2      1   uint8   shoot_flag 射击状态标志位
+	 * 3-6    4   float   ext_shoot_data.initial_speed 弹丸初速(m/s)
+	 * 7-8    2   int16   fric_rpm[0] 摩擦轮0转速(RPM)
+	 * 9-10   2   int16   fric_rpm[1] 摩擦轮1转速(RPM)
+	 * 11-12  2   int16   fric_rpm[2] 摩擦轮2转速(RPM)
+	 * 13-14  2   int16   fric_rpm[3] 摩擦轮3转速(RPM)
+	 * 15-16  2   int16   fric_rpm[4] 摩擦轮4转速(RPM)
+	 * 17-18  2   int16   fric_rpm[5] 摩擦轮5转速(RPM)
+	 * 19-22  4   float   pitch_angle RS485云台板下发实际pitch(度)
+	 * 23-26  4   float   yaw_angle   本板RS485读取实际yaw(度)
+	 * 27-30  4   float   stir_torque 拨盘扭矩(解析值 Nm)
+	 * 31-34  4   float   stir_speed  拨盘速度(解析值 rad/s)
+	 */
+	debug_data[0] = 0xAA;
+	debug_data[1] = 0xBB;
 
-	yaw_dps_lpf = 0.87f * yaw_dps_lpf + (1.0f - 0.87f) * yaw_dps_raw;
-	float yaw_dps = yaw_dps_lpf;
+	/* byte 2: shoot_flag */
+	debug_data[2] = (uint8_t)_shootControl->ShootTargetInput.shoot_flag;
 
-	for (uint8_t i = 0; i < 6; i++)
-	{
-		fric_rpm_f[i] = (float)gimbal_fric_rpm_rx_arr[i] / 100.0f;
-	}
-	//debug_data[0] = 0xAB; debug_data[1] = 0xCD;
-	debug_data[0] = 0xAA; debug_data[1] = 0xBB;
-	float stir_state_f = (float)stirMotorRec.state;
-	memcpy(&debug_data[2], &ext_shoot_data.initial_speed, 4);
-	memcpy(&debug_data[6], &yaw_f, 4);	
-	 //memcpy(&debug_data[2], &chassisControl.ChassisEstimate.wheel_real_speed_mps[0], 4);
-	 //memcpy(&debug_data[6], &chassisControl.ChassisEstimate.wheel_real_speed_mps[1], 4);
-	// memcpy(&debug_data[10], &chassisControl.WheelMotorControl.target_speed_mps[0], 4);
-	 //memcpy(&debug_data[14], &chassisControl.WheelMotorControl.target_speed_mps[1], 4);
-	 //memcpy(&debug_data[18], &chassisControl.ChassisEstimate.wheel_real_speed_mps[2], 4);
-	//  memcpy(&debug_data[22], &chassisControl.WheelMotorControl.target_speed_mps[2], 4);
-	// memcpy(&debug_data[2], &yaw_f, 4);
-	 //memcpy(&debug_data[6], &yaw_dps, 4);
-	 //memcpy(&debug_data[10], &gimbalControl.GimbalTargetInput.yaw_angle_d, 4);
-	 //memcpy(&debug_data[14], &gimbalControl.GimbalEstimate.yaw_angular_velocity_dps, 4);
-	 //memcpy(&debug_data[18], &gimbalControl.GimbalMotorControl.yaw_speed_pid.output, 4);
-	 //memcpy(&debug_data[22], &gimbalControl.GimbalMotorControl.yaw_pos_pid.output, 4);
-	 float buffer_energy_f = (float)ext_power_heat_data.buffer_energy;
-	  memcpy(&debug_data[10], &buffer_energy_f, 4);
-	  memcpy(&debug_data[14], &superCapacity.real_power, 4);
-	  memcpy(&debug_data[18], &superCapacity.cap_volt, 4);
-	// memcpy(&debug_data[18], &chassisControl.ChassisRealNeedInput.speed_y_mps, 4);
-	// memcpy(&debug_data[22], &chassisControl.ChassisEstimate.speed_y_mps, 4);
-    // memcpy(&debug_data[26], &jointControl.JointEstimate.motor_angles_rad[0], 4);
-//	for (uint8_t i = 0; i < 6; i++)
-//	{
-//		memcpy(&debug_data[10 + i * 4], &fric_rpm_f[i], 4);
-//	}
-	HAL_UART_Transmit_DMA(&huart7, debug_data, 2 + 6 * 4);
+	/* bytes 3-6: initial_speed */
+	memcpy(&debug_data[3], &ext_shoot_data.initial_speed, 4);
 
-    
-//    /*用小串口看弹速*/
-//	if(temp!=ext_shoot_data.initial_speed){
-//	// 1. 使用 snprintf 将 float 和其他字符格式化到缓冲区
-//    //    %.2f 表示格式化为浮点数，保留2位小数
-//    //    \t 是制表符，\r\n 是回车换行，让终端显示更美观
-//		mardio_speed= BulletKF_Update(ext_shoot_data.initial_speed);
-//    int len = snprintf(tx_buffer, sizeof(tx_buffer), "%.4f \t ", ext_shoot_data.initial_speed);
-//	 //int len = snprintf(tx_buffer, sizeof(tx_buffer), "%.4f \t %.4f \t%.4f \t \n ", ext_shoot_data.initial_speed,shootControl.ShootMotorControl.fric_speed_pid[0].kp,shootControl.ShootMotorControl.fric_speed_pid[0].kd);
-//		extern uint8_t yaw_recoil_compensation_signal;
-//		yaw_recoil_compensation_signal=1;
-//		//current_fric_speed+=(TARGET_BULLET_SPEED-mardio_speed)*k;
-//    // 2. 一次性将整个格式化好的字符串通过DMA发送出去
-//    if (len > 0) { // 确保 snprintf 成功执行
-//        HAL_UART_Transmit_DMA(&huart7, (uint8_t*)tx_buffer, len);
-//        
-// 
-//    }
-//    // 3. 更新 temp 值
-//    temp = ext_shoot_data.initial_speed;
-//     }
-//	memcpy(&debug_data[2], &_stirMotorRec->vel_radps, 4);
-//	HAL_UART_Transmit_DMA(&DEBUG_UART, debug_data, 2+4);
-	/*看弹速*/
+	/* bytes 7-18: fric_rpm[0..5] — 直接使用volatile源, int16_t */
+	memcpy(&debug_data[7],  (void*)&gimbal_fric_rpm_rx_arr[0], 2);
+	memcpy(&debug_data[9],  (void*)&gimbal_fric_rpm_rx_arr[1], 2);
+	memcpy(&debug_data[11], (void*)&gimbal_fric_rpm_rx_arr[2], 2);
+	memcpy(&debug_data[13], (void*)&gimbal_fric_rpm_rx_arr[3], 2);
+	memcpy(&debug_data[15], (void*)&gimbal_fric_rpm_rx_arr[4], 2);
+	memcpy(&debug_data[17], (void*)&gimbal_fric_rpm_rx_arr[5], 2);
+
+	/* bytes 19-22: pitch_angle (RS485云台板下发的实际pitch)(度) */
+	memcpy(&debug_data[19], (void*)&gimbal_pitch_rx_d, 4);
+
+	/* bytes 23-26: yaw_angle (这块板子读取的实际yaw)(度) */
+	memcpy(&debug_data[23], (void*)&gimbal_yaw_rx_d, 4);
+
+	/* bytes 27-30: stir_torque (拨盘扭矩, 解析值 Nm) */
+	memcpy(&debug_data[27], &stirMotorRec.toq, 4);
+
+	/* bytes 31-34: stir_speed (拨盘速度, 解析值 rad/s) */
+	memcpy(&debug_data[31], &stirMotorRec.vel_radps, 4);
+
+	HAL_UART_Transmit_DMA(&huart7, debug_data, 35);
 }
 /*---------------------------------------------------UI region-------------------------------------------*/
 UIframe_t UIframe;

@@ -4,5 +4,8 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"clangd.enabled": true,
+		"C_Cpp.intelliSenseEngine": "disabled"
+	}
 }
