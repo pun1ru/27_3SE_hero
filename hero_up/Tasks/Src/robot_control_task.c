@@ -263,7 +263,6 @@ static void GimbalInputUpdate(void)//task1,更新机械限位角度
 	/*角度限幅*/
 	
 	gimbalControl.GimbalTargetInput.yaw_angle_d = AngleLimit(gimbalControl.GimbalTargetInput.yaw_angle_d, -180, 180);
-				//														 pitch_upside_limit_offset + gimbalControl.GimbalEstimate.robot_slope_angle);
 	
 	if(_robotState->chassis_mode == CHASSIS_REVOLVE)
 	{
@@ -384,76 +383,6 @@ static void ShootInputUpdate(void)
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] =0;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP1] =0;
 	}
-}
-matrix_t R;
-float yaw_out,pitch_out,roll_out;
-void Martix_try(){
-	  matrix_data_t R_data[9]; 
-    matrix_init(&R, 3, 3, R_data);
-		create_rotation_matrix_rpy(&R,gimbalControl.GimbalEstimate.yaw_angle_d, gimbalControl.GimbalEstimate.pitch_angle_d, gimbalControl.GimbalEstimate.roll_angle_d);
-		extract_euler_angles_rpy(&R, &yaw_out, &pitch_out, &roll_out);
-}
-void transform_gimbal_to_chassis_pose(
-    float imu_yaw, float imu_pitch, float imu_roll,
-    float motor_yaw, float motor_pitch,
-    float* chassis_yaw, float* chassis_pitch, float* chassis_roll)
-{
-    // --- 1. 为所有需要的矩阵分配数据缓冲区和实例 ---
-    matrix_data_t R_p_w_data[9], R_y_c_data[9], R_p_y_data[9];
-    matrix_data_t R_p_y_inv_data[9], R_y_c_inv_data[9];
-    matrix_data_t temp_mat_data[9], R_c_w_data[9];
-
-    matrix_t R_p_w, R_y_c, R_p_y;
-    matrix_t R_p_y_inv, R_y_c_inv;
-    matrix_t temp_mat, R_c_w;
-
-    matrix_init(&R_p_w, 3, 3, R_p_w_data);
-    matrix_init(&R_y_c, 3, 3, R_y_c_data);
-    matrix_init(&R_p_y, 3, 3, R_p_y_data);
-    matrix_init(&R_p_y_inv, 3, 3, R_p_y_inv_data);
-    matrix_init(&R_y_c_inv, 3, 3, R_y_c_inv_data);
-    matrix_init(&temp_mat, 3, 3, temp_mat_data);
-    matrix_init(&R_c_w, 3, 3, R_c_w_data);
-
-    // --- 步骤 A: 计算云台相对于世界(W)的旋转矩阵 R_p_w ---
-    // R_p_w = Rz(yaw) * Ry(pitch) * Rx(roll)
-    create_rotation_matrix_rpy(&R_p_w, imu_yaw, imu_pitch, imu_roll);
-
-    // --- 步骤 B: 计算电机引入的旋转矩阵 ---
-    // Yaw电机(Y)相对于底盘(C)的旋转: 绕Z轴
-    // R_y_c = Rz(motor_yaw)
-    create_rotation_matrix_rpy(&R_y_c, motor_yaw, 0.0f, 0.0f);
-
-    // Pitch电机(P)相对于Yaw电机(Y)的旋转: 绕Y轴 (根据我们的机械结构约定)
-    // R_p_y = Ry(motor_pitch)
-    create_rotation_matrix_rpy(&R_p_y, 0.0f, motor_pitch, 0.0f);
-    
-    // --- 步骤 C: 求解底盘相对于世界的旋转矩阵 R_c_w ---
-    // 核心公式: R_c_w = R_p_w * (R_p_y)^-1 * (R_y_c)^-1
-    // 利用 R^-1 = R^T
-    
-    // 计算逆(转置)
-    // 使用抽象层的 matrix_inv 宏, 它被定义为 arm_mat_inverse_f32
-    // 注意：对于旋转矩阵，转置(transpose)比求逆(inverse)计算量小得多且更稳定。
-    // CMSIS-DSP 提供了 arm_mat_trans_f32。我们假设抽象层也提供了 matrix_trans。
-    // 如果没有，我们手动实现或使用求逆。这里我们假设求逆是可用的。
-    // 如果matrix_inv可用且稳定，可以直接用。
-    // arm_mat_inverse_f32(&R_p_y, &R_p_y_inv);
-    // arm_mat_inverse_f32(&R_y_c, &R_y_c_inv);
-    
-    // **更优选择: 使用转置**
-    // 假设 `arm_matrix.h` 中有 #define matrix_trans arm_mat_trans_f32
-    // 如果没有，我们可以自己实现一个简单的转置函数。
-    // 这里我们先用求逆的宏，因为它已经在你的头文件里了。
-    matrix_inv(&R_p_y, &R_p_y_inv);
-    matrix_inv(&R_y_c, &R_y_c_inv);
-
-    // 进行矩阵链式乘法
-    matrix_mult(&R_p_w, &R_p_y_inv, &temp_mat);
-    matrix_mult(&temp_mat, &R_y_c_inv, &R_c_w);
-
-    // --- 步骤 D: 从 R_c_w 中提取底盘的欧拉角 ---
-    extract_euler_angles_rpy(&R_c_w, chassis_yaw, chassis_pitch, chassis_roll);
 }
 
 /* ====================================================================================================================
@@ -1084,17 +1013,6 @@ void ALLHighFreqCal(void)
  */
 static void GimbalEstimateUpdate(void)
 {
-	/*云台位姿信息在imu_task中更新*/
-	const uint16_t pitch_offset_d = PITCH_OFFSET_MACHENICAL_ANGLE;//p轴在水平位置时电机的机械角（度），需要测,task4测量实际机械角
-	//底盘和p轴视作刚体，当底盘倾斜，p轴定子随底盘倾斜，云台受imu反馈控制保持一个角度时，此时电机返回机械角和底盘不倾斜时返回机械角是存在差值的，该差值即为倾斜角
-	//1.具体计算方法为：记录p轴电机机械角在底盘水平的情况下，控制云台达到imu反馈0度角时的机械角偏置值；
-	//2.实时使用p轴电机机械角与该偏置值相减并转成角度制后，即为假设机器人底盘水平状态下的p轴角度；
-	//3.以该角度值与当前imu反馈的pitch轴角度相减，便可得到实际机器人底盘倾斜角度
-	//note:规定底盘向上倾斜为正，向下倾斜为负，计算过程中需要根据实际情况添置正负号
-	float pitch_angle_offset_d =(_pitchMotorRec->mechanical_angle - pitch_offset_d) * 360.0f /LK_FULL_CIRCLE_MECHENICAL_ANGLE;//符号注意，记得改这玩意
-	pitch_angle_offset_d = AngleLimit(pitch_angle_offset_d, -180, 180);
-	gimbalControl.GimbalEstimate.robot_slope_angle = pitch_angle_offset_d + gimbalControl.GimbalEstimate.pitch_angle_d;
-	gimbalControl.GimbalEstimate.robot_slope_angle = AngleLimit(gimbalControl.GimbalEstimate.robot_slope_angle, -180, 180);
 }
 
 /// @brief 云台观测位姿更新，该更新周期与imu_task任务更新位姿周期一致，故需外部调用该更新函数

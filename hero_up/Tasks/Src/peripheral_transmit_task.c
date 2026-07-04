@@ -86,7 +86,7 @@ void MotorControlCANSend(void)
 	/*测距部分*/
 	//extern uint8_t lastRobotState.sniper;
 			count++;
-static uint8_t tx_485[36] = {0};
+static uint8_t tx_485[40] = {0};
 extern Pose gimbalPose;
 extern DJIGMotorRec fricMotorRec[FRIC_MOTOR_NUM];
 float yaw_f   = gimbalPose.yaw_d;
@@ -96,6 +96,7 @@ static float yaw_dps_lpf = 0.0f;
 float yaw_dps_raw = gimbalPose.yaw_radps * 57.29578f; /* rad/s → °/s */
 yaw_dps_lpf = 0.87f * yaw_dps_lpf + (1.0f - 0.87f) * yaw_dps_raw;
 float yaw_dps = yaw_dps_lpf;
+float pitch_dps = gimbalPose.pitch_radps * 57.29578f; /* rad/s → °/s */
 float target_yaw_d  = _upperComputerComm->Receive.target_yaw_angle_d;
 float target_pitch_d = _upperComputerComm->Receive.target_pitch_angle_d;
 
@@ -117,20 +118,21 @@ tx_485[1]  = 0x5A;
 memcpy(&tx_485[2], &yaw_f, 4);         // [2..5]   yaw角度
 memcpy(&tx_485[6], &pitch_f, 4);       // [6..9]   pitch角度(当前估计值)
 memcpy(&tx_485[10], &yaw_dps, 4);      // [10..13] yaw角速度
-memcpy(&tx_485[14], &target_yaw_d, 4); // [14..17] 世界系yaw目标deg / 上位机yaw目标
-memcpy(&tx_485[18], &target_pitch_d, 4); // [18..21] 世界系pitch目标deg / 上位机pitch目标
+memcpy(&tx_485[14], &pitch_dps, 4);    // [14..17] pitch角速度
+memcpy(&tx_485[18], &target_yaw_d, 4); // [18..21] 世界系yaw目标deg / 上位机yaw目标
+memcpy(&tx_485[22], &target_pitch_d, 4); // [22..25] 世界系pitch目标deg / 上位机pitch目标
 
 for (uint8_t i = 0; i < 6; i++)
 {
 	int16_t fric_rpm = (i < FRIC_MOTOR_NUM) ? fricMotorRec[i].mechanical_speed_rpm : 0;
-	memcpy(&tx_485[22 + i * 2], &fric_rpm, 2);
+	memcpy(&tx_485[26 + i * 2], &fric_rpm, 2);
 }
 
-tx_485[34] = 0x0D; // 帧尾
-tx_485[35] = 0x0A;
+tx_485[38] = 0x0D; // 帧尾
+tx_485[39] = 0x0A;
 		/* 仅当上一次 DMA 发送完成后才发送新帧 */
 		if (SHOOT_485_UART.gState == HAL_UART_STATE_READY)
-			HAL_UART_Transmit_DMA(&SHOOT_485_UART, tx_485, 36);
+			HAL_UART_Transmit_DMA(&SHOOT_485_UART, tx_485, 40);
 		
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){

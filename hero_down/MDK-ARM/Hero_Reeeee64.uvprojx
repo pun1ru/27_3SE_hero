@@ -1267,6 +1267,16 @@
               <FileType>5</FileType>
               <FilePath>..\PrivateApplications\MainControl\jointControl.h</FilePath>
             </File>
+            <File>
+              <FileName>gimbalControl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\MainControl\gimbalControl.c</FilePath>
+            </File>
+            <File>
+              <FileName>gimbalControl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\gimbalControl.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -38,25 +38,36 @@ float Fal(float e, float alpha, float delta)
 		return fsgn(e) * powf(fabs(e), alpha);
 }//误差小采用线性部分,误差大展现幂函数特性
 void LTDInitialize(LTD* ltd, float r, float h, float min, float max)
-{ 
+{
 	ltd->r = r;
 	ltd->min = min;
 	ltd->max = max;
 	ltd->h = h;
 }
-/*PS:怎么说呢，改大这玩意有时候会超大变成NAN*/
-void LTDUpdate(LTD* ltd, float target)//LTD和普通TD有什么区别?高了一阶似乎，更平滑了？大概
+
+void LTDSetParam(LTD* ltd, float r, float h, float min, float max)
 {
-	float x1_delta = ltd->x1 - target;//一阶？
-	ltd->h = DWT_GetDeltaT(&ltd->cnt);//步长？
+	ltd->r   = r;
+	ltd->h   = h;
+	ltd->min = min;
+	ltd->max = max;
+}
+
+void LTD_Reset(LTD* ltd, float x1)
+{
+	ltd->x1 = x1;
+	ltd->x2 = 0.0f;
+	ltd->error_sum = 0.0f;//直接跟踪到当前x1
+}
+void LTDUpdate(LTD* ltd, float target)
+{
+	float x1_delta = ltd->x1 - target;
+	ltd->h = DWT_GetDeltaT(&ltd->cnt);
 	if(ltd->min != ltd->max)
-		x1_delta = AngleLimit(x1_delta, ltd->min, ltd->max);//限幅一下
+		x1_delta = AngleLimit(x1_delta, ltd->min, ltd->max);
 	
-	ltd->x1 += ltd->h * ltd->x2;//积分 
-	ltd->x2 += ltd->h * (- 2  * ltd->r * ltd->x2 - ltd->r * ltd->r * x1_delta);//
-	//dx2/dt = -2*r*x2 - r²*(x1 - target) 
-	//将此方程看作 弹簧-阻尼系统 的动力学模型：什么牛魔玩意，那我怎么调参
-	// ***** 增加安全检查 *****
+	ltd->x1 += ltd->h * ltd->x2;
+	ltd->x2 += ltd->h * (- 2  * ltd->r * ltd->x2 - ltd->r * ltd->r * x1_delta);
   if (!isfinite(ltd->x1) || !isfinite(ltd->x2)) {
        // 数值计算发散了！进行紧急复位处理
        ltd->x1 = target; // 将状态强行拉回到目标值
@@ -169,6 +180,20 @@ void TDInitialize(TD* td, float r, float h0, float N, float min, float max)
 	td->r = r;
 	td->max = max;
 	td->min = min;
+}
+
+void TDSetParam(TD* td, float r, float h0, float N, float min, float max)
+{
+	td->h = h0 * N;
+	td->r = r;
+	td->max = max;
+	td->min = min;
+}
+
+void TD_Reset(TD* td, float x1)
+{
+	td->x1 = x1;
+	td->x2 = 0.0f;
 }
 
 /**

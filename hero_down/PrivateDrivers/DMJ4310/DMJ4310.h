@@ -36,6 +36,18 @@ typedef struct {
 	
 }MITStruct;
 
+/// @brief MIT控制指令参数（CAN帧下发用）
+typedef struct {
+	float p;    // 目标位置 (rad)
+	float v;    // 目标速度 (rad/s)
+	float Kp;   // 位置刚度
+	float Kd;   // 速度阻尼
+	float Tff;  // 前馈力矩 (Nm)
+} MIT_Ctrl_t;
+
+void MIT_Clear(MIT_Ctrl_t *mit);
+void MIT_SetParam(MIT_Ctrl_t *mit, float p, float v, float Kp, float Kd, float Tff);
+
 /** Function Declaration **/
 int float_to_uint(float x, float x_min, float x_max, int bits);
 float uint_to_float(int x_int, float x_min, float x_max, int bits);

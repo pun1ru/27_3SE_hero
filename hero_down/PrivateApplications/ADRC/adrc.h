@@ -59,8 +59,12 @@ typedef struct
 }LTDPID;
 static float fhan(float x1, float x2, float r, float h);
 void TDInitialize(TD* td, float r, float h0, float N, float min, float max);
+void TDSetParam(TD* td, float r, float h0, float N, float min, float max);
+void TD_Reset(TD* td, float x1);
 void TDUpdate(TD* td, float target);
 void LTDInitialize(LTD* ltd, float r, float h, float min, float max);
+void LTDSetParam(LTD* ltd, float r, float h, float min, float max);
+void LTD_Reset(LTD* ltd, float x1);
 void LTDUpdate(LTD* ltd, float target);
 /* 不对 x1 做环绕/周期限幅的 LTD 更新，用于非周期角度信号 */
 void LTDUpdateNoLimit(LTD* ltd, float target);

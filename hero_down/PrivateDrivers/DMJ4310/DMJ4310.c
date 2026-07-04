@@ -35,7 +35,26 @@ void DM_MITControl(float _pos, float _vel, float _KP, float _KD, float _torq, ui
 	adata[5] = (kd_tmp >> 4);
 	adata[6] = ((kd_tmp&0xF)<<4)|(tor_tmp>>8);
 	adata[7] = tor_tmp;
-}	
+}
+
+void MIT_Clear(MIT_Ctrl_t *mit)
+{
+	mit->p   = 0.0f;
+	mit->v   = 0.0f;
+	mit->Kp  = 0.0f;
+	mit->Kd  = 0.0f;
+	mit->Tff = 0.0f;
+}
+
+void MIT_SetParam(MIT_Ctrl_t *mit, float p, float v, float Kp, float Kd, float Tff)
+{
+	mit->p   = p;
+	mit->v   = v;
+	mit->Kp  = Kp;
+	mit->Kd  = Kd;
+	mit->Tff = Tff;
+}
+
 void DM_MITControl_Send(FDCAN_HandleTypeDef* hcan, uint16_t id,float _pos, float _vel, float _KP, float _KD, float _torq){
 	uint16_t pos_tmp,vel_tmp,kp_tmp,kd_tmp,tor_tmp;
 	pos_tmp = float_to_uint(_pos, P_MIN, P_MAX, 16);

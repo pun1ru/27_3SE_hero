@@ -38,7 +38,7 @@ float joint_target[4]={};
 
  int first_flag=1;
  uint32_t StateCount=0;
-void ALLHighFreqCal(void);//不放在其他电机一起
+/* ALLHighFreqCal 已合并到 GimbalControlUpdate */
  float angle_temp=0;
 void MotorControlCANSend(void)
 {
@@ -83,9 +83,10 @@ void MotorControlCANSend(void)
 		case 3:
 		case 5:
 			if(_robotState->ctrl_terminal != CONTROL_STOP){
-      CANTransmit_I16(&hfdcan2, 0x200, _chassisControl->WheelMotorControl.target_motor_output[0], _chassisControl->WheelMotorControl.target_motor_output[1],\
-      _chassisControl->WheelMotorControl.target_motor_output[2],_chassisControl->WheelMotorControl.target_motor_output[3]);
-			  //CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);//注释	
+				//轮电机
+    //   CANTransmit_I16(&hfdcan2, 0x200, _chassisControl->WheelMotorControl.target_motor_output[0], _chassisControl->WheelMotorControl.target_motor_output[1],\
+    //   _chassisControl->WheelMotorControl.target_motor_output[2],_chassisControl->WheelMotorControl.target_motor_output[3]);
+			  CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);//注释	
 			}
 			if(_robotState->ctrl_terminal == CONTROL_STOP)
 			CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
@@ -97,14 +98,14 @@ void MotorControlCANSend(void)
 		{
 		       if(_robotState->sniper==SNIPER_OFF)
 				{
-		     DM_MITControl_Send(&hfdcan1,0x01,jointControl.JointMotorControl.mit_p[LEG_LF],0,jointControl.JointMotorControl.mit_Kp[LEG_LF],jointControl.JointMotorControl.mit_Kd[LEG_LF],jointControl.JointMotorControl.mit_Tff[LEG_LF]);//-1.9
-			 	 DM_MITControl_Send(&hfdcan1,0x02,jointControl.JointMotorControl.mit_p[LEG_RF],0,jointControl.JointMotorControl.mit_Kp[LEG_RF],jointControl.JointMotorControl.mit_Kd[LEG_RF],jointControl.JointMotorControl.mit_Tff[LEG_RF]);//1.55
-			 	 DM_MITControl_Send(&hfdcan1,0x03,jointControl.JointMotorControl.mit_p[LEG_RB],0,jointControl.JointMotorControl.mit_Kp[LEG_RB],jointControl.JointMotorControl.mit_Kd[LEG_RB],jointControl.JointMotorControl.mit_Tff[LEG_RB]);//2.09
-			 	 DM_MITControl_Send(&hfdcan1,0x04,jointControl.JointMotorControl.mit_p[LEG_LB],0,jointControl.JointMotorControl.mit_Kp[LEG_LB],jointControl.JointMotorControl.mit_Kd[LEG_LB],jointControl.JointMotorControl.mit_Tff[LEG_LB]);//-2.29
-			 	 //DM_MITControl_Send(&hfdcan1,0x01,0,0,0,0,0);
-				 //DM_MITControl_Send(&hfdcan1,0x02,0,0,0,0,0);	
-				 //DM_MITControl_Send(&hfdcan1,0x03,0,0,0,0,0);
-				 //DM_MITControl_Send(&hfdcan1,0x04,0,0,0,0,0);//注释
+		     	//  DM_MITControl_Send(&hfdcan1,0x01,jointControl.JointMotorControl.mit_p[LEG_LF],0,jointControl.JointMotorControl.mit_Kp[LEG_LF],jointControl.JointMotorControl.mit_Kd[LEG_LF],jointControl.JointMotorControl.mit_Tff[LEG_LF]);//-1.9
+			 	//  DM_MITControl_Send(&hfdcan1,0x02,jointControl.JointMotorControl.mit_p[LEG_RF],0,jointControl.JointMotorControl.mit_Kp[LEG_RF],jointControl.JointMotorControl.mit_Kd[LEG_RF],jointControl.JointMotorControl.mit_Tff[LEG_RF]);//1.55
+			 	//  DM_MITControl_Send(&hfdcan1,0x03,jointControl.JointMotorControl.mit_p[LEG_RB],0,jointControl.JointMotorControl.mit_Kp[LEG_RB],jointControl.JointMotorControl.mit_Kd[LEG_RB],jointControl.JointMotorControl.mit_Tff[LEG_RB]);//2.09
+			 	//  DM_MITControl_Send(&hfdcan1,0x04,jointControl.JointMotorControl.mit_p[LEG_LB],0,jointControl.JointMotorControl.mit_Kp[LEG_LB],jointControl.JointMotorControl.mit_Kd[LEG_LB],jointControl.JointMotorControl.mit_Tff[LEG_LB]);//-2.29
+			 	 DM_MITControl_Send(&hfdcan1,0x01,0,0,0,0,0);
+				 DM_MITControl_Send(&hfdcan1,0x02,0,0,0,0,0);	
+				 DM_MITControl_Send(&hfdcan1,0x03,0,0,0,0,0);
+				 DM_MITControl_Send(&hfdcan1,0x04,0,0,0,0,0);//注释
 			    }
 				else if(_robotState->sniper==SNIPER_ON)
 				{
@@ -123,7 +124,7 @@ void MotorControlCANSend(void)
 		break;
 		}
 	}
-	 ALLHighFreqCal();
+	 /* ALLHighFreqCal merged into GimbalControlUpdate */
    StateCount++;
 	 switch(StateCount%3)
 	 {
@@ -151,12 +152,12 @@ void MotorControlCANSend(void)
 			if(_robotState->ctrl_terminal != CONTROL_STOP)
 			{
 				  DM_MITControl_Send(&hfdcan1,0x07,
-					gimbalControl.GimbalMotorControl.mit_p,
-					gimbalControl.GimbalMotorControl.mit_v,
-					gimbalControl.GimbalMotorControl.mit_Kp,
-					gimbalControl.GimbalMotorControl.mit_Kd,
-					gimbalControl.GimbalMotorControl.mit_Tff);
-						//DM_MITControl_Send(&hfdcan1,0x07,0,0,0,0,0);//注释
+					gimbalControl.GimbalMotorControl.mit.p,
+					gimbalControl.GimbalMotorControl.mit.v,
+					gimbalControl.GimbalMotorControl.mit.Kp,
+					gimbalControl.GimbalMotorControl.mit.Kd,
+					gimbalControl.GimbalMotorControl.mit.Tff);
+				//DM_MITControl_Send(&hfdcan1,0x07,0,0,0,0,0);//注释
 			}
 			if(_robotState->ctrl_terminal == CONTROL_STOP)			
 			DM_MITControl_Send(&hfdcan1,0x07,0,0,0,0,0);	
@@ -168,6 +169,7 @@ void MotorControlCANSend(void)
 	 ctrl_motor2(&hfdcan1, GMJ4310MOTOR_ID, _shootControl->ShootTargetInput.stir_all_target_pos_rad, _shootControl->ShootTargetInput.stir_target_vol);
 		break;
 	  case 1:
+	  //超电
 	CANTransmit_I16(&hfdcan2,0x2ff,0,0,ext_game_robot_status.chassis_power_limit-1,0);
 		
 		break;
@@ -311,55 +313,108 @@ extern float predict_speed0;
 extern float w_d;
 int16_t trans[6];
 int cnt;
+
+/* CRC-8/poly 0x07 (MAXIM) 逐位法校验 */
+static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
+{
+	uint8_t crc = 0x00;
+	for (uint16_t i = 0; i < len; i++) {
+		crc ^= data[i];
+		for (uint8_t bit = 0; bit < 8; bit++) {
+			if (crc & 0x80)
+				crc = (crc << 1) ^ 0x07;
+			else
+				crc <<= 1;
+		}
+	}
+	return crc;
+}
+
 static void DebugTransmit(void)
 {
+#if 0
+	/* ===== 原始帧格式（保留） ===== */
+	static uint16_t debug_seq = 0;
 	cnt++;
 	/* 帧格式:
 	 * 偏移  长度  类型    说明
 	 * 0-1    2   uint8   帧头 0xAA 0xBB
-	 * 2      1   uint8   shoot_flag 射击状态标志位
-	 * 3-6    4   float   ext_shoot_data.initial_speed 弹丸初速(m/s)
-	 * 7-8    2   int16   fric_rpm[0] 摩擦轮0转速(RPM)
-	 * 9-10   2   int16   fric_rpm[1] 摩擦轮1转速(RPM)
-	 * 11-12  2   int16   fric_rpm[2] 摩擦轮2转速(RPM)
-	 * 13-14  2   int16   fric_rpm[3] 摩擦轮3转速(RPM)
-	 * 15-16  2   int16   fric_rpm[4] 摩擦轮4转速(RPM)
-	 * 17-18  2   int16   fric_rpm[5] 摩擦轮5转速(RPM)
-	 * 19-22  4   float   pitch_angle RS485云台板下发实际pitch(度)
-	 * 23-26  4   float   yaw_angle   本板RS485读取实际yaw(度)
-	 * 27-30  4   float   stir_torque 拨盘扭矩(解析值 Nm)
-	 * 31-34  4   float   stir_speed  拨盘速度(解析值 rad/s)
+	 * 2-3    2   uint16  帧序号(0→65535循环,小端)
+	 * 4      1   uint8   shoot_flag 射击状态标志位
+	 * 5-8    4   float   ext_shoot_data.initial_speed 弹丸初速(m/s)
+	 * 9-10   2   int16   fric_rpm[0] 摩擦轮0转速(RPM)
+	 * 11-12  2   int16   fric_rpm[1] 摩擦轮1转速(RPM)
+	 * 13-14  2   int16   fric_rpm[2] 摩擦轮2转速(RPM)
+	 * 15-16  2   int16   fric_rpm[3] 摩擦轮3转速(RPM)
+	 * 17-18  2   int16   fric_rpm[4] 摩擦轮4转速(RPM)
+	 * 19-20  2   int16   fric_rpm[5] 摩擦轮5转速(RPM)
+	 * 21-24  4   float   pitch_angle RS485云台板下发实际pitch(度)
+	 * 25-28  4   float   yaw_angle   闭环控制用yaw估计值(度)
+	 * 29-32  4   float   stir_torque 拨盘扭矩(解析值 Nm)
+	 * 33-36  4   float   stir_speed  拨盘速度(解析值 rad/s)
+	 * 37     1   uint8   CRC-8(poly 0x07)校验,覆盖字节0-37
 	 */
 	debug_data[0] = 0xAA;
 	debug_data[1] = 0xBB;
 
-	/* byte 2: shoot_flag */
-	debug_data[2] = (uint8_t)_shootControl->ShootTargetInput.shoot_flag;
+	/* bytes 2-3: 帧序号 (uint16, 小端) */
+	memcpy(&debug_data[2], &debug_seq, 2);
+	debug_seq++;
 
-	/* bytes 3-6: initial_speed */
-	memcpy(&debug_data[3], &ext_shoot_data.initial_speed, 4);
+	/* byte 4: shoot_flag */
+	debug_data[4] = (uint8_t)_shootControl->ShootTargetInput.shoot_flag;
 
-	/* bytes 7-18: fric_rpm[0..5] — 直接使用volatile源, int16_t */
-	memcpy(&debug_data[7],  (void*)&gimbal_fric_rpm_rx_arr[0], 2);
-	memcpy(&debug_data[9],  (void*)&gimbal_fric_rpm_rx_arr[1], 2);
-	memcpy(&debug_data[11], (void*)&gimbal_fric_rpm_rx_arr[2], 2);
-	memcpy(&debug_data[13], (void*)&gimbal_fric_rpm_rx_arr[3], 2);
-	memcpy(&debug_data[15], (void*)&gimbal_fric_rpm_rx_arr[4], 2);
-	memcpy(&debug_data[17], (void*)&gimbal_fric_rpm_rx_arr[5], 2);
+	/* bytes 5-8: initial_speed */
+	memcpy(&debug_data[5], &ext_shoot_data.initial_speed, 4);
 
-	/* bytes 19-22: pitch_angle (RS485云台板下发的实际pitch)(度) */
-	memcpy(&debug_data[19], (void*)&gimbal_pitch_rx_d, 4);
+	/* bytes 9-20: fric_rpm[0..5] — 直接使用volatile源, int16_t */
+	memcpy(&debug_data[9],  (void*)&gimbal_fric_rpm_rx_arr[0], 2);
+	memcpy(&debug_data[11], (void*)&gimbal_fric_rpm_rx_arr[1], 2);
+	memcpy(&debug_data[13], (void*)&gimbal_fric_rpm_rx_arr[2], 2);
+	memcpy(&debug_data[15], (void*)&gimbal_fric_rpm_rx_arr[3], 2);
+	memcpy(&debug_data[17], (void*)&gimbal_fric_rpm_rx_arr[4], 2);
+	memcpy(&debug_data[19], (void*)&gimbal_fric_rpm_rx_arr[5], 2);
 
-	/* bytes 23-26: yaw_angle (这块板子读取的实际yaw)(度) */
-	memcpy(&debug_data[23], (void*)&gimbal_yaw_rx_d, 4);
+	/* bytes 21-24: pitch_angle (RS485云台板下发的实际pitch)(度) */
+	memcpy(&debug_data[21], (void*)&gimbal_pitch_rx_d, 4);
 
-	/* bytes 27-30: stir_torque (拨盘扭矩, 解析值 Nm) */
-	memcpy(&debug_data[27], &stirMotorRec.toq, 4);
+	/* bytes 25-28: yaw_angle (闭环控制用yaw估计值)(度) */
+	memcpy(&debug_data[25], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
 
-	/* bytes 31-34: stir_speed (拨盘速度, 解析值 rad/s) */
-	memcpy(&debug_data[31], &stirMotorRec.vel_radps, 4);
+	/* bytes 29-32: stir_torque (拨盘扭矩, 解析值 Nm) */
+	memcpy(&debug_data[29], &stirMotorRec.toq, 4);
 
-	HAL_UART_Transmit_DMA(&huart7, debug_data, 35);
+	/* bytes 33-36: stir_speed (拨盘速度, 解析值 rad/s) */
+	memcpy(&debug_data[33], &stirMotorRec.vel_radps, 4);
+
+	/* byte 37: CRC-8, 覆盖字节0-37 */
+	debug_data[37] = crc8_maxim(debug_data, 37);
+
+	HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
+
+#else
+	/* ===== yaw控制调试帧 =====
+	 * 偏移  长度  类型    说明
+	 * 0-1    2   uint8   帧头 0xAA 0xBB
+	 * 2-5    4   float   LTD.x1        LTD跟踪位置(度)
+	 * 6-9    4   float   LTD.x2        LTD跟踪速度(度/s)
+	 * 10-13  4   float   yaw_target    yaw目标角度(度)
+	 * 14-17  4   float   yaw_target_dps yaw目标角速度(度/s)
+	 * 18-21  4   float   yaw_estimate  yaw实际位置(度)
+	 * 22-25  4   float   yaw_estimate_dps yaw实际角速度(度/s)
+	 */
+	debug_data[0] = 0xAA;
+	debug_data[1] = 0xBB;
+
+	memcpy(&debug_data[2],  (void*)&gimbalControl.GimbalMotorControl.yaw_LTD.x1, 4);
+	memcpy(&debug_data[6],  (void*)&gimbalControl.GimbalMotorControl.yaw_LTD.x2, 4);
+	memcpy(&debug_data[10], (void*)&gimbalControl.GimbalTargetInput.yaw_angle_d, 4);
+	memcpy(&debug_data[14], (void*)&gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps, 4);
+	memcpy(&debug_data[18], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
+	memcpy(&debug_data[22], (void*)&_gimbalControl->GimbalEstimate.yaw_angular_velocity_dps, 4);
+
+	HAL_UART_Transmit_DMA(&huart7, debug_data, 26);
+#endif
 }
 /*---------------------------------------------------UI region-------------------------------------------*/
 UIframe_t UIframe;

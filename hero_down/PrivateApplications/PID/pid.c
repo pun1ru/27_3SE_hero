@@ -1,5 +1,4 @@
 #include "math.h"
-
 #include "pid.h"
 /**
 * \brief pid initialize
@@ -23,6 +22,24 @@ void PIDInitialize(PIDStruct *const pid, float kp, float ki, float kd, float sum
 	pid->sum_error = 0;
 	
 	//< constrain parameters
+	pid->sum_error_max = sum_error_max;
+	pid->output_max = output_max;
+}
+
+/**
+* \brief 仅更新PID参数，不清除历史误差和输出缓冲区
+* \param[in] pid PID struct to be updated
+* \param[in] kp Proportional coefficient
+* \param[in] ki Integral coefficient
+* \param[in] kd Derivative coefficient
+* \param[in] sum_error_max Maximum value of the integral term
+* \param[in] output_max Maximum value of the output
+*/
+void PIDSetParam(PIDStruct *const pid, float kp, float ki, float kd, float sum_error_max, float output_max)
+{
+	pid->kp = kp;
+	pid->ki = ki;
+	pid->kd = kd;
 	pid->sum_error_max = sum_error_max;
 	pid->output_max = output_max;
 }

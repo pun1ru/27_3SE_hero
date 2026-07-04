@@ -34,13 +34,14 @@ uint8_t uart5RecBuffer[64];	/* 遥控器: DT7=18B / VT3=21B, 64B足够 */
 uint8_t uart6RecBuffer[160]; /* 裁判系统 最大帧~128B, 留160B余量 */
 uint8_t uart10RecBuffer[49]; 
 int64_t circle_angle;
-uint8_t uartServentRecBuffer[36]; /* RS485云台→底盘 32B协议帧，预留余量 */
+uint8_t uartServentRecBuffer[40]; /* RS485云台→底盘 40B协议帧: 2B头+36B数据+2B尾 */
 uint8_t uartMasterRecBuffer[64]; /* RS485底盘→云台 MCU_FRAME_LEN=22B */
 uint8_t distance_buffer[49];
 
 /* 云台板下发的yaw/pitch角度和角速度（通过RS485接收） */
 volatile float gimbal_yaw_rx_d = 0.0f;
 volatile float gimbal_yaw_dps_rx = 0.0f;
+volatile float gimbal_pitch_dps_rx = 0.0f;     /* 云台板下发的实际pitch角速度 */
 volatile float gimbal_yaw_target_rx_d = 0.0f;  /* 上位机目标yaw */
 volatile float gimbal_pitch_target_rx_d = 0.0f; /* 新增：上位机目标pitch */
 volatile float gimbal_pitch_rx_d = 0.0f;       /* 云台板下发的实际pitch角度 */
@@ -875,21 +876,22 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		rs485_last_size = Size;
 
 		gimbal_yaw_rx_valid = 0;
-		/* 协议帧固定36字节: 帧头0xA5 0x5A + 32B数据 + 帧尾0x0D 0x0A */
-		if (Size >= 36U
+		/* 协议帧固定40字节: 帧头0xA5 0x5A + 36B数据 + 帧尾0x0D 0x0A */
+		if (Size >= 40U
 			&& uartServentRecBuffer[0] == 0xA5
 			&& uartServentRecBuffer[1] == 0x5A
-			&& uartServentRecBuffer[34] == 0x0D
-			&& uartServentRecBuffer[35] == 0x0A)
+			&& uartServentRecBuffer[38] == 0x0D
+			&& uartServentRecBuffer[39] == 0x0A)
 		{
 			memcpy((void*)&gimbal_yaw_rx_d,   &uartServentRecBuffer[2], sizeof(float));
 			memcpy((void*)&gimbal_pitch_rx_d, &uartServentRecBuffer[6], sizeof(float));
 			memcpy((void*)&gimbal_yaw_dps_rx,  &uartServentRecBuffer[10], sizeof(float));
-			memcpy((void*)&gimbal_yaw_target_rx_d, &uartServentRecBuffer[14], sizeof(float));
-			memcpy((void*)&gimbal_pitch_target_rx_d, &uartServentRecBuffer[18], sizeof(float));
+				memcpy((void*)&gimbal_pitch_dps_rx, &uartServentRecBuffer[14], sizeof(float));
+			memcpy((void*)&gimbal_yaw_target_rx_d, &uartServentRecBuffer[18], sizeof(float));
+			memcpy((void*)&gimbal_pitch_target_rx_d, &uartServentRecBuffer[22], sizeof(float));
 			for (uint8_t i = 0; i < 6; i++)
 			{
-				memcpy((void*)&gimbal_fric_rpm_rx_arr[i], &uartServentRecBuffer[22 + i * 2], sizeof(int16_t));
+				memcpy((void*)&gimbal_fric_rpm_rx_arr[i], &uartServentRecBuffer[26 + i * 2], sizeof(int16_t));
 			}
 			/* 兼容历史单摩擦轮变量 */
 			gimbal_fric_rpm_rx = gimbal_fric_rpm_rx_arr[0];

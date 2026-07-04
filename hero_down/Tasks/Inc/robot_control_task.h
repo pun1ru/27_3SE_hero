@@ -4,9 +4,8 @@
 
 #include "pid.h"
 #include "algorism.h"
-#include "adrc.h"
-#include "DMJ4310.h"
 #include "jointControl.h"
+#include "gimbalControl.h"
 
 // #define CHASSIS_FORWARD_YAW_MACHENICAL_ANGLE 5691 /* [DEPRECATED] GM6020遗留，现用DM电机 yaw_dm_forward_offset_rad */
 #define GIMBAL_FORWARD_YAW_MACHENICAL_ANGLE 5675//2240 //选定的云台正向朝向时的yaw电机机械角3832//新电机
@@ -86,10 +85,6 @@ typedef struct
 		float speed_x_mps;	// m/s
 		float speed_y_mps;	// m/s
 		float speed_w_rps;	// rps
-		/*欧拉角解算出底盘角度*/
-		float yaw_d;
-		float pitch_d;
-		float roll_d;
 		/*IMU底盘平地近似出的角速度*/
 		float imu_yaw_dps;
 	}ChassisEstimate;
@@ -101,80 +96,7 @@ typedef struct
 	}SuperCapacity;
 }ChassisControl;
 
-/**
- * @brief 云台控制相关结构体
- */
-typedef struct
-{
-	/*云台目标输入*/
-	struct
-	{
-		float pitch_angle_d;	//大pitch目标角
-		float small_pitch_angle_d;
-		float yaw_angle_d;		//期望的yaw目标角
-		float pitch_angular_velocity_dps; //pitch期望角速度
-		float yaw_angular_velocity_dps; //yaw期望角速度
-		float yaw_recoil_compensation_d;
-	}GimbalTargetInput;
-	/*云台控制相关*/
-	struct
-	{
-		/*控制器*/
-		PIDStruct pitch_calibration_pid;
-		
-		ADRC pitch_angle_adrc;
-		PIDStruct pitch_speed_pid;
-		
-		LTD pitch_LTD;//测试用,7.5分
-		LTD yaw_LTD;
-		
-		LTDPID pitch_LTD_pid;
-		LTDPID yaw_LTD_pid;
-
-		PIDStruct yaw_pos_pid;
-		PIDStruct yaw_speed_pid;
-		
-		/*PID输出*/
-		float yaw_PID_output;
-		/*前馈部分*/
-		float yaw_qian_kui;
-		/*电机实际输出值*/
-		int16_t yaw_target_output;
-		int16_t pitch_target_output;	
-		//		float small_pitch_velocity_output;因为使用了内部闭环
-		int16_t small_pitch_target_output;
-		uint32_t sniper_pos;
-		uint16_t sniper_max_speed;
-		uint8_t spin_dir;
-		float mit_p;
-		float mit_v;
-		float mit_Kp;
-		float mit_Kd;
-		float mit_Tff;
-		float yaw_window_tff;
-		
-	}GimbalMotorControl;
-	
-	/*云台真实姿态观测*/
-	struct
-	{
-		float pitch_angle_d;
-		float pitch_angle_before;
-		float pitch_angular_velocity_dps;
-		float small_pitch_actual_angle;
-		float robot_slope_angle;//机器人整体倾斜角度，没有用旋转矩阵计算的
-		float yaw_angle_d;
-		float yaw_angular_velocity_dps;	
-		float shoot_window_flag; // 发射窗口标志位: 1.0f窗口内, 0.0f窗口外
-		
-		float roll_angle_d;
-		float roll_angular_velocity_dps;
-		
-		//6.22 前馈准备
-//		float yaw_speed_error;
-//		float yaw_w;
-	}GimbalEstimate;
-}GimbalControl;
+/* GimbalControl 结构体已迁移至 gimbalControl.h */
 
  
 /**
@@ -225,5 +147,5 @@ typedef struct
 }ShootEstimate;
 }ShootControl;
 
-void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, float yaw_angle_w,float roll_angle,float roll_angle_w);
+/* GimbalPoseUpdate 声明已迁移至 gimbalControl.h */
 #endif

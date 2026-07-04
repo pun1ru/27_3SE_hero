@@ -88,10 +88,6 @@ typedef struct
 		float speed_x_mps;	// m/s
 		float speed_y_mps;	// m/s
 		float speed_w_rps;	// rps
-		/*欧拉角解算出底盘角度*/
-		float yaw_d;
-		float pitch_d;
-		float roll_d;
 		/*IMU底盘平地近似出的角速度*/
 		float imu_yaw_dps;
 	}ChassisEstimate;
@@ -165,7 +161,6 @@ typedef struct
 		float pitch_angle_before;
 		float pitch_angular_velocity_dps;
 		float small_pitch_actual_angle;
-		float robot_slope_angle;//机器人整体倾斜角度，没有用旋转矩阵计算的
 		float yaw_angle_d;
 		float yaw_angular_velocity_dps;	
 		
