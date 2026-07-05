@@ -22,11 +22,29 @@
 #include "peripheral_transmit_task.h"
 #include "peripheral_receive_task.h"
 #include "music_task.h"
-#include "robot_control_task.h"
 #include "judge_receive.h"
-#include "super_see_task.h"
-
+#include "task_estimate.h"
+#include "task_decision.h"
+#include "task_control.h"
 #include "distance_check.h"
+#include "UI_design.h"
+
+//包含共通的算法文件
+#include "algorism.h"
+#include "pid.h"
+#include "shoot_speed_best_contrl.h"
+#include "adrc.h"
+#include "arm_math.h"
+#include "gimbalControl.h"
+#include "jointControl.h"
+#include "DMJ4310.h"
+#include "MIT.h"
+#include "CAN_driver.h"
+#include "chassisControl.h"
+#include "stirControl.h"
+
+extern TaskHandle_t estimateTaskHandle;   /* 新增: EstimateTask 句柄 */
+
 /*该头文件只extern共享各任务共需的全局变量*/
 extern TaskHandle_t decisionTaskHandle;
 extern TaskHandle_t stateMachineTaskHandle;

@@ -188,6 +188,15 @@ void JointForceControlStep(const JointBodyState* body_state,
 						   float body_height_m,
 						   float body_height_vel_mps);
 
+/* 输入决策（DecisionTask 调用） */
+void JointInputUpdate(void);
+
+/* 观测估计（EstimateTask 调用） */
+void JointEstimateUpdate(void);
+
+/* 闭环控制（ControlTask 调用） */
+void JointControlUpdate(void);
+
 /* 上台阶检测：监测 distance > 290 连续 10 周期后降至 90 以下，置位 stair_up 模式 */
 void JointStairUpDetect(void);
 void JointStairUpDetectReset(void);

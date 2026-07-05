@@ -1,8 +1,8 @@
 #include "tim.h"
 #include "usart.h"
- 
-#include "general_task_include.h"
 #include "bsp_dwt.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 
 #include "ws2812.h"
 // 定义一个枚举类型来表示不同的音乐/声音ID

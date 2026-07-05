@@ -5,15 +5,7 @@
  */
 
 #include "gimbalControl.h"
-#include "algorism.h"
-#include "pid.h"
-#include "adrc.h"
-#include "state_task.h"
 #include "general_task_include.h"
-#include "peripheral_receive_task.h"
-#include "peripheral_transmit_task.h"
-#include "CAN_driver.h"
-#include "math.h"
 
 /*---------------------------------------------------------------------------全局实例-------------------------------------------------------------------------------------------*/
 GimbalControl gimbalControl = {0};

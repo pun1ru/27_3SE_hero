@@ -12,7 +12,7 @@
 #ifndef _MUSIC_MARDIO_H_
 #define _MUSIC_MARDIO_H_
 
-#include "general_task_include.h"
+#include "tim.h"  /* TIM_HandleTypeDef */
 
 void play_music(int pr,int wait_time,TIM_HandleTypeDef htim);
 int from_notes_to_pr(float note);
@@ -46,4 +46,22 @@ void all_paly_music(float *notes,int size,int wait_time,TIM_HandleTypeDef htim);
 										-1,-1,4,4,8,8,80,4,9,8,6,4,6,8,11,8,80,\
 										};//200
 	static const float sea_bottom[]={};
+	static const float my_most_precious_treasure[] = {
+    /* 一番の宝物 — Angel Beats! */
+    13, 15, 17, 20, 17, 15, 13, 10,
+    13, 15, 17, 20, 17, 15, 13, 15,
+
+    13, 13, 12, 10, 10,  8,  8, 10,
+    12, 13, 15, 15, 13, 12, 10,  8,
+    13, 13, 12, 10, 10,  8,  8, 10,
+    12,  8, 10, 12, 13, 15, 13, 12,
+
+    20, 20, 22, 20, 17, 15, 13, 10,
+    15, 17, 20, 22, 25, 80, 20, 22,
+    25, 22, 20, 17, 15, 13, 12, 10,
+     8, 10, 12, 13, 15, 13, 12, 10,
+    13, 12, 10,  8, 10, 12, 13, 80
+};
+
+
 #endif

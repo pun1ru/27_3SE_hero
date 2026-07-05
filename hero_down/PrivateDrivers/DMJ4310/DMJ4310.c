@@ -194,16 +194,17 @@ void clear_error(FDCAN_HandleTypeDef* hcan, uint16_t id)
 
 void lock_motor(FDCAN_HandleTypeDef* hcan, uint16_t id)
 {
-	uint8_t  Data[8];
+    uint8_t  Data[8];
+
+    Data[0] = 0xFF;
+    Data[1] = 0xFF;
+    Data[2] = 0xFF;
+    Data[3] = 0xFF;
+    Data[4] = 0xFF;
+    Data[5] = 0xFF;
+    Data[6] = 0xFF;
+    Data[7] = 0xFD;
+
+    CANTransmit_U8(hcan, id, Data);
+}
 	
-	Data[0] = 0xFF;
-	Data[1] = 0xFF;
-	Data[2] = 0xFF;
-	Data[3] = 0xFF;
-	Data[4] = 0xFF;
-	Data[5] = 0xFF;
-	Data[6] = 0xFF;
-	Data[7] = 0xFD;
-	
-	CANTransmit_U8(hcan, id, Data);
-}	

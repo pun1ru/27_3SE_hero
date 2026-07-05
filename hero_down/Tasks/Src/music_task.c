@@ -1,5 +1,7 @@
-#include "music_mardio.h"
-static void StartupNotice(const float* puzi,int wait_time,float pintiao);
+﻿#include "music_mardio.h"
+#include "general_task_include.h"
+#include "general_define.h"
+static void StartupNotice(const float* puzi, int arr_size, int wait_time, float pintiao);
 extern QueueHandle_t g_musicQueue;
 void Error_check();
 void Error_fuck();
@@ -22,17 +24,17 @@ void MusicTask(void* argument)
 		 if (xQueueReceive(g_musicQueue, &music_receive, 0) == pdPASS){
 				switch(music_receive){
 				 case 1:
-					 StartupNotice(umbrella,200,-8);//
+					 StartupNotice(my_most_precious_treasure, sizeof(my_most_precious_treasure)/sizeof(float), 150, -8);//
 				 break;
 				 case 2:
-					 StartupNotice(battlefiled,150,-8);//CAN报错音乐
+					 StartupNotice(battlefiled, sizeof(battlefiled)/sizeof(float), 150, -8);//CAN报错音乐
 				 break;
 				 case 3:
-					 StartupNotice(alone_earth,180,-8);
+					 StartupNotice(alone_earth, sizeof(alone_earth)/sizeof(float), 180, -8);
 				 break;
 				 default:
 					 a=music_receive;//call of stack
-					 StartupNotice(bleach,100,-8);
+					 StartupNotice(bleach, sizeof(bleach)/sizeof(float), 100, -8);
 			 }
 		 }
 		//xPortGetFreeHeapSize();
@@ -45,22 +47,13 @@ void MusicTask(void* argument)
 		vTaskDelayUntil(&current_tick_count, MUSIC_TASK_PERIOD_SET);
 	}
 }
-static void StartupNotice(const float* puzi,int wait_time,float pintiao)
+static void StartupNotice(const float* puzi, int arr_size, int wait_time, float pintiao)
 {
 	music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
-	int size = 0;
-		
-	#define playThis puzi
-	//float touhou[] = {3, 3, 8, 8, 10, 10, 13, 13, 10, 10, 8, 8, 3, 8, 10, 10, 3, 3, 8, 8, 10, 10, 13, 13, 15, 15, 10, 10, 8, 10, 8, 6};
-	//float zuki[] = {15, 15, 17, 17, 20, 22, 17, 15, 17, 17, 12, 1, 12, 1, 12, 8, 10, 10, 5, 8, 10, 13, 15, 13, 15, 1000, 15, 13, 12, 20, 17, 17};
-	//bleach 死神 number one
-	size = sizeof(out_wild) / sizeof(float);
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < arr_size; i++)
 	{
-		play_music(from_notes_to_pr(puzi[i]+pintiao), wait_time, BUZZER_TIM);
-		//HAL_IWDG_Refresh(&hiwdg1);
+		play_music(from_notes_to_pr(puzi[i] + pintiao), wait_time, BUZZER_TIM);
 	}
-//	HAL_Delay(10);
 	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
 extern const DMJ4310MotorRec* _DMyawMotorRec;

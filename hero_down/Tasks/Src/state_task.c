@@ -1,4 +1,4 @@
-#include "tim.h"
+﻿#include "tim.h"
 #include "general_config_label.h"
 //#include "distance_check.h"
 #include "general_task_include.h"
@@ -56,7 +56,7 @@ static void BlockOrDisturbDetect(uint16_t last_task_counter[])
 	current_task_counter[UPPER_COMM_TASK_NUM]	  = *(_taskMonitor->TaskFrameCounterPtr._upper_pc_comm_task);
 	current_task_counter[UI_OPERATION_TASK_NUM]	  = *(_taskMonitor->TaskFrameCounterPtr._ui_operation_task);
 	current_task_counter[MUSIC_TASK_NUM]	  = *(_taskMonitor->TaskFrameCounterPtr._music_task);
-	
+	current_task_counter[ESTIMATE_TASK_NUM]	  = *(_taskMonitor->TaskFrameCounterPtr._estimate_task);
 	#if defined REMOTE_RECEIVE_TASK_NUM
 		/*遥信号接收卡死检测，若超过三个软件看门狗周期无任何来源遥操作信号，遥操作事件组EVENT_GROUP_BIT_ERROR置位*/
 		static uint8_t remote_noreceive_warning_count = 0;
@@ -161,6 +161,15 @@ static void BlockOrDisturbDetect(uint16_t last_task_counter[])
 		taskIsBlockedOrDisturbedFlag &= (~UI_OPERATION_TASK_MASK);
 	#endif	
 		
+	#if defined ESTIMATE_TASK_NUM
+    if(current_task_counter[ESTIMATE_TASK_NUM] == last_task_counter[ESTIMATE_TASK_NUM]
+        || ((*(_taskMonitor->TaskRunPeriodPtr._estimate_task)) - ESTIMATE_TASK_PERIOD_SET) > 2)
+        taskIsBlockedOrDisturbedFlag |= ESTIMATE_TASK_MASK;
+    else
+        taskIsBlockedOrDisturbedFlag &= (~ESTIMATE_TASK_MASK);
+	#else
+    taskIsBlockedOrDisturbedFlag &= (~ESTIMATE_TASK_MASK);
+#endif
 	memcpy(last_task_counter, current_task_counter, CREATE_TASK_NUM * sizeof(uint16_t));
 }
 /*---------------------------------------------------------------------------task state update-----------------------------------------------------------------------------------*/
@@ -276,7 +285,6 @@ void xvni_42_heart_da(){
 }
 extern uint8_t stir_flag;//拨盘史
 extern uint16_t stall_count;  /* 拨盘堵转计数, 用于测试触发堵转恢复 */
-extern SemaphoreHandle_t superSeeSign;
 extern GimbalControl gimbalControl;
 extern ChassisControl chassisControl;
 int crawler_rotate_flag = 0;
@@ -600,7 +608,6 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 			}
 			if((norm_remote_cmd->RelativeCH.ch4) < -0.1){
 				robot_state->world_enable = WORLD_ENABLE_OFF;
-				xSemaphoreGive(superSeeSign);
 		}	
 	}
 	}/*这里是在switch之外*/

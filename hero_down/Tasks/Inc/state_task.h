@@ -1,4 +1,4 @@
-#ifndef _STATE_TASK_H_
+﻿#ifndef _STATE_TASK_H_
 #define _STATE_TASK_H_
 
 #include "stdint.h"
@@ -14,12 +14,12 @@ typedef struct
 		const uint16_t* _state_task;
 		const uint16_t* _decision_task;
 		const uint16_t* _control_task;
+		const uint16_t* _estimate_task;
 		const uint16_t* _imu_task;
 		const uint16_t* _debug_task;
 		const uint16_t* _upper_pc_comm_task;
 		const uint16_t* _ui_operation_task;
 		const uint16_t* _music_task;
-		const uint16_t* _super_see_task;
 	}TaskFrameCounterPtr;
 	struct
 	{
@@ -27,12 +27,12 @@ typedef struct
 		const uint32_t* _state_task;
 		const uint32_t* _decision_task;
 		const uint32_t* _control_task;
+		const uint32_t* _estimate_task;
 		const uint32_t* _imu_task;
 		const uint32_t* _debug_task;
 		const uint32_t* _upper_pc_comm_task;
 		const uint32_t* _ui_operation_task;		
 		const uint32_t* _music_task;
-		const uint32_t* _super_see_task;
 	}TaskRunPeriodPtr;
 }TaskMonitor;
  
@@ -41,6 +41,7 @@ typedef struct
 #define STATE_TASK_MASK 	 0x02
 #define DECISION_TASK_MASK	 0x04
 #define CONTROL_TASK_MASK 	 0x08
+#define ESTIMATE_TASK_MASK 	 0x100
 #define IMU_TASK_MASK		 0x10
 #define DEBUG_TASK_MASK		 0x20
 #define UPPER_COMM_TASK_MASK 0x40

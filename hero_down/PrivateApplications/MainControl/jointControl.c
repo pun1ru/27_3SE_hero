@@ -1,12 +1,13 @@
 #include "jointControl.h"
-#include "adrc.h"
+#include "general_task_include.h"
+/* 全局实例 */
+JointControl jointControl = {0};
+const JointControl* _jointControl = &jointControl;
 
-#include <math.h>
-#include <stdint.h>
-#include <string.h>
-#include "robot_control_task.h"
-extern JointControl jointControl;
+extern const DMJ4310MotorRec* _jointMotorEec;
 extern float distance;
+extern Pose gimbalPose;
+extern RobotState robotState;
 float k_toq_sign_map[JOINT_CTRL_MOTOR_NUM] = {1.0f, -1.0f, -1.0f, 1.0f};
 
 matrix_data_t g_joint_rot_leg_to_body_data[9] = {0};
@@ -1148,3 +1149,490 @@ uint8_t JointStairUpIsDetected(void)
 }
 
 
+
+/*============================================================================
+ * 从 robot_control_task.c 搬迁 — 关节全局变量 + 三个函数
+ *============================================================================*/
+
+JointBodyTarget g_joint_body_target_cmd = {0};
+static JointBodyState g_joint_body_state_obs = {0};
+float g_joint_body_pitch_ctrl_d = 0.0f;
+
+float climb_joint_pos[4]={0.143,-0.1200,-1.13,1.00};
+float normal_joint_pos[4]={0.05-0.9416,-0.003114+0.761,0.00819 +0.9416,0.009343-0.761};
+
+/*============================================================================
+ * JointInputUpdate — 关节输入决策 (DecisionTask 调用)
+ *============================================================================*/
+void JointInputUpdate(void)
+{
+	/* 在此处直接更新关节目标，不再通过数组映射 */
+	g_joint_body_target_cmd.roll_d = 0.0f;
+	g_joint_body_target_cmd.pitch_d = 0.0f;
+	g_joint_body_target_cmd.yaw_d = gimbalPose.yaw_d;
+	g_joint_body_target_cmd.roll_rate_dps = 0.0f;
+	g_joint_body_target_cmd.pitch_rate_dps = 0.0f;
+	g_joint_body_target_cmd.yaw_rate_dps = 0.0f;
+	if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+		g_joint_body_target_cmd.heave_m = 0.3900f;
+	else
+		g_joint_body_target_cmd.heave_m = 0.3400f;
+	g_joint_body_target_cmd.heave_vel_mps = 0.0f;
+}
+
+/*============================================================================
+ * JointEstimateUpdate — 关节观测估计 (EstimateTask 调用)
+ *============================================================================*/
+void JointEstimateUpdate(void)
+{
+	JointBodyState body_state_for_height = {0};
+	float body_height_m_obs = jointControl.JointEstimate.body_height_m;
+	float body_height_vel_mps_obs = jointControl.JointEstimate.body_height_vel_mps;
+	float joint_vel_radps_raw[4];
+
+	for(uint8_t i = 0; i < 4; i++)//更新数据
+	{
+		jointControl.JointEstimate.frame_counter[i] = _jointMotorEec[i].frame_counter;
+		jointControl.JointEstimate.id[i] = (uint32_t)_jointMotorEec[i].id;
+		jointControl.JointEstimate.state[i] = _jointMotorEec[i].state;
+		jointControl.JointEstimate.pos_d[i] = _jointMotorEec[i].pos_d*180/3.141592f;//注意原来是弧度
+		jointControl.JointEstimate.vel_radps[i] = _jointMotorEec[i].vel_radps*180/3.141592f;
+		joint_vel_radps_raw[i] = _jointMotorEec[i].vel_radps;
+		jointControl.JointEstimate.toq[i] = _jointMotorEec[i].toq;//反馈扭矩
+		jointControl.JointEstimate.Kp[i] = _jointMotorEec[i].Kp;
+		jointControl.JointEstimate.Kd[i] = _jointMotorEec[i].Kd;
+		jointControl.JointEstimate.Tmos[i] = _jointMotorEec[i].Tmos;
+		jointControl.JointEstimate.Tcoil[i] = _jointMotorEec[i].Tcoil;
+	}
+	float motor_angles_rad[4];
+	float feedback_pos_rad[4];
+	for(uint8_t i = 0; i < 4; i++)
+	{
+		feedback_pos_rad[i] = _jointMotorEec[i].pos_d;
+	}
+	JointBuildMotorAnglesRadFromFeedback(feedback_pos_rad, motor_angles_rad);
+	for(uint8_t i = 0; i < 4; i++)
+	{
+		jointControl.JointEstimate.motor_angles_rad[i] = motor_angles_rad[i];
+	}
+	//更新输入角
+	JointForceControlSetMotorAngleRad(motor_angles_rad);
+	//更新接触点在机体系中的位置
+	JointUpdateLegPoseFromMotorAngle();
+	//更新雅可比矩阵
+	JointUpdateLegJacobiansFromMotorAngle();
+	//更新接触检测
+	JointForceControlSetContact(jointControl.JointEstimate.frame_counter,
+					jointControl.JointEstimate.toq,
+					(_robotState->ctrl_terminal != CONTROL_STOP) ? 1u : 0u);
+
+	/* 观测态由 gimbalPose 提供，角速度先置 0（后续可替换为滤波角速度） */
+	g_joint_body_state_obs.pitch_d = gimbalPose.pitch_d;
+	g_joint_body_state_obs.yaw_d = gimbalPose.yaw_d;
+	g_joint_body_state_obs.roll_d = gimbalPose.roll_d;
+	g_joint_body_state_obs.roll_rate_dps = gimbalPose.roll_radps*57.29578f;
+	g_joint_body_state_obs.pitch_rate_dps = gimbalPose.pitch_radps*57.29578f;
+	g_joint_body_state_obs.yaw_rate_dps =gimbalPose.yaw_radps*57.29578f;
+	g_joint_body_state_obs.accel_x = gimbalPose.accel_x;
+	g_joint_body_state_obs.accel_y = gimbalPose.accel_y;
+	g_joint_body_state_obs.accel_z = gimbalPose.accel_z;
+
+	JointForceControlConvertBodyState(&g_joint_body_state_obs, &body_state_for_height);
+	//更新机体高度与竖直速度观测（世界系 z）
+	JointEstimateBodyHeightVelocity(&body_state_for_height,
+				       joint_vel_radps_raw,
+				       &body_height_m_obs,
+				       &body_height_vel_mps_obs);
+	jointControl.JointEstimate.body_height_m = body_height_m_obs;
+	jointControl.JointEstimate.body_height_vel_mps = body_height_vel_mps_obs;
+
+	/* 上台阶检测：仅在 PRE_STAIR 模式下使能，NORMAL / PRE_DOWN_STAIR 模式清除状态 */
+	if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+	{
+		JointStairUpDetect();
+	}
+	else if (_robotState->stand_mode == ROBOT_STAND_MODE_NORMAL
+	         || _robotState->stand_mode == ROBOT_STAND_MODE_PRE_DOWN_STAIR)
+	{
+		JointStairUpDetectReset();
+	}
+	if (JointStairUpIsDetected())
+	{
+		robotState.stand_mode = ROBOT_STAND_MODE_STAIR_UP;
+	}
+}//代办:检查速度映射
+
+/*============================================================================
+ * JointControlUpdate — 关节闭环控制 (ControlTask 调用)
+ *============================================================================*/
+void JointControlUpdate(void)
+{
+	JointBodyState body_state = g_joint_body_state_obs;
+	JointBodyState body_state_ctrl = {0};
+	JointBodyTarget body_target = g_joint_body_target_cmd;
+	static float preclimb_motor_target_angle_rad[JOINT_CTRL_MOTOR_NUM] = {
+		-2.05f, -2.05f, 1.05f, 1.05f,
+	};//-2.25f, -2.25f, 1.05f, 1.05f
+	static uint8_t last_joint_mode = ROBOT_JOINT_MODE_NORMAL;
+	static float climb_pitch_hold_d = 0.0f;
+	static uint8_t prev_stand_stair = 0;  /* STAIR_UP 斜坡持续标记，函数级 static */
+	extern float g_joint_motor_torque_cmd_nm[JOINT_CTRL_MOTOR_NUM];
+	float mit_pos_cmd_rad[JOINT_CTRL_MOTOR_NUM] = {0};
+	const float body_height_m = jointControl.JointEstimate.body_height_m;
+	const float body_height_vel_mps = jointControl.JointEstimate.body_height_vel_mps;
+
+	/*
+	 * 若高度相关目标暂未填写，默认跟随当前观测，避免一上电就产生大幅 heave 力。
+	 * 一旦你在 JointInputUpdate 中写入非零目标，这里会被覆盖。
+	 */
+	if (g_joint_body_target_cmd.heave_m == 0.0f)
+		body_target.heave_m = body_height_m;
+	if (g_joint_body_target_cmd.heave_vel_mps == 0.0f)
+		body_target.heave_vel_mps = body_height_vel_mps;
+	JointForceControlConvertBodyState(&body_state, &body_state_ctrl);
+	g_joint_body_pitch_ctrl_d = body_state_ctrl.pitch_d;
+
+	if (_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB)
+	{
+		/* CLIMB上坡模式走默认力控 */
+		JointForceControlSetJointMode(JOINT_NORMAL, 0.0f);
+	}
+	else if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB)
+	{
+		if (last_joint_mode != ROBOT_JOINT_MODE_OUTCLIMB)
+			climb_pitch_hold_d = 0.0f;
+		JointForceControlSetJointMode(JOINT_CLIMB, 0.0f);
+	}
+	else
+	{
+		JointForceControlSetJointMode(JOINT_NORMAL, 0.0f);
+	}
+	JointForceControlSetStandMode(_robotState->stand_mode);
+	JointForceControlSetJumpMode(_robotState->jump_mode);
+	last_joint_mode = _robotState->joint_mode;
+
+	JointForceControlStep(&body_state_ctrl,
+				      &body_target,
+				      body_height_m,
+				      body_height_vel_mps);
+
+	for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+	{
+		mit_pos_cmd_rad[i] = jointControl.JointEstimate.motor_angles_rad[i];
+	}
+	JointBuildFeedbackPosRadFromMotorAngles(mit_pos_cmd_rad, mit_pos_cmd_rad);
+	for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+	{
+		jointControl.JointMotorControl.mit_p[i] =0.0f;
+		jointControl.JointMotorControl.mit_v[i] = 0.0f;
+		jointControl.JointMotorControl.mit_Kp[i] = 0.0f;
+		jointControl.JointMotorControl.mit_Kd[i] = 0.0f;
+	}
+
+	enum
+	{
+		MIT_MODE_CLIMB = 0,
+		MIT_MODE_OUTCLIMB,
+		MIT_MODE_STAIR_UP,
+		MIT_MODE_PRECLIMB,
+		MIT_MODE_REVOLVE,
+		MIT_MODE_FORCE_LIMIT,
+		MIT_MODE_COUNT
+	};//- + - +
+	static const float mit_kp_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
+		[MIT_MODE_CLIMB] = { [LEG_LF] = 30.0f, [LEG_RF] = 30.0f, [LEG_RB] = 20.0f, [LEG_LB] = 20.0f },
+		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 40.0f, [LEG_RF] = 40.0f, [LEG_RB] = 40.0f, [LEG_LB] = 40.0f },
+		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 40.0f, [LEG_RF] = 40.0f, [LEG_RB] = 40.0f, [LEG_LB] = 40.0f },
+		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 60.0f, [LEG_RF] = 60.0f, [LEG_RB] = 60.0f, [LEG_LB] = 60.0f },
+		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 30.0f, [LEG_RF] = 30.0f, [LEG_RB] = 30.0f, [LEG_LB] = 30.0f }, // TODO: 陀螺模式位控Kp
+		[MIT_MODE_FORCE_LIMIT] = { [LEG_LF] = 30.0f, [LEG_RF] = 30.0f, [LEG_RB] = 30.0f, [LEG_LB] = 30.0f },
+	};
+	static const float mit_kd_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
+		[MIT_MODE_CLIMB] = { [LEG_LF] = 1.0f, [LEG_RF] = 1.0f, [LEG_RB] = 1.0f, [LEG_LB] = 1.0f },
+		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
+		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
+		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
+		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f }, // TODO: 陀螺模式位控Kd
+		[MIT_MODE_FORCE_LIMIT] = { [LEG_LF] = 5.0f, [LEG_RF] = 5.0f, [LEG_RB] = 5.0f, [LEG_LB] = 5.0f },
+	};
+	static const float mit_tff_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
+		[MIT_MODE_CLIMB] = { [LEG_LF] = -3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
+		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
+		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
+		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
+		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f }, // TODO: 陀螺模式前馈Tff
+		[MIT_MODE_FORCE_LIMIT] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
+	};
+	/* ===== 统一MIT位控角度计算 ===== */
+	uint8_t  mit_angle_active = 0u;
+	uint8_t  mit_mode_idx      = MIT_MODE_FORCE_LIMIT;
+	float    motor_target_angle_rad[JOINT_CTRL_MOTOR_NUM] = {0};
+
+	if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB)
+	{
+		mit_mode_idx = MIT_MODE_OUTCLIMB;
+		motor_target_angle_rad[LEG_LF] = -2.65f;
+		motor_target_angle_rad[LEG_RF] = -2.65f;
+		motor_target_angle_rad[LEG_RB] = -0.35f;
+		motor_target_angle_rad[LEG_LB] = -0.35f;
+		mit_angle_active = 1u;
+	}
+	else if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+	{
+		/* PRE_STAIR: 前腿MIT位控收腿到-2.50rad，后腿继续力控 */
+		float front_angles_rad[JOINT_CTRL_MOTOR_NUM];
+		float front_pos_rad[JOINT_CTRL_MOTOR_NUM];
+		front_angles_rad[LEG_LF] = -2.60f;
+		front_angles_rad[LEG_RF] = -2.60f;
+		front_angles_rad[LEG_RB] = jointControl.JointEstimate.motor_angles_rad[LEG_RB];
+		front_angles_rad[LEG_LB] = jointControl.JointEstimate.motor_angles_rad[LEG_LB];
+		JointBuildFeedbackPosRadFromMotorAngles(front_angles_rad, front_pos_rad);
+		/* 仅前腿走MIT位控，后腿保持力控(Tff由JointForceControlStep写入) */
+		for (uint8_t leg = LEG_LF; leg <= LEG_RF; leg++)
+		{
+			jointControl.JointMotorControl.mit_p[leg]  = front_pos_rad[leg];
+			jointControl.JointMotorControl.mit_v[leg]  = 0.0f;
+			jointControl.JointMotorControl.mit_Kp[leg] = 15.0f;
+			jointControl.JointMotorControl.mit_Kd[leg] = 0.0f;
+		}
+		/* 不设 mit_angle_active，避免统一应用覆盖后腿力控Tff */
+	}
+	else if (_robotState->stand_mode == ROBOT_STAND_MODE_STAIR_UP)
+	{
+		mit_mode_idx = MIT_MODE_STAIR_UP;
+		/* 目标角度缓慢变化，每周期收敛0.1rad */
+		static float    ramp_angle[JOINT_CTRL_MOTOR_NUM] = {0};
+		static uint8_t  stair_up_ramp_inited = 0;
+		const float target_angle[JOINT_CTRL_MOTOR_NUM] = {
+			[LEG_LF] = -2.60f, [LEG_RF] = -2.60f,
+			[LEG_RB] =  1.70f, [LEG_LB] =  1.70f,
+		};
+		/* 首次进入或从其他模式切回时，重新从当前角度开始斜坡 */
+		if (!stair_up_ramp_inited || !prev_stand_stair)
+		{
+			for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+				ramp_angle[i] = jointControl.JointEstimate.motor_angles_rad[i];
+			stair_up_ramp_inited = 1u;
+		}
+		for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+		{
+			float err = target_angle[i] - ramp_angle[i];
+			if (err >  0.1f)       ramp_angle[i] += 0.003f;
+			else if (err < -0.1f)  ramp_angle[i] -= 0.003f;
+			else                   ramp_angle[i] = target_angle[i];
+			motor_target_angle_rad[i] = ramp_angle[i];
+		}
+		mit_angle_active = 1u;
+		prev_stand_stair = 1u;
+	}
+	else if (_robotState->joint_mode == ROBOT_JOINT_MODE_PRECLIMB)
+	{
+		mit_mode_idx = MIT_MODE_PRECLIMB;
+		const float pitch_min_d = 0.0f;
+		const float pitch_max_d = 20.0f;
+		const float front_angle_pitch0_rad  = -2.25f;
+		const float front_angle_pitch20_rad = -2.66f;
+		float pitch_d = body_state_ctrl.pitch_d;
+		const float front_slope = (front_angle_pitch20_rad - front_angle_pitch0_rad) / (pitch_max_d - pitch_min_d);
+
+		if (pitch_d < pitch_min_d)
+			pitch_d = pitch_min_d;
+		else if (pitch_d > pitch_max_d)
+			pitch_d = pitch_max_d;
+
+		const float front_target_angle_rad = front_angle_pitch0_rad + front_slope * (pitch_d - pitch_min_d);
+		motor_target_angle_rad[LEG_LF] = front_target_angle_rad;
+		motor_target_angle_rad[LEG_RF] = front_target_angle_rad;
+		motor_target_angle_rad[LEG_RB] = preclimb_motor_target_angle_rad[LEG_RB];
+		motor_target_angle_rad[LEG_LB] = preclimb_motor_target_angle_rad[LEG_LB];
+		mit_angle_active = 1u;
+	}
+
+	/* 退出 STAIR_UP 时清除持续标记，使下次重新斜坡 */
+	if (_robotState->stand_mode != ROBOT_STAND_MODE_STAIR_UP)
+		prev_stand_stair = 0u;
+
+	uint16_t rev_exit_hold_cnt = 0;
+	/* 陀螺退出保持：退出陀螺后强制位控200周期，平滑过渡 */
+	{
+		static float    rev_exit_hold_angle_rad[JOINT_CTRL_MOTOR_NUM] = {0};
+		static uint8_t  last_revolve = 0;
+
+		if (_robotState->chassis_mode != CHASSIS_REVOLVE && last_revolve)
+		{
+			rev_exit_hold_angle_rad[LEG_LF] = -1.702f;
+			rev_exit_hold_angle_rad[LEG_RF] = -1.702f;
+			rev_exit_hold_angle_rad[LEG_RB] =  1.319f;
+			rev_exit_hold_angle_rad[LEG_LB] =  1.319f;
+			rev_exit_hold_cnt = 600;
+		}
+		last_revolve = (_robotState->chassis_mode == CHASSIS_REVOLVE) ? 1u : 0u;
+
+		if (rev_exit_hold_cnt > 0)
+		{
+			rev_exit_hold_cnt--;
+			for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+				motor_target_angle_rad[i] = rev_exit_hold_angle_rad[i];
+			mit_mode_idx    = MIT_MODE_REVOLVE;
+			mit_angle_active = 1u;
+		}
+	}
+
+	/* ===== 统一应用MIT位控参数 ===== */
+	if (mit_angle_active)
+	{
+		JointBuildFeedbackPosRadFromMotorAngles(motor_target_angle_rad, mit_pos_cmd_rad);
+		for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+		{
+			jointControl.JointMotorControl.mit_p[i]   = mit_pos_cmd_rad[i];
+			jointControl.JointMotorControl.mit_v[i]   = 0.0f;
+			jointControl.JointMotorControl.mit_Kp[i]  = mit_kp_table[mit_mode_idx][i];
+			jointControl.JointMotorControl.mit_Kd[i]  = mit_kd_table[mit_mode_idx][i];
+			jointControl.JointMotorControl.mit_Tff[i] = mit_tff_table[mit_mode_idx][i];
+		}
+	}
+
+	/* ===== 力控模式下强制位置限幅 ===== */
+	{
+		float motor_angle_min_rad[JOINT_CTRL_MOTOR_NUM] = {0};
+		float motor_angle_max_rad[JOINT_CTRL_MOTOR_NUM] = {0};
+		uint8_t limit_hit[JOINT_CTRL_MOTOR_NUM] = {0};
+		uint8_t limit_active = 0u;
+
+		JointGetMotorAngleLimitsRad(motor_angle_min_rad, motor_angle_max_rad);
+		if(_robotState->stand_mode==ROBOT_STAND_MODE_NORMAL)
+		{
+			motor_angle_max_rad[LEG_LF]-=0.20f;
+			motor_angle_max_rad[LEG_RF]-=0.20f;
+		}
+		const float limit_inset_rad = 0.05f;
+		for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+		{
+			const float angle = jointControl.JointEstimate.motor_angles_rad[i];
+			if (angle < motor_angle_min_rad[i])
+			{
+				motor_target_angle_rad[i] = motor_angle_min_rad[i] + limit_inset_rad;
+				limit_hit[i] = 1u;
+				limit_active = 1u;
+			}
+			else if (angle > motor_angle_max_rad[i])
+			{
+				motor_target_angle_rad[i] = motor_angle_max_rad[i] - limit_inset_rad;
+				limit_hit[i] = 1u;
+				limit_active = 1u;
+			}
+			else
+			{
+				motor_target_angle_rad[i] = angle;
+			}
+		}
+
+		if (limit_active)
+		{
+			JointBuildFeedbackPosRadFromMotorAngles(motor_target_angle_rad, mit_pos_cmd_rad);
+			for (uint8_t i = 0; i < JOINT_CTRL_MOTOR_NUM; i++)
+			{
+				if (!limit_hit[i])
+					continue;
+				jointControl.JointMotorControl.mit_p[i]  = mit_pos_cmd_rad[i];
+				jointControl.JointMotorControl.mit_v[i]  = 0.0f;
+				jointControl.JointMotorControl.mit_Kp[i] = mit_kp_table[MIT_MODE_FORCE_LIMIT][i];
+				jointControl.JointMotorControl.mit_Kd[i] = mit_kd_table[MIT_MODE_FORCE_LIMIT][i];
+			}
+		}
+	}
+
+	/* Y方向急停时前腿位控保持，防止惯性压弯前腿角度突变 */
+	/* PRE_DOWN_STAIR 模式下跳过急停位控 */
+	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_PRE_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_STAIR_UP&& rev_exit_hold_cnt == 0)
+	{
+		static float last_speed_y_mps = 0.0f;
+		static uint16_t decel_hold_cnt = 0;
+		static float decel_hold_angle_rad[2] = {0.0f, 0.0f}; /* LF, RF */
+		const float decel_enter_speed_mps = 0.30f;  /* 高于此速度视为"运动中" */
+		const float decel_exit_speed_mps = 0.20f;   /* 低于此速度视为"已急停" */
+		const uint16_t decel_hold_cycles = 200;     /* 位控保持周期数 */
+
+		/* 检测急停边沿：目标速度从高位骤降至低位 */
+		if (last_speed_y_mps > decel_enter_speed_mps &&
+		    chassisControl.ChassisRealNeedInput.speed_y_mps < decel_exit_speed_mps)
+		{
+			decel_hold_cnt = decel_hold_cycles;
+			/* 记录急停瞬间的前腿关节角作为位控目标 */
+			decel_hold_angle_rad[0] = jointControl.JointEstimate.motor_angles_rad[LEG_LF];
+			decel_hold_angle_rad[1] = jointControl.JointEstimate.motor_angles_rad[LEG_RF];
+		}
+
+		if (decel_hold_cnt > 0)
+		{
+			decel_hold_cnt--;
+			/* 前腿切位控模式，锁定急停瞬间角度 */
+			float hold_angles_rad[JOINT_CTRL_MOTOR_NUM];
+			hold_angles_rad[LEG_LF] = decel_hold_angle_rad[0];
+			hold_angles_rad[LEG_RF] = decel_hold_angle_rad[1];
+			hold_angles_rad[LEG_RB] = jointControl.JointEstimate.motor_angles_rad[LEG_RB];
+			hold_angles_rad[LEG_LB] = jointControl.JointEstimate.motor_angles_rad[LEG_LB];
+
+			float hold_pos_rad[JOINT_CTRL_MOTOR_NUM];
+			JointBuildFeedbackPosRadFromMotorAngles(hold_angles_rad, hold_pos_rad);
+
+			for (uint8_t leg = LEG_LF; leg <= LEG_RF; leg++)
+			{
+				jointControl.JointMotorControl.mit_p[leg]   = hold_pos_rad[leg];
+				jointControl.JointMotorControl.mit_v[leg]   = 0.0f;
+				jointControl.JointMotorControl.mit_Kp[leg]  = mit_kp_table[MIT_MODE_FORCE_LIMIT][leg];
+				jointControl.JointMotorControl.mit_Kd[leg]  = mit_kd_table[MIT_MODE_FORCE_LIMIT][leg];
+			}
+		}
+
+		last_speed_y_mps = chassisControl.ChassisRealNeedInput.speed_y_mps;
+	}
+
+	/* X方向移动时前腿位控保持，防止横向惯性压弯前腿角度突变 */
+	/* PRE_DOWN_STAIR 模式下跳过 */
+	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR&&_robotState->chassis_mode != CHASSIS_REVOLVE&&_robotState->stand_mode !=ROBOT_STAND_MODE_PRE_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_STAIR_UP&& rev_exit_hold_cnt == 0)
+	{
+		static float last_speed_x_mps = 0.0f;
+		static float x_hold_angle_rad[2] = {0.0f, 0.0f}; /* LF, RF */
+		static uint8_t x_hold_active = 0;
+		const float x_speed_deadband = 0.05f;  /* 低于此值视为无X输入 */
+
+		/* 检测X方向速度输入开始边沿：从静止到运动，记录输入前的关节角 */
+		if (fabs(last_speed_x_mps) < x_speed_deadband &&
+		    fabs(chassisControl.ChassisRealNeedInput.speed_x_mps) >= x_speed_deadband)
+		{
+			x_hold_angle_rad[0] = jointControl.JointEstimate.motor_angles_rad[LEG_LF];
+			x_hold_angle_rad[1] = jointControl.JointEstimate.motor_angles_rad[LEG_RF];
+			x_hold_active = 1;
+		}
+
+		/* X方向速度输入结束，释放保持 */
+		if (fabs(chassisControl.ChassisRealNeedInput.speed_x_mps) < x_speed_deadband)
+		{
+			x_hold_active = 0;
+		}
+
+		if (x_hold_active)
+		{
+			/* 前腿切位控模式，锁定速度输入前的角度 */
+			float hold_angles_rad[JOINT_CTRL_MOTOR_NUM];
+			hold_angles_rad[LEG_LF] = x_hold_angle_rad[0];
+			hold_angles_rad[LEG_RF] = x_hold_angle_rad[1];
+			hold_angles_rad[LEG_RB] = jointControl.JointEstimate.motor_angles_rad[LEG_RB];
+			hold_angles_rad[LEG_LB] = jointControl.JointEstimate.motor_angles_rad[LEG_LB];
+
+			float hold_pos_rad[JOINT_CTRL_MOTOR_NUM];
+			JointBuildFeedbackPosRadFromMotorAngles(hold_angles_rad, hold_pos_rad);
+
+			for (uint8_t leg = LEG_LF; leg <= LEG_RF; leg++)
+			{
+				jointControl.JointMotorControl.mit_p[leg]   = hold_pos_rad[leg];
+				jointControl.JointMotorControl.mit_v[leg]   = 0.0f;
+				jointControl.JointMotorControl.mit_Kp[leg]  = mit_kp_table[MIT_MODE_FORCE_LIMIT][leg];
+				jointControl.JointMotorControl.mit_Kd[leg]  = mit_kd_table[MIT_MODE_FORCE_LIMIT][leg];
+			}
+		}
+
+		last_speed_x_mps = chassisControl.ChassisRealNeedInput.speed_x_mps;
+	}
+}

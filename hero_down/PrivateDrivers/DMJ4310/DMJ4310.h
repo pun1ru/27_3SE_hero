@@ -70,5 +70,6 @@ void ctrl_motor2(FDCAN_HandleTypeDef* hcan, uint16_t id, float _pos, float _vel)
 
 void start_motor(FDCAN_HandleTypeDef* hcan, uint16_t id);
 void lock_motor(FDCAN_HandleTypeDef* hcan, uint16_t id);
+
 #endif
  

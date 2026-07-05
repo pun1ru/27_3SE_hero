@@ -1,4 +1,4 @@
-#include "distance_check.h"
+﻿#include "distance_check.h"
 #include <string.h>
 #include "tim.h"
 #include <stdint.h>
@@ -461,7 +461,7 @@ float g_error_angle; // 角度误差
 float g_calculated_height; // 实际计算出的高度
 
 // 外部声明（假设这些在其他地方定义，用于控制流程）
-extern int com_complet; // 假设这是一个任务完成标志
+int com_complet;
 extern uint8_t distance_error_flag; // 假设这是距离错误标志
 extern uint8_t outofrange_flag; // 假设这是超距标志
 extern uint8_t outofheight_flag; // 假设这是超高标志
@@ -568,7 +568,7 @@ float error;
 float height;
 uint32_t heightcount=0;
 // 第二个二分法：基于第一个二分法找到的角度，查找在指定射程下打到指定高度需要的角度
-extern int com_complet;
+int com_complet;
 float findAngleForHeight(float V0, float targetRange, float targetHeight, float m, float r, float C, float dt) {
 		com_complet=0;
 		/*在此处增加对错误数值的检查，如果有错误值，填充*/

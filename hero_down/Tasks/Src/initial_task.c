@@ -1,4 +1,4 @@
-/*
+﻿/*
  *                        _oo0oo_
  *                       o8888888o
  *                       88" . "88
@@ -49,6 +49,7 @@
 TaskHandle_t decisionTaskHandle;
 TaskHandle_t stateMachineTaskHandle;
 TaskHandle_t controlTaskHandle;
+TaskHandle_t estimateTaskHandle;
 TaskHandle_t upperPCCommTaskHandle;
 TaskHandle_t remoteRecTaskHandle;
 TaskHandle_t uiOperationTaskHandle;
@@ -56,67 +57,44 @@ TaskHandle_t monitorTaskHandle;
 TaskHandle_t imuTaskHandle;
 TaskHandle_t debugTaskHandle;
 TaskHandle_t musicTaskHandle;
-TaskHandle_t superSeeTaskHandle;
 
 QueueHandle_t g_musicQueue;//报错音乐的队列
-SemaphoreHandle_t superSeeSign; // 定义信号量句柄变量
 
 static void StartupNotice();
 /*外设及freertos相关初始化所需的其他源文件中的全局变量*/
 void InitTask(void const * argument)
 {
 	taskENTER_CRITICAL();
-	
-	/** PWM for IMU heating **/
-	// HAL_TIM_PWM_Start(&htim10,TIM_CHANNEL_1);               	
-	// __HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1,HEAT_MAX);
-	/**Laser**/
-	//LASER_ON();
-	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);//�s�开GPIO
-	
-	// 启动，WS2812变红
-	WS2812_SPI_Ctrl(50, 0, 0); //66CCFF
-	
 	DWT_Init(480);
 	/*初始化PWM，让蜂鸣器先狗叫*/
 	HAL_TIM_PWM_Start(&htim12,TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);//升温
 	
-	//StartupNotice();//奏乐！
+	StartupNotice();//奏乐！
 	
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2,500);//蜂鸣器！我的心跳！
 	
-	xTaskCreate(MonitorTask,        "MonitorTask_",       128,  NULL,  7,  &monitorTaskHandle      );
-	xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    	256,  NULL,  7,  &remoteRecTaskHandle    );
-	xTaskCreate(StateMachineTask,   "StateMachineTask_",  2048, NULL,  7,  &stateMachineTaskHandle );	
-	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	    512,  NULL,  4,  &decisionTaskHandle     );
-	xTaskCreate(ControlTask,        "ControlTask_",       512,  NULL,  6,  &controlTaskHandle      );
-	xTaskCreate(IMUTask, 						"IMUTask_",						512,  NULL,	 5,	 &imuTaskHandle			 		 );
-	xTaskCreate(DebugTask,          "DebugTask_",         256,  NULL,  4,  &debugTaskHandle        );
-	xTaskCreate(UIOperationTask,    "UIOperationTask_",   512,  NULL,  3,  &uiOperationTaskHandle  );
-	xTaskCreate(UpperPCCommTask,  	"UpperPCCommTask_", 	256,  NULL,  5,  &upperPCCommTaskHandle	 );	
-	xTaskCreate(MusicTask,					"MusicTaskHandle_",   512,	NULL,  2,  &musicTaskHandle				 );
+	xTaskCreate(MonitorTask,        "MonitorTask_",      128,  NULL,  4,  &monitorTaskHandle      );
+	xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    256,  NULL,  7,  &remoteRecTaskHandle    );
+	xTaskCreate(StateMachineTask,   "StateMachineTask_", 2048, NULL,  6,  &stateMachineTaskHandle );	
+	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	 512,  NULL,  5,  &decisionTaskHandle     );
+	xTaskCreate(EstimateTask, 	    "EstimateTask_", 	 512,  NULL,  5,  &estimateTaskHandle     );
+	xTaskCreate(ControlTask,        "ControlTask_",      512,  NULL,  5,  &controlTaskHandle      );
+	xTaskCreate(IMUTask, 			"IMUTask_",			 512,  NULL,  7,  &imuTaskHandle			 		 );
+	xTaskCreate(DebugTask,          "DebugTask_",        256,  NULL,  4,  &debugTaskHandle        );
+	xTaskCreate(UIOperationTask,    "UIOperationTask_",  512,  NULL,  3,  &uiOperationTaskHandle  );
+	xTaskCreate(UpperPCCommTask,  	"UpperPCCommTask_",  256,  NULL,  5,  &upperPCCommTaskHandle	 );	
+	xTaskCreate(MusicTask,			"MusicTaskHandle_",  512,	 NULL,  2,  &musicTaskHandle				 );
 	/*下面不是轮询，而是阻塞任务,*/
-	xTaskCreate(SuperSeeTask,				"SuperSeeTask_",      1024, NULL,  3,  &superSeeTaskHandle     );
 	//消息队列
 	g_musicQueue=xQueueCreate(1,2);
 	/*信号量创建*/
-	superSeeSign=xSemaphoreCreateBinary();
 	// 任务创建结束，进入除了PWM之外的外设初始化，WS2812变黄
-	WS2812_SPI_Ctrl(25, 25, 0);
-	
 	/* Enable 5V给舵机用 */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
 	PeripheralRecEnable();
-//	uint8_t init_enable[8]={0x00, 0x06, 0x00, 0x3C, 0x00, 0x01, 0x89, 0xD7};//电磁铁控制使能帧M00 06 00 3C 00 01 89 D7
-//    HAL_UART_Transmit_DMA(&MASTER_485_UART,init_enable, 8);
-//	uint8_t shoot_data[8]={0x00,0x06,0x00,0x3E,0x00,0x00,0xE9,0xD7};//00 06 00 3E 00 00 E9 D7//0占空比
-//	HAL_UART_Transmit_DMA(&MASTER_485_UART,shoot_data, 8);
-	// 完全OK，WS2812变绿
-	WS2812_SPI_Ctrl(0, 10, 0);
-	 
 
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 0);//关掉蜂鸣器
 		   	
@@ -126,21 +104,17 @@ void InitTask(void const * argument)
 
 static void StartupNotice()
 {
-	//music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
+	music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
 	int size = 0;
 		
-	#define playThis mygo
-	//float touhou[] = {3, 3, 8, 8, 10, 10, 13, 13, 10, 10, 8, 8, 3, 8, 10, 10, 3, 3, 8, 8, 10, 10, 13, 13, 15, 15, 10, 10, 8, 10, 8, 6};
-	//float zuki[] = {15, 15, 17, 17, 20, 22, 17, 15, 17, 17, 12, 1, 12, 1, 12, 8, 10, 10, 5, 8, 10, 13, 15, 13, 15, 1000, 15, 13, 12, 20, 17, 17};
-	//bleach 死神 number one
+	#define playThis alone_earth
 	size = sizeof(playThis) / sizeof(float);
+
 	for (int i = 0; i < size; i++)
 	{
-		//play_music(from_notes_to_pr(playThis[i]-8), 150, BUZZER_TIM);
+		play_music(from_notes_to_pr(playThis[i]-8), 100, BUZZER_TIM);
 		//HAL_IWDG_Refresh(&hiwdg1);
 	}
-//	HAL_Delay(10);
-//	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
 
 

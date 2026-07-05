@@ -1,3 +1,4 @@
 CompileFlags:
   CompilationDatabase: >-
     c:\Users\liaoz\Desktop\rm\Code\27_3SE_hero\hero_down\MDK-ARM\out\Hero_Reeeee64\Hero_Reeeee64
+  Add: [-I../../../PrivateDrivers/MIT]
