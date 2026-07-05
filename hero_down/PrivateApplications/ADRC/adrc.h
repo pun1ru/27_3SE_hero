@@ -103,6 +103,7 @@ void TDInitialize(TD* td, float r, float h0, float N, float min, float max);
 void TDUpdate(TD* td, float target);
 void ESOInitialize(ESO* eso, float h, float b, float b_01, float b_02, float b_03, float z3_limit, float min, float max);
 void ESOUpdate(ESO* eso, float feedback, float control_val);
+void ESO_Reset(ESO* eso, float z1);
 
 /// @brief 误差输出组合器
 typedef struct

@@ -100,61 +100,6 @@ void LTDUpdateNoLimit(LTD* ltd, float target)
 
 	/* 注意：此函数不做 x1 的限幅 or 环绕处理 */
 }
-//void LTDUpdate(LTD* ltd, float target)
-//{
-//    // 1. 在函数入口处，就检查输入状态是否合法
-//    if (!isfinite(ltd->x1) || !isfinite(ltd->x2)) {
-//        // 如果状态已经损坏，立即复位并返回
-//        ltd->x1 = target;
-//        ltd->x2 = 0.0f;
-//        return;
-//    }
-
-//    ltd->h = DWT_GetDeltaT(&ltd->cnt);
-//    float x1_delta = ltd->x1 - target;
-
-//    if(ltd->min != ltd->max) {
-//        x1_delta = AngleLimit(x1_delta, ltd->min, ltd->max);
-//    }
-//    
-//    // 2. 将复杂的计算拆分成多个安全的步骤
-//    float term1, term2, total_acceleration;
-
-//    // 计算第一项
-//    term1 = -2.0f * ltd->r * ltd->x2;
-//    if (!isfinite(term1)) { // 检查中间结果
-//        // 处理发散...
-//        ltd->x1 = target;
-//        ltd->x2 = 0.0f;
-//        return;
-//    }
-
-//    // 计算第二项
-//    term2 = -ltd->r * ltd->r * x1_delta;
-//    if (!isfinite(term2)) { // 检查中间结果
-//        // 处理发散...
-//        ltd->x1 = target;
-//        ltd->x2 = 0.0f;
-//        return;
-//    }
-
-//    total_acceleration = term1 + term2;
-//    if (!isfinite(total_acceleration)) { // 检查最终的加速度值
-//        // 处理发散...
-//        ltd->x1 = target;
-//        ltd->x2 = 0.0f;
-//        return;
-//    }
-
-//    // 3. 只有在所有计算都安全的情况下，才更新状态
-//    ltd->x1 += ltd->h * ltd->x2;
-//    ltd->x2 += ltd->h * total_acceleration;
-
-//    // 4. 最终再做一次限幅
-//    if(ltd->min != ltd->max) {
-//        ltd->x1 = AngleLimit(ltd->x1, ltd->min, ltd->max);	
-//    }
-//}
 void LTDPIDInitialize(LTDPID* ltdpid,float kp,float _pitchkd,float w_d_limit,float p_output_limit)
 {
 	ltdpid->kp=kp;
@@ -265,30 +210,20 @@ void ESOUpdate(ESO* eso, float feedback, float control_val)
 	
 	if(eso->min != eso->max)
 		eso->z1 = AngleLimit(eso->z1, eso->min, eso->max);
-    eso->z2 = DoubleEdgeLimiter(eso->z2,eso->z2_min,eso->z2_max);
-	  eso->z1 = DoubleEdgeLimiter(eso->z1,eso->z1_min,eso->z1_max);	
 }
 
-//void ESOUpdate(ESO* eso, float feedback, float control_val)
-//{
-//	float e = eso->z1 - feedback;//没有控制输入时eso观测会乱瞟,尝试限幅/状态机判断
-//	//extern float debug_w;
-//	//float e_w = eso->z2 - debug_w;
-//	if(eso->min != eso->max)
-//		e = AngleLimit(e, eso->min, eso->max);
-//    eso->z1 += eso->h * (eso->z2 - eso->beta_01 * e);
-//	if(eso->b != 0)
-//		eso->z2 = gimbalControl.GimbalEstimate.pitch_angular_velocity_dps;
-//	else
-//		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, eso->h));
-//    eso->z3 -= eso->h * (eso->beta_03 * Fal(e, 0.25, eso->h));	
-//   	eso->z3 = AbsLimiter(eso->z3, eso->z3_limit);
-//	
-//	if(eso->min != eso->max)
-//		eso->z1 = AngleLimit(eso->z1, eso->min, eso->max);
-//    eso->z2 = DoubleEdgeLimiter(eso->z2,eso->z2_min,eso->z2_max);
-//	  eso->z1 = DoubleEdgeLimiter(eso->z1,eso->z1_min,eso->z1_max);	
-//}
+/**
+ * @brief ESO 状态复位：z1对齐当前值，z2/z3清零
+ * @param eso ESO结构体
+ * @param z1  复位目标值（通常为当前反馈角）
+ */
+void ESO_Reset(ESO* eso, float z1)
+{
+	eso->z1 = z1;
+	eso->z2 = 0.0f;
+	eso->z3 = 0.0f;
+}
+
 
 /// @brief 线性组合器初始化
 /// @param esf ESF结构体
@@ -348,31 +283,11 @@ void LADRCInitialize(ADRC* adrc, float* td_init_val, float* lesf_init_val, float
 /// @param feedback 控制目标反馈值
 void LADRCUpdate(ADRC* adrc, float target, float feedback)
 {
-	//input transection
 	TDUpdate(&adrc->td, target);
-	//calculate control value without disturbance compensation
 	adrc->u_0 = LESFUpdate(&adrc->esf, AngleLimit(adrc->td.x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max), adrc->td.x2 - adrc->eso.z2);
-	//estimate disturbance compensation 
 	if(adrc->eso.b == 0)
 		adrc->u = adrc->u_0;
 	else
 		adrc->u = (adrc->u_0 - adrc->eso.z3) / (adrc->eso.b * 1.0f);
-	//update extensional state observer
 	ESOUpdate(&adrc->eso, feedback, adrc->u);
-}
-void LTDADRCUpdate(ADRC* adrc,LTD* ltd, float target, float feedback)
-{
-	//input transection
-	LTDUpdate(ltd, target);//LTD给出期望目标位置,速度
-	//calculate control value without disturbance compensation//强行改一下哎试试gimbalControl.GimbalEstimate.pitch_angular_velocity_dps
-	//居然挺有用的z2换成真是角速度
-//	adrc->u_0 = LESFUpdate(&adrc->esf, AngleLimit(ltd->x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max), ltd->x2 - adrc->eso.z2);
-	adrc->u_0 = LESFUpdate(&adrc->esf, AngleLimit(ltd->x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max), ltd->x2 - gimbalControl.GimbalEstimate.pitch_angular_velocity_dps)+ltd->x2*0;//加速度前馈试试
-	//estimate disturbance compensation //更新一阶e1,二阶e2,计算应该给出的控制量
-	if(adrc->eso.b == 0)
-		adrc->u = adrc->u_0;
-	else
-		adrc->u = (adrc->u_0 - adrc->eso.z3) / (adrc->eso.b * 1.0f);//最终给出的控制量就是lsef给出的控制量-观测的扰动再除以控制增益
-	//update extensional state observer
-	ESOUpdate(&adrc->eso, feedback, adrc->u);//eso更新观测的位置和速度
 }

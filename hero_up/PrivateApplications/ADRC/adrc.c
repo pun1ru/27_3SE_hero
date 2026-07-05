@@ -203,8 +203,6 @@ void ESOInitialize(ESO* eso, float h, float b, float b_01, float b_02, float b_0
 void ESOUpdate(ESO* eso, float feedback, float control_val)
 {
 	float e = eso->z1 - feedback;//没有控制输入时eso观测会乱瞟,尝试限幅/状态机判断
-	//extern float debug_w;
-	//float e_w = eso->z2 - debug_w;
 	if(eso->min != eso->max)
 		e = AngleLimit(e, eso->min, eso->max);
     eso->z1 += eso->h * (eso->z2 - eso->beta_01 * e);

@@ -393,25 +393,25 @@ static void DebugTransmit(void)
 	HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
 
 #else
-	/* ===== yaw控制调试帧 =====
-	 * 偏移  长度  类型    说明
-	 * 0-1    2   uint8   帧头 0xAA 0xBB
-	 * 2-5    4   float   LTD.x1        LTD跟踪位置(度)
-	 * 6-9    4   float   LTD.x2        LTD跟踪速度(度/s)
-	 * 10-13  4   float   yaw_target    yaw目标角度(度)
-	 * 14-17  4   float   yaw_target_dps yaw目标角速度(度/s)
-	 * 18-21  4   float   yaw_estimate  yaw实际位置(度)
-	 * 22-25  4   float   yaw_estimate_dps yaw实际角速度(度/s)
+	/* ===== yaw ADRC调试帧 =====
+^I * TD.x1         TD跟踪位置(度)
+^I * ESO.z1        ESO估计位置(度)
+^I * ESO.z3        ESO扰动估计
+^I * ADRC.u        LADRC控制输出
+^I * yaw_target    yaw目标角(度)
+^I * yaw_raw       yaw原始反馈(度)
 	 */
 	debug_data[0] = 0xAA;
 	debug_data[1] = 0xBB;
 
-	memcpy(&debug_data[2],  (void*)&gimbalControl.GimbalMotorControl.yaw_LTD.x1, 4);
-	memcpy(&debug_data[6],  (void*)&gimbalControl.GimbalMotorControl.yaw_LTD.x2, 4);
-	memcpy(&debug_data[10], (void*)&gimbalControl.GimbalTargetInput.yaw_angle_d, 4);
-	memcpy(&debug_data[14], (void*)&gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps, 4);
-	memcpy(&debug_data[18], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
-	memcpy(&debug_data[22], (void*)&_gimbalControl->GimbalEstimate.yaw_angular_velocity_dps, 4);
+	float td_x1_deg  = gimbalControl.GimbalMotorControl.yaw_ADRC.td.x1  * (180.0f / 3.141592f);
+	float eso_z1_deg = gimbalControl.GimbalMotorControl.yaw_ADRC.eso.z1 * (180.0f / 3.141592f);
+	memcpy(&debug_data[2],  (void*)&td_x1_deg, 4);
+	memcpy(&debug_data[6],  (void*)&eso_z1_deg, 4);
+	memcpy(&debug_data[10], (void*)&gimbalControl.GimbalMotorControl.yaw_ADRC.eso.z3, 4);
+	memcpy(&debug_data[14], (void*)&gimbalControl.GimbalMotorControl.yaw_ADRC.u, 4);
+	memcpy(&debug_data[18], (void*)&gimbalControl.GimbalTargetInput.yaw_angle_d, 4);
+	memcpy(&debug_data[22], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
 
 	HAL_UART_Transmit_DMA(&huart7, debug_data, 26);
 #endif

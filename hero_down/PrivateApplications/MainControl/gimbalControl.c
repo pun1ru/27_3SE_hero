@@ -30,9 +30,6 @@ static float micro_yaw = 0;
 static int   temp_yaw_count = 0;
 static int   last_temp_yaww = 0;
 
-/* yaw估计值一阶低通 */
-static SmoothFilter yaw_estimate_lpf;
-
 /*---------------------------------------------------------------------------外部引用-----------------------------------------------------------------------------------------*/
 /* RS485 接收数据 */
 extern volatile float gimbal_yaw_target_rx_d;
@@ -62,12 +59,11 @@ extern SmoothFilter MouseFilterX;
  */
 void GimbalInit(void)
 {
-	LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.003, -180, 180);
-	TDInitialize(&gimbalControl.GimbalMotorControl.yaw_TD, 20, 0.003, 1, -180, 180);
-	/* 位置环PI, 速度环PD */
-	PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,  4.0,  0.0, 0,     100, 40);
-	PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0008,    0.0, 300,   10);
-	SmoothFilterInitialize(&yaw_estimate_lpf, 0.85f);
+	/* yaw轴 LADRC 初始化 */
+	float td_init[3]   = {20.0f, 0.003f, 1.0f};                         // r, h0, N
+	float lesf_init[5] = {0.0f, 200.0f, 30.0f, 0.0f, 5000.0f};              // k_0, k_1, k_2, e_0_max, output_limit
+	float eso_init[6]  = {0.003f, 30.0f, 60.0f, 1000.0f, 3000.0f, 5000.0f}; // h, b, β01, β02, β03, z3_limit
+	LADRCInitialize(&gimbalControl.GimbalMotorControl.yaw_ADRC, td_init, lesf_init, eso_init, -3.14159f, 3.14159f);
 }
 
 /*---------------------------------------------------------------------------输入决策更新-------------------------------------------------------------------------------------*/
@@ -190,15 +186,6 @@ void GimbalEstimateUpdate(void)
 	/* 当前由 GimbalPoseUpdate() 在外层IMU任务中更新，此处预留 */
 }
 
-/**
- * @brief 云台位姿观测更新（由IMU任务调用，周期与IMU一致）
- * @param pitch_angle   观测pitch轴角，单位degree
- * @param pitch_angle_w 观测pitch角速度，单位rad/s
- * @param yaw_angle     观测yaw轴角，单位degree
- * @param yaw_angle_w   观测yaw角速度，单位rad/s
- * @param roll_angle    观测roll轴角，单位degree
- * @param roll_angle_w  观测roll角速度，单位rad/s
- */
 void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, float yaw_angle_w,
                       float roll_angle, float roll_angle_w)
 {
@@ -229,7 +216,9 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 	{
 		shit_delay_count = 0;
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
-		LTD_Reset(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalEstimate.yaw_angle_d);
+		float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
+		TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
+		ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
 		lastRobotState.lens = _robotState->sniper;
 	}
 }
@@ -247,22 +236,17 @@ void GimbalControlUpdate(void)
 	#endif
 
 	//---------------------------------------------yaw轴控制,MIT&IMU和编码器--------------------------------------------------------------------------------------------------
-		gimbalControl.GimbalEstimate.yaw_angle_d = SmoothFilterUpdate(&yaw_estimate_lpf, gimbalControl.GimbalEstimate.yaw_angle_d);
-		float yaw_pos_err_d = AngleLimit(gimbalControl.GimbalMotorControl.yaw_LTD.x1 - gimbalControl.GimbalEstimate.yaw_angle_d, -180.0f, 180.0f);
-		if(fabs(yaw_pos_err_d) < 0.4f){
-			// PIDSetParam(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   3.0f, 0.0f, 0.0f,   100.0f, 40.0f);
-			// PIDSetParam(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.12f, 0.0f, 0.010f, 0.0f,   10.0f);
-		}
-		else{
-			//PIDSetParam(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   4.0f, 0.0f, 0.0f,   100.0f, 40.0f);
-		}
-		LTDUpdate(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalTargetInput.yaw_angle_d);
-		
-		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_pos_pid, yaw_pos_err_d);
-		gimbalControl.GimbalMotorControl.w_d =  gimbalControl.GimbalMotorControl.yaw_LTD.x2+gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+		float yaw_fb = gimbalControl.GimbalEstimate.yaw_angle_d;
+
+		/* LADRC 角度环控制：TD跟踪目标 → LESF组合误差 → ESO估计+补偿 */
+		LADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
+		             gimbalControl.GimbalTargetInput.yaw_angle_d*(3.141592f/180.0f), yaw_fb*(3.141592f/180.0f));
+
+		/* 输出：w_d 用于上位机 debug，力矩取反补偿方向 */
+		gimbalControl.GimbalMotorControl.w_d = gimbalControl.GimbalMotorControl.yaw_ADRC.td.x2 * (180.0f / 3.141592f);
 		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.w_d;
-		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_speed_pid, gimbalControl.GimbalMotorControl.w_d - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
-		gimbalControl.GimbalMotorControl.yaw_target_output=-(gimbalControl.GimbalMotorControl.yaw_speed_pid.output );
+		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_ADRC.u);
+
 		//力矩方向:逆时针是正,顺时针负.大概零点几
 		//x1:初始位置顺时针是正
 		//x2(速度方向):逆时针是负,顺时针是正,大概十几,几十
@@ -303,7 +287,9 @@ void GimbalControlUpdate(void)
 	{
 		/* 退保护边沿：对齐目标和跟踪器状态，避免上电瞬间冲击 */
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
-		LTD_Reset(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalEstimate.yaw_angle_d);
+		float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
+		TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
+		ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
 		MIT_SetParam(&gimbalControl.GimbalMotorControl.mit, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
 		shit_delay_count = 0;
 	}
@@ -311,8 +297,9 @@ void GimbalControlUpdate(void)
 
 	if((CONTROL_STOP == _robotState->ctrl_terminal||shit_delay_count<30) && !c_key_aim_yaw_lock)
 	{
-
-		gimbalControl.GimbalTargetInput.yaw_angle_d=gimbalControl.GimbalEstimate.yaw_angle_d;
-		gimbalControl.GimbalMotorControl.yaw_LTD.error_sum=0;
+		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+		float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
+		TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
+		ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
 	}
 }

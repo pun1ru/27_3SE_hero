@@ -125,8 +125,6 @@ static void DecisionInit(void)
  */
 static void ChassisInputUpdate(void)
 {
-	/* RS485 IMU yaw 覆盖已移至 GimbalPoseUpdate()，此处不再重复 */
-
 	/*遥操作输入->云台坐标系下的输入->底盘坐标系下的输入->四个底盘电机的输入*/
 	
 	/*----------------------------------------------------------------------move---------------------------------------------------------------------------------------*/
@@ -145,12 +143,6 @@ static void ChassisInputUpdate(void)
 	//float max_speed_y_rps_error = 0.06 / (0.7 * fabs(chassisControl.ChassisEstimate.speed_y_mps) + 0.5) + 0.22 + (_robotState->auto_slope * 0.2 * (chassisControl.ChassisEstimate.speed_y_mps > 2.05));
 	//老电容控制板
 	float max_speed_y_rps_error = 0.07 / (0.7 * fabs(chassisControl.ChassisEstimate.speed_y_mps) + 0.5) + 0.22 - (_robotState->auto_slope * 0.2 * (chassisControl.ChassisEstimate.speed_y_mps > 1.95));
-//	
-//	if(_robotState->auto_slope)
-//	{
-//		//max_speed_y_rps_error = -0.07 / (0.7 * fabs(chassisControl.ChassisEstimate.speed_y_mps) + 0.2) + 0.4;
-//		max_speed_y_rps_error = 0.13 * atan(4 * chassisControl.ChassisEstimate.speed_y_mps - 4.5) + 0.25;
-//	}
 
 	switch(_robotState->ctrl_terminal)
 	{
@@ -354,7 +346,7 @@ static void ChassisInputUpdate(void)
 				if(_normRemoteCmd->PCMouse.mouse_right && _upperComputerComm->Receive.aiming_state == 0x33)
 					chassisControl.ChassisCoordinateInput.speed_w_rps = PIDUpdate(&(chassisControl.ChassisFollowControl.follow_speed_need_pid),\
 																			  chassisControl.ChassisEstimate.chassis_follow_angle_d\
-																				+-0.5*(AngleLimit(gimbalControl.GimbalMotorControl.yaw_LTD.x1 - gimbalControl.GimbalEstimate.yaw_angle_d,-180,+180))/*新增陈宝群补偿项，注意符号*/\
+																				+-0.5*(AngleLimit(gimbalControl.GimbalMotorControl.yaw_ADRC.td.x1 - gimbalControl.GimbalEstimate.yaw_angle_d,-180,+180))/*新增陈宝群补偿项，注意符号*/\
 																				);
 				else
 					chassisControl.ChassisCoordinateInput.speed_w_rps = PIDUpdate(&(chassisControl.ChassisFollowControl.follow_speed_need_pid),\
@@ -1166,10 +1158,10 @@ static void ChassisControlUpdate(void)
 	/* 上坡模式(CLIMB)：前腿功率1:3分配到后腿 */
 	if (_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB)
 	{
-		float front_sum = fabsf(chassisControl.WheelMotorControl.target_motor_output[LF]) +
-		                  fabsf(chassisControl.WheelMotorControl.target_motor_output[RF]);
-		float rear_sum  = fabsf(chassisControl.WheelMotorControl.target_motor_output[LB]) +
-		                  fabsf(chassisControl.WheelMotorControl.target_motor_output[RB]);
+		float front_sum = (float)abs(chassisControl.WheelMotorControl.target_motor_output[LF]) +
+		                  (float)abs(chassisControl.WheelMotorControl.target_motor_output[RF]);
+		float rear_sum  = (float)abs(chassisControl.WheelMotorControl.target_motor_output[LB]) +
+		                  (float)abs(chassisControl.WheelMotorControl.target_motor_output[RB]);
 		float total = front_sum + rear_sum;
 
 		if (total > 1e-3f)

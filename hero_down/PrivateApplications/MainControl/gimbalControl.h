@@ -21,13 +21,7 @@ typedef struct
 	struct
 	{
 		/*控制器*/
-		LTD yaw_LTD;
-		TD yaw_TD;
-
-		LTDPID yaw_LTD_pid;
-
-		PIDStruct yaw_pos_pid;
-		PIDStruct yaw_speed_pid;
+        ADRC yaw_ADRC;
 
 		/*PID输出*/
 		float yaw_PID_output;
