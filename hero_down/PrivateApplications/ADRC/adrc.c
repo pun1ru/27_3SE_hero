@@ -23,7 +23,6 @@ static float fhan(float x1, float x2, float r, float h)
 	sa = (fsgn(a + d) - fsgn(a - d)) / 2.0f;
 	return -r * (a / (1.0f * d) - fsgn(a)) * sa - r * fsgn(a);
 }
-
 /**
   * @brief  非线性fal函数
   * @retval float 
@@ -202,9 +201,9 @@ void ESOUpdate(ESO* eso, float feedback, float control_val)
 		e = AngleLimit(e, eso->min, eso->max);
     eso->z1 += eso->h * (eso->z2 - eso->beta_01 * e);
 	if(eso->b != 0)
-		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 1*eso->h) + eso->b * control_val);
+		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 10*eso->h) + eso->b * control_val);
 	else
-		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 1*eso->h));//改成10被步长
+		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 10*eso->h));//改成10被步长
     eso->z3 -= eso->h * (eso->beta_03 * Fal(e, 0.25, eso->h));	
    	eso->z3 = AbsLimiter(eso->z3, eso->z3_limit);
 	
@@ -289,5 +288,25 @@ void LADRCUpdate(ADRC* adrc, float target, float feedback)
 		adrc->u = adrc->u_0;
 	else
 		adrc->u = (adrc->u_0 - adrc->eso.z3) / (adrc->eso.b * 1.0f);
+	ESOUpdate(&adrc->eso, feedback, adrc->u);
+}
+
+/// @brief 线性自抗扰计算 V2 — e2 使用实际测量速度代替 ESO.z2
+/// @param adrc 自抗扰控制计算所需结构体
+/// @param target 控制目标期望值 (rad)
+/// @param feedback 控制目标反馈值 (rad)
+/// @param actual_velocity 实际测量角速度 (rad/s)，替代 eso.z2 参与 LESF 组合
+/// @param z3_gain 扰动补偿权重 (0~1)，乘在 z3 上：u = (u0 - z3_gain*z3) / b
+void LADRCUpdateV2(ADRC* adrc, float target, float feedback, float actual_velocity, float z3_gain)
+{
+	TDUpdate(&adrc->td, target);
+	/* V2: e2 = td.x2 - actual_velocity，用实测速度替换 ESO 估计速度 */
+	adrc->u_0 = LESFUpdate(&adrc->esf,
+		AngleLimit(adrc->td.x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max),
+		adrc->td.x2 - actual_velocity);
+	if(adrc->eso.b == 0)
+		adrc->u = adrc->u_0;
+	else
+		adrc->u = (adrc->u_0 - z3_gain * adrc->eso.z3) / (adrc->eso.b * 1.0f);
 	ESOUpdate(&adrc->eso, feedback, adrc->u);
 }

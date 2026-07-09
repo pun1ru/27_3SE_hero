@@ -435,6 +435,7 @@ void IMUTask(void* argument)
 			IMUSolverUseEKFUserFunc(&imuUseEKFSolver, &imuRecData);
 		#endif
 		PoseUpdateFromIMU(&gimbalPose, &imuUseEKFSolver);
+		RS485_SendIMU();  /* IMU数据立即发出 */
 		
 		/*任务状态更新*/
 		task_counter++;

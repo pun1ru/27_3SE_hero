@@ -50,10 +50,6 @@ void ControlTask(void* argument)
 
     /* 启动电机 */
     start_motor(&hfdcan1, GMJ4310MOTOR_ID);
-    uint8_t adata[8];
-    LK_Motor_run(adata);
-    CANTransmit_U8(&hfdcan2, 0x141, adata);
-    CANTransmit_U8(&hfdcan3, 0x142, adata);
     vTaskDelay(200);
 
     /* 清空残留通知 */
@@ -64,6 +60,9 @@ void ControlTask(void* argument)
         /* 阻塞等待 EstimateTask 通知 */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
+        /* 控制链监控：记录 Control 开始执行时刻 */
+        g_chain_timer.cyc_ctrl_entry = DWT->CYCCNT;
+
         /* 闭环控制 — 各函数实现已搬迁至 MainControl 模块文件 */
         ChassisControlUpdate();      /* chassisControl.c */
         GimbalControlUpdate();       /* gimbalControl.c */
@@ -72,6 +71,16 @@ void ControlTask(void* argument)
 
         /* 统一 CAN 发送 */
         MotorControlCANSend();       /* peripheral_transmit_task.c */
+
+        /* 控制链监控：记录 Control 执行完毕 + 刷新各段微秒延迟 */
+        g_chain_timer.cyc_ctrl_exit = DWT->CYCCNT;
+        g_chain_timer.imu_to_est_us  = CTRL_CHAIN_CYC_TO_US(g_chain_timer.cyc_est_entry  - g_chain_timer.cyc_imu_notify);
+        g_chain_timer.est_exec_us    = CTRL_CHAIN_CYC_TO_US(g_chain_timer.cyc_est_exit   - g_chain_timer.cyc_est_entry);
+        g_chain_timer.est_to_ctrl_us = CTRL_CHAIN_CYC_TO_US(g_chain_timer.cyc_ctrl_entry - g_chain_timer.cyc_est_exit);
+        g_chain_timer.ctrl_exec_us   = CTRL_CHAIN_CYC_TO_US(g_chain_timer.cyc_ctrl_exit  - g_chain_timer.cyc_ctrl_entry);
+        g_chain_timer.chain_total_us = CTRL_CHAIN_CYC_TO_US(g_chain_timer.cyc_ctrl_exit  - g_chain_timer.cyc_imu_notify);
+        if (g_chain_timer.chain_total_us > g_chain_timer.chain_max_us)
+            g_chain_timer.chain_max_us = g_chain_timer.chain_total_us;
 
         /* 任务周期监控 */
         task_counter++;

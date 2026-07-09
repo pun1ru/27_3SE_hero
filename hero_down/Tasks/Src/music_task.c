@@ -24,7 +24,7 @@ void MusicTask(void* argument)
 		 if (xQueueReceive(g_musicQueue, &music_receive, 0) == pdPASS){
 				switch(music_receive){
 				 case 1:
-					 StartupNotice(my_most_precious_treasure, sizeof(my_most_precious_treasure)/sizeof(float), 150, -8);//
+					 //StartupNotice(my_most_precious_treasure, sizeof(my_most_precious_treasure)/sizeof(float), 150, -8);//
 				 break;
 				 case 2:
 					 StartupNotice(battlefiled, sizeof(battlefiled)/sizeof(float), 150, -8);//CAN报错音乐

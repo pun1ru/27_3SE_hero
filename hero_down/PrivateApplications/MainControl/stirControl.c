@@ -9,6 +9,8 @@ const ShootControl* _shootControl = &shootControl;
 uint16_t stall_count = 0;
 uint8_t  stir_stall_recovery_state = 0;
 uint8_t  stir_flag = 0;
+uint8_t  stir_two_step_phase = 0;   /* 二段拨弹: 0=空闲, 1=第一段30°完成等待300ms, 2=第二段30°完成 */
+uint16_t stir_delay_counter = 0;    /* 二段拨弹延时计数 (30 = 300ms @10ms/周期) */
 
 /* 射击/摩擦轮相关变量 — 从 robot_control_task.c 搬迁 */
 float targetspeed[30] = {0};
@@ -68,9 +70,13 @@ void ShootInputUpdate(void)
 	const float     stall_reverse_angle_d = 20.0f;   /* 反转角度(度) */
 	const float     stall_arrive_tolerance_d = 4.0f; /* 到位容差(度) */
 
-	/* 堵转上升沿: 保存预置位, 清除堵转标志, 开始反转20度 */
+	/* 堵转上升沿: 中止二段拨弹, 保存预置位, 清除堵转标志, 开始反转20度 */
 	if (shootControl.ShootEstimate.stir_block_flag == 1 && last_stir_block == 0 && stir_stall_recovery_state == 0)
 	{
+		stir_two_step_phase = 0;  /* 中止当前二段, 恢复完重新来过 */
+		stir_flag = 0;
+		stir_delay_counter = 0;
+
 		stall_preset_target_d = shootControl.ShootTargetInput.stir_all_target_pos_d;
 		stall_reverse_target_d = shootControl.ShootEstimate.stir_all_angle_d + stall_reverse_angle_d;
 		shootControl.ShootTargetInput.stir_all_target_pos_d = stall_reverse_target_d;
@@ -124,29 +130,56 @@ void ShootInputUpdate(void)
 
 	uint8_t in_stall_recovery = (stir_stall_recovery_state != 0);
 
-	//uint8_t stir_flag = 0; 变成全局变量
-	/*删除了maddaog*/
-	/*如果目标角度接近当前角度*/
-	/*并且发射脉冲为0，并且 不堵转 或 正在堵转恢复中(恢复期间不发射) */
-	//要加新的堵转保护,更严格的限制
-	if((_robotState->stir_mode == STIR_ANGLE_CONTROL)\
-	&& fabs(shootControl.ShootTargetInput.stir_all_target_pos_d - shootControl.ShootEstimate.stir_all_angle_d) < 5.0f\
-	&&stir_flag == 0 && (shootControl.ShootEstimate.stir_block_flag == 0 || in_stall_recovery)\
-	/*&&ext_game_robot_status.shooter_barrel_heat_limit - ext_power_heat_data.shooter_42mm_barrel_heat >= 100*/)
+	/* ===== 二段拨弹状态机 (20° + 300ms延时 + 40°) =====
+	 * Phase 0: 空闲, 等待 stir_mode=ANGLE_CONTROL + 拨盘到位
+	 * Phase 1: 第一段20°到位 → 延时300ms → 发出第二段40°
+	 * Phase 2: 二段完成, 等待 stir_mode=LOCK 复归 (防止连发)
+	 * ===================================================== */
+	switch (stir_two_step_phase)
 	{
-		/* 堵转恢复期间不发射, 仅正常模式下发射 */
-			if (!in_stall_recovery)
+	case 0:  /* 空闲 — 等待发射触发 */
+		if (_robotState->stir_mode == STIR_ANGLE_CONTROL
+			&& fabs(shootControl.ShootTargetInput.stir_all_target_pos_d - shootControl.ShootEstimate.stir_all_angle_d) < 5.0f
+			&& shootControl.ShootEstimate.stir_block_flag == 0
+			&& !in_stall_recovery)
+		{
+			shootControl.ShootTargetInput.stir_all_target_pos_d -= 20.0f;  /* 第一段: 20° */
+			stir_two_step_phase = 1;
+			stir_delay_counter = 0;
+			stir_flag = 1;
+
+			shootControl.ShootEstimate.shoot_count++;
+			extern void xvni_42_heart_da();
+			xvni_42_heart_da();
+			stall_count = 0;
+			shootControl.ShootEstimate.stir_block_flag = 0;
+		}
+		break;
+
+	case 1:  /* 第一段到位 → 延时300ms → 第二段40° */
+		if (fabs(shootControl.ShootTargetInput.stir_all_target_pos_d - shootControl.ShootEstimate.stir_all_angle_d) < 5.0f)
+		{
+			if (++stir_delay_counter >= 30)  /* 30 × 10ms = 300ms */
 			{
-				/*观测值校准*/
-				shootControl.ShootEstimate.shoot_count++;//发射计数器增加
-				extern void xvni_42_heart_da();
-				xvni_42_heart_da();//虚拟热量更新
-				shootControl.ShootTargetInput.stir_all_target_pos_d-=60;
-				stir_flag=1;//修改发射脉冲，什么玩意啊真几把没用
+				shootControl.ShootTargetInput.stir_all_target_pos_d -= 40.0f;  /* 第二段: 40° */
+				stir_two_step_phase = 2;
+				stir_delay_counter = 0;
 			}
+		}
+		else
+		{
+			stir_delay_counter = 0;  /* 未到位, 清零延时重等 */
+		}
+		break;
+
+	case 2:  /* 二段完成 — 等待 stir_mode=LOCK 复归, 防止连发 */
+		if (_robotState->stir_mode == STIR_LOCK)
+		{
+			stir_two_step_phase = 0;
+			stir_flag = 0;
+		}
+		break;
 	}
-	else if(_robotState->stir_mode == STIR_LOCK)
-	stir_flag = 0;
 
 	shootControl.ShootTargetInput.stir_target_pos_rad = shootControl.ShootTargetInput.stir_target_pos / 180.0f * PI;
 	shootControl.ShootTargetInput.stir_all_target_pos_rad =shootControl.ShootTargetInput.stir_all_target_pos_d/ 180.0f * PI;

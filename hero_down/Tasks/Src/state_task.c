@@ -1,4 +1,4 @@
-﻿#include "tim.h"
+#include "tim.h"
 #include "general_config_label.h"
 //#include "distance_check.h"
 #include "general_task_include.h"
@@ -6,6 +6,10 @@
 /*---------------------------------------------------------------------------task monitor-----------------------------------------------------------------------------------*/
 TaskMonitor taskMonitor;
 TaskMonitor* _taskMonitor = &taskMonitor;
+
+/* 控制链延迟监控全局实例 */
+CtrlChainTimer g_chain_timer = {0};
+
 extern JointControl jointControl;
 extern float g_joint_body_pitch_ctrl_d;
 
@@ -283,7 +287,6 @@ void xvni_42_heart_da(){
 //	if(xvni>=ext_game_robot_status.shooter_barrel_heat_limit)
 //		xvni=ext_game_robot_status.shooter_barrel_heat_limit;
 }
-extern uint8_t stir_flag;//拨盘史
 extern uint16_t stall_count;  /* 拨盘堵转计数, 用于测试触发堵转恢复 */
 extern GimbalControl gimbalControl;
 extern ChassisControl chassisControl;
@@ -499,7 +502,6 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 				{
 					robot_state->stir_mode = STIR_ANGLE_CONTROL;
 					wait_flag = 0;
-					stir_flag=0;
 					shoot_wait += 60;//发弹延时
 				}
 				else{

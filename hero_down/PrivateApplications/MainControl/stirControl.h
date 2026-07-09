@@ -73,6 +73,8 @@ extern ShootControl shootControl;
 extern uint16_t stall_count;
 extern uint8_t  stir_stall_recovery_state;
 extern uint8_t  stir_flag;
+extern uint8_t  stir_two_step_phase;
+extern uint16_t stir_delay_counter;
 
 /* 射击/摩擦轮变量 */
 extern float predict_speed0;

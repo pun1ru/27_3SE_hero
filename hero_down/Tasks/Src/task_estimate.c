@@ -24,6 +24,9 @@ void EstimateTask(void* argument)
         /* 阻塞等待 IMUTask 通知 */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
+        /* 控制链监控：记录 Estimate 开始执行时刻 */
+        g_chain_timer.cyc_est_entry = DWT->CYCCNT;
+
         /* 观测更新 — 各函数实现已搬迁至 MainControl 模块文件 */
         ChassisEstimateUpdate();      /* chassisControl.c */
         JointEstimateUpdate();        /* jointControl.c */
@@ -36,6 +39,9 @@ void EstimateTask(void* argument)
         {
             xTaskNotifyGive(controlTaskHandle);
         }
+
+        /* 控制链监控：记录 Estimate 执行完毕时刻 */
+        g_chain_timer.cyc_est_exit = DWT->CYCCNT;
 
         /* 任务周期监控 */
         task_counter++;

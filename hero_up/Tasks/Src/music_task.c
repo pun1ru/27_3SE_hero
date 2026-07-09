@@ -23,7 +23,7 @@ void MusicTask(void* argument)
 		 if (xQueueReceive(g_musicQueue, &music_receive, 0) == pdPASS){
 				switch(music_receive){
 				 case 1:
-					 StartupNotice(battlefiled,200,-8);
+					 //StartupNotice(run_to_night,200,-8);
 				 break;
 				 case 2:
 					 StartupNotice(battlefiled,150,-8);

@@ -5,6 +5,7 @@
  * @note  总线挂载情况：CAN1-(4*M3508底盘电机)+(GM6020yaw电机+电容控制板通信)；CAN2-(GM6020pitch电机+2*M3508摩擦轮电机)+MS4010拨盘电机
  */
 void MotorControlCANSend(void);
+void RS485_SendIMU(void);
 /**
  * @brief LED闪烁实现
  */
