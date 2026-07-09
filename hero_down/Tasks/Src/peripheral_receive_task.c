@@ -422,6 +422,9 @@ void IMUTask(void* argument)
         if (estimateTaskHandle != NULL)
             xTaskNotifyGive(estimateTaskHandle);
 
+        /* 控制链监控：记录 IMU 通知发出的时刻 */
+        g_chain_timer.cyc_imu_notify = DWT->CYCCNT;
+
         vTaskDelayUntil(&current_tick_count, IMU_TASK_PERIOD_SET);
     }
 }
