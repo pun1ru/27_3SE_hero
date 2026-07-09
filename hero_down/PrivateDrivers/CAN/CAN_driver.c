@@ -59,9 +59,9 @@ void can_filter_init(void)
 	HAL_FDCAN_ConfigFilter(&hfdcan2,&fdcan_filter);
 	fdcan_filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO1; 
 	fdcan_filter.FilterType = FDCAN_FILTER_MASK;//
-	fdcan_filter.FilterID1 = 0x000; // ID值不重要
-	fdcan_filter.FilterID2 = 0x300; // 掩码为0，所有11位都不关心，即接收所有标准ID        
-	HAL_FDCAN_ConfigFilter(&hfdcan3,&fdcan_filter); 
+	fdcan_filter.FilterID1 = 0x000; // 参考ID
+	fdcan_filter.FilterID2 = 0x000; // 掩码=0：接收所有标准ID（之前0x300会拦截0x100+）
+	HAL_FDCAN_ConfigFilter(&hfdcan3,&fdcan_filter);
 	HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);//reject all extid
 	HAL_FDCAN_ConfigGlobalFilter(&hfdcan2, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
 	HAL_FDCAN_ConfigGlobalFilter(&hfdcan3, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);

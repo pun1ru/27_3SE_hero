@@ -2,85 +2,196 @@
 
 ## 项目概述
 
-RoboMaster 机甲大师赛 **Hero 机器人** 嵌入式控制代码。基于 **STM32H723/H743** 平台，运行 **FreeRTOS** 实时操作系统，使用 **Keil MDK-ARM** 编译。
+RoboMaster 机甲大师赛 **Hero 机器人** 嵌入式控制代码。基于 **STM32H723VGTx** 平台（Cortex-M7），运行 **FreeRTOS** 实时操作系统，使用 **Keil MDK-ARM** 编译。
 
 项目为双板架构：
-- **hero_down（下板）**：底盘 + 云台 + 发射主控逻辑，包含完整的 `MainControl` 模块
-- **hero_up（上板）**：hero_down 的镜像精简版，无 `MainControl`，两个代码树的 `PrivateApplications/` 和 `PrivateDrivers/` 共用相同模块
+- **hero_down（下板）**：底盘 + 云台 + 发射主控逻辑，包含完整的 `MainControl` 模块 ★ 已重构
+- **hero_up（上板）**：下板的精简镜像，无 `MainControl`，负责世界系云台解算等 **⚠ 待同步重构**
 
 ## 目录结构
 
 ```
 27_3SE_hero/
 ├── hero_down/
-│   ├── Core/Inc, Core/Src          # STM32CubeMX HAL 初始化（main.c, stm32h7xx_it.c 等）
-│   ├── Drivers/                    # CMSIS + STM32H7 HAL 库
-│   ├── MDK-ARM/                    # Keil MDK 工程（Hero_Reeeee64.uvprojx）
-│   ├── PrivateApplications/        # 控制算法层
-│   │   ├── ADRC/                   # 自抗扰控制（TD, ESO, LTD, LESF, ADRC, LADRC）
-│   │   ├── Algorism/               # 通用工具函数（信号处理、多项式等）
-│   │   ├── MainControl/            # 主控制逻辑 ★ 仅 hero_down
-│   │   │   ├── gimbalControl.c/h   # 云台控制（yaw/pitch 输入决策→观测→闭环）
-│   │   │   ├── chassisControl.c/h  # 底盘控制
-│   │   │   ├── shootControl.c/h    # 发射控制
-│   │   │   └── jointControl.c/h    # 关节控制
-│   │   ├── PID/                    # PID 控制器
-│   │   ├── IMU_solver/             # IMU 姿态解算
-│   │   ├── kalman_filter/          # 卡尔曼滤波
-│   │   ├── judge_rec/              # 裁判系统数据接收
-│   │   ├── LK/                     # LK 电机驱动
-│   │   ├── LvBo/                   # 滤波模块
-│   │   ├── Music/, Song/           # 音乐播放
-│   │   ├── Shoot_Speed_contrl/     # 弹速控制
-│   │   ├── superSee/               # 超级电容
-│   │   └── UI_operation/           # UI 操作
-│   ├── PrivateDrivers/             # 外设驱动层
-│   │   ├── CAN/                    # CAN 总线驱动
-│   │   ├── DMJ4310/                # 达妙电机
-│   │   ├── DM-IMU/                 # DM IMU
-│   │   ├── CBoardIMU/              # C 板 IMU
-│   │   ├── DWT/                    # DWT 定时器
-│   │   ├── DT7/                    # DT7 遥控器
-│   │   ├── WS2812/                 # LED 灯带
-│   │   ├── VT13A/                  # VT13A
-│   │   └── WheelTecIMU/            # WheelTec IMU
-│   ├── Tasks/Inc, Tasks/Src        # FreeRTOS 任务
-│   │   ├── robot_control_task.c    # DecisionTask + ControlTask（核心控制循环）
-│   │   ├── peripheral_transmit_task.c # 上位机/裁判系统通讯
-│   │   └── ...
-│   └── GeneralHeader/              # 全局硬件定义（引脚、外设句柄、task include）
-├── hero_up/                        # 上板（结构镜像，无 MainControl）
+│   ├── Core/Inc, Core/Src              # STM32CubeMX HAL 初始化（main.c, stm32h7xx_it.c 等）
+│   ├── Drivers/                        # CMSIS + STM32H7 HAL 库
+│   ├── Middlewares/                    # FreeRTOS + USB Device Library
+│   ├── MDK-ARM/                        # Keil MDK 工程（Hero_Reeeee64.uvprojx）
+│   ├── PrivateApplications/            # 控制算法层
+│   │   ├── ADRC/                       # 自抗扰控制（TD, ESO, LTD, LESF, ADRC, LADRC）
+│   │   ├── Algorism/                   # 通用工具函数（信号处理、多项式、矩阵旋转）
+│   │   ├── IMU_solver/                 # EKF IMU 姿态解算（ekf_imu_solver + ekf_quaternion）
+│   │   ├── kalman_filter/              # 卡尔曼滤波
+│   │   ├── LK/                         # LK 电机应用层
+│   │   ├── LvBo/                       # 陷波滤波器（Notch_filter）
+│   │   ├── MainControl/                # 主控制逻辑 ★ 仅 hero_down
+│   │   │   ├── gimbalControl.c/h       # 云台控制（yaw/pitch 输入决策→观测→闭环）
+│   │   │   ├── chassisControl.c/h      # 底盘控制
+│   │   │   ├── stirControl.c/h         # 拨弹/发射控制（类型定义 + 三段式接口）
+│   │   │   └── jointControl.c/h        # 关节控制（爬升/上楼梯）
+│   │   ├── Music/                      # 音乐播放
+│   │   ├── PID/                        # PID 控制器
+│   │   ├── Shoot_Speed_contrl/         # 弹速最优控制
+│   │   ├── Song/                       # 乐谱数据定义
+│   │   ├── judge_rec/                  # 裁判系统数据接收
+│   │   ├── superSee/                   # 超级电容距离检测
+│   │   └── UI_operation/               # UI 操作（串口屏 + 裁判系统 UI）
+│   ├── PrivateDrivers/                 # 外设驱动层
+│   │   ├── Board2Borad/                # ★ 双板 CAN 通信驱动（下板↔上板）
+│   │   ├── CAN/                        # CAN 总线驱动（FDCAN 收发封装）
+│   │   ├── CBoardIMU/                  # C 板 IMU（BMI088 驱动 + 温度控制）
+│   │   ├── DM-IMU/                     # DM 系列 IMU
+│   │   ├── DMJ4310/                    # 达妙 J4310 电机
+│   │   ├── DT7/                        # DT7 遥控器（DR16 协议）
+│   │   ├── DWT/                        # DWT 周期计数器（精确定时）
+│   │   ├── LK/                         # LK 电机驱动（485 总线 + 应用层）
+│   │   ├── MIT/                        # MIT 电机协议驱动
+│   │   ├── VT13A/                      # VT13A 遥控器 + CRC 校验
+│   │   ├── WS2812/                     # WS2812 LED 灯带（SPI 驱动）
+│   │   ├── WT901IMU/                   # 维特智能 WT901 IMU
+│   │   └── WheelTecIMU/                # WheelTec IMU
+│   ├── Tasks/Inc, Tasks/Src            # FreeRTOS 任务
+│   │   ├── initial_task.c              # 初始化任务（外设初始化 + 创建所有任务）
+│   │   ├── task_decision.c/h           # 决策任务 → InputUpdate（遥控器/PC指令→目标值）
+│   │   ├── task_estimate.c/h           # 估计任务 → EstimateUpdate（IMU解算/观测器/滤波）
+│   │   ├── task_control.c/h            # 控制任务 → ControlUpdate（PID/ADRC闭环计算）
+│   │   ├── state_task.c/h              # 状态机任务 + 任务监控器（TaskMonitor）
+│   │   ├── peripheral_transmit_task.c/h # 上位机/裁判系统/板间通讯发送
+│   │   ├── peripheral_receive_task.c/h  # 遥控器/裁判系统/板间通讯接收
+│   │   └── music_task.c/h              # 音乐播放任务
+│   ├── GeneralHeader/                  # 全局定义（硬件引脚映射 + 配置标签）
+│   │   ├── general_define.h            # 设备端口映射（UART/SPI/TIM/CAN 宏）
+│   │   └── general_config_label.h      # 编译开关 + 模式配置标签
+│   └── USB_DEVICE/                     # USB CDC 虚拟串口
+├── hero_up/                            # 上板（结构镜像，无 MainControl）⚠ 待重构
 ├── .gitignore
-├── 27_3SE_hero.code-workspace      # VS Code 工作区（clangd 启用，IntelliSense 禁用）
-└── CLAUDE.md                       # 本文件
+├── 27_3SE_hero.code-workspace          # VS Code 工作区（clangd 启用，IntelliSense 禁用）
+└── CLAUDE.md                           # 本文件
 ```
 
 ## 架构分层
 
 ```
-Task 层 (FreeRTOS)        →  robot_control_task.c, peripheral_transmit_task.c
-     │                         决策任务(DecisionTask) + 控制任务(ControlTask)
+Task 层 (FreeRTOS)        →  initial_task → DecisionTask + EstimateTask + ControlTask + StateMachineTask
+     │                         三段式分离到三个独立任务，通过 FreeRTOS 通知同步
      ▼
 Application 层            →  PrivateApplications/
-     │                         ADRC, PID, MainControl, IMU_solver, kalman_filter...
+     │                         ADRC, PID, MainControl(gimbal/chassis/stir/joint), IMU_solver, kalman_filter...
      ▼
 Driver 层                 →  PrivateDrivers/
-     │                         CAN, DMJ4310, DT7, IMU...
+     │                         Board2Borad, CAN, DMJ4310, MIT, DT7, IMU, WS2812...
      ▼
-HAL 层                    →  Drivers/ (STM32H7 HAL) + Core/
+HAL 层                    →  Drivers/ (STM32H7 HAL) + Core/ (CubeMX 生成)
 ```
 
-**控制循环三段式**（核心设计模式，如 `gimbalControl.c`）：
-1. **InputUpdate** — 输入决策（遥控器指令解析、模式切换）
-2. **EstimateUpdate** — 状态观测/估计（滤波、IMU 解算、观测器）
-3. **ControlUpdate** — 闭环控制计算（PID/ADRC 输出执行）
+### 控制链三段式（重构后 — hero_down）
+
+原始 `robot_control_task.c` 中的单任务三阶段已被拆分为三个独立 FreeRTOS 任务：
+
+```
+IMUTask (7)  ──通知──▶  EstimateTask (5)  ──通知──▶  ControlTask (5)
+                                ▲
+DecisionTask (5) ──写入共享数据──┘
+```
+
+1. **DecisionTask** — 遥控器/PC指令解析 → 目标值写入共享结构体（gimbalTargetInput, chassisTargetInput 等）
+2. **EstimateTask** — IMU 姿态解算、观测器更新、滤波 → 发布估计状态（gimbalPose, chassisEstimate 等）
+3. **ControlTask** — 读入目标值 + 估计值 → PID/ADRC 闭环计算 → CAN 发送电机指令
+
+每个 MainControl 模块（gimbal/chassis/stir/joint）都提供对应的三段式函数：
+- `XxxInputUpdate()` — 由 DecisionTask 调用
+- `XxxEstimateUpdate()` — 由 EstimateTask 调用
+- `XxxControlUpdate()` — 由 ControlTask 调用
+
+**控制链延迟监控**：`state_task.h` 中定义 `CtrlChainTimer` 结构体，通过 DWT->CYCCNT 精确测量 IMU 通知→Estimate→Control 各段延迟（微秒级）。
+
+## 关键公用接口 — general_task_include.h ★
+
+**`hero_down/Tasks/Inc/general_task_include.h`** 是整个下板工程的唯一中枢头文件，所有 `.c` 文件通过它间接包含所有依赖。它是高频调用的核心接口：
+
+```c
+// 标准库 + FreeRTOS + HAL
+#include <stdint.h> <math.h> <stdlib.h> <string.h>
+#include "main.h" "freertos.h" "queue.h" "semphr.h" "task.h" "event_groups.h"
+
+// GeneralHeader
+#include "general_define.h"       // 硬件引脚映射
+#include "general_config_label.h"  // 编译开关
+
+// 所有 Task 头文件
+#include "state_task.h"            // RobotState, TaskMonitor, CtrlChainTimer, 枚举常量
+#include "task_decision.h"         // DecisionTask 声明
+#include "task_estimate.h"         // EstimateTask 声明
+#include "task_control.h"          // ControlTask 声明
+#include "peripheral_transmit_task.h"
+#include "peripheral_receive_task.h"
+#include "music_task.h"
+
+// Application 层头文件
+#include "algorism.h"              // 通用算法
+#include "pid.h"                   // PID 控制器
+#include "adrc.h"                  // 自抗扰控制
+#include "arm_math.h"              // CMSIS-DSP 库
+#include "gimbalControl.h"         // 云台控制
+#include "chassisControl.h"        // 底盘控制
+#include "stirControl.h"           // 拨弹/发射控制
+#include "jointControl.h"          // 关节控制
+#include "shoot_speed_best_contrl.h"
+#include "UI_design.h"
+#include "judge_receive.h"
+#include "distance_check.h"
+
+// Driver 层头文件
+#include "DMJ4310.h"               // 达妙电机
+#include "MIT.h"                   // MIT 电机
+#include "CAN_driver.h"            // CAN 驱动
+
+// 全局只读指针声明（封装模式：const 指针暴露只读访问）
+extern const DJIGMotorRec* _chassisMotorRec;
+extern const RobotState* _robotState;
+extern const GimbalControl* _gimbalControl;
+extern const ChassisControl* _chassisControl;
+extern const ShootControl* _shootControl;
+// ... 等等
+```
+
+**注意**：所有模块间数据共享通过 `general_task_include.h` 中声明的 `const` 指针实现，确保只有「拥有者 task」可写，其他 task 只读。
+
+## hero_down vs hero_up 差异对照
+
+| 方面 | hero_down（重构后） | hero_up（待修正） |
+|------|---------------------|---------------------|
+| Task 架构 | 三段分离：task_decision + task_estimate + task_control | 旧架构：robot_control_task.c 单体 |
+| MainControl | ✅ gimbal + chassis + stir + joint | ❌ 无（robot_control_task.h 内置类型） |
+| WorldGimbal | ❌ 无（下板不需要世界系） | ✅ 世界系云台 IK（在 robot_control_task.h 中） |
+| Board2Borad | ✅ 发送（下板→上板） | ✅ 接收 + 发送（上板→下板） |
+| MIT 驱动 | ✅ PrivateDrivers/MIT/ | ❌ 无 |
+| general_task_include | include task_decision/estimate/control | include robot_control_task |
+| 485 用途 | MASTER_485_UART (huart2) | SHOOT_485_UART (huart2) |
+| ShootControl 类型 | stirControl.h 中定义 | robot_control_task.h 中定义 |
+
+## 板间通信 — Board2Borad
+
+双板直连 CAN（hfdcan1），ID 段 `0x220-0x22F`，8 字节单帧封装：
+
+```
+下板→上板 (Send):
+  B2B_DOWN_BODY_STATE    0x220  [roll, pitch, yaw, yaw_enc]×100    机体姿态
+  B2B_DOWN_GIMBAL_INPUT  0x221  [pitch_cmd, yaw_cmd, ch0, ch1]     云台控制输入
+  B2B_DOWN_KEYS_SWITCH   0x222  [PCKey, switch, ch4, HP]           键位开关
+
+上板→下板 (Recv):
+  B2B_UP_GIMBAL_POSE     0x228  云台姿态（高频）
+  B2B_UP_GIMBAL_TARGET   0x229  云台目标（低频）
+  B2B_UP_FRIC_RPM_A/B    0x22A/B 摩擦轮转速
+```
 
 ## 构建
 
 - **IDE**：STM32CubeIDE 生成初始化代码 + Keil MDK-ARM 编译调试
-- **工程文件**：`hero_down/MDK-ARM/Hero_Reeeee64.uvprojx`
+- **工程文件**：`hero_down/MDK-ARM/Hero_Reeeee64.uvprojx`、`hero_up/MDK-ARM/Hero_Reeeee64.uvprojx`
 - **编译命令**：通过 Keil MDK IDE 或命令行 `UV4.exe -b Hero_Reeeee64.uvprojx`
-- **目标芯片**：STM32H723VGTx / STM32H743 系列
+- **目标芯片**：STM32H723VGTx（Cortex-M7, 480MHz）
 - **下载调试**：J-Link / ST-Link
 
 ## 编码规范
@@ -139,14 +250,15 @@ extern const GimbalControl* _gimbalControl;
 
 ### 编译开关
 
-项目大量使用 `#ifdef` 条件编译隔离配置：
+项目大量使用 `#ifdef` 条件编译隔离配置（定义在 `general_config_label.h`）：
 ```c
-#define MATCH_MODE     // 比赛模式
-#define SHOOT_OFF      // 关闭发射
-#define CHASSIS_OFF    // 关闭底盘
-#define GIMBAL_OFF     // 关闭云台
-#define OLD_CAPACITY   // 老电容控制板
-#define CENTRIFUGE_REVOLVE  // 离心旋转
+#define MATCH_MODE           // 比赛模式
+#define SHOOT_OFF            // 关闭发射
+#define CHASSIS_OFF          // 关闭底盘
+#define GIMBAL_OFF           // 关闭云台
+#define OLD_CAPACITY         // 老电容控制板
+#define CENTRIFUGE_REVOLVE   // 离心旋转
+#define DEBUG_PCB_EN         // 调试 PCB
 ```
 
 ## 新增模块指南
@@ -175,13 +287,25 @@ void ModuleNameInitialize(ModuleName* module);
 
 #endif
 ```
-4. 初始化函数在 `robot_control_task.c` 或相应的 task 中调用
-5. 遵循标准分层依赖：`Task → Application → Driver → HAL`
+4. **高频模块**：将头文件加入 `Tasks/Inc/general_task_include.h` 的 include 列表，这样所有 task 和模块都能访问
+5. 如需暴露只读数据，在 `general_task_include.h` 中声明 `extern const ModuleName* _moduleName;`
+6. 初始化函数在 `initial_task.c` 或相应的 task 中调用
+7. 遵循标准分层依赖：`Task → Application → Driver → HAL`
+8. **同步到 hero_up**：如果模块同时被上下板使用，确认 hero_up 的 `general_task_include.h` 也包含对应头文件
 
 ## 注意事项
 
-- **hero_down 和 hero_up 的 `PrivateApplications/` 代码大部分相同**，修改算法模块时应同步两个代码树的对应文件，或至少确认差异是有意的
-- **FreeRTOS 任务优先级** 在 `FreeRTOSConfig.h` 和 `robot_control_task.c` 中定义，修改时注意实时性约束
-- **CAN 总线** 是主要的外设通信方式，电机、IMU、裁判系统均通过 CAN 连接
+- **hero_down 已重构为三段式任务架构**，hero_up 仍使用旧 robot_control_task.c 单体架构，后续需同步重构
+- **`general_task_include.h` 是高频公用接口**，所有模块的数据共享、const 指针暴露、头文件包含都集中在这里；新增模块时必须同步更新
+- **Board2Borad** 是双板通信的核心通道，修改 CAN 配置时注意不与电机 ID（0x01-0x08, 0x141）冲突
+- **FreeRTOS 任务优先级** 在 `initial_task.c` 创建任务时指定，修改时注意实时性约束：
+  - `7`: RemoteRecTask, IMUTask
+  - `6`: StateMachineTask
+  - `5`: DecisionTask, EstimateTask, ControlTask, UpperPCCommTask
+  - `4`: MonitorTask, DebugTask
+  - `3`: UIOperationTask
+  - `2`: MusicTask
+- **CAN 总线** 是主要的外设通信方式，电机、IMU、裁判系统、板间通信均通过 CAN 连接
 - **ADRC 模块** 的 `hero_down` 版本有额外的安全检查（`isfinite`），比 `hero_up` 更成熟
 - **调试信息** 通过 `peripheral_transmit_task.c` 向 DT7 上位机发送
+- **hero_down 和 hero_up 的 `PrivateApplications/` 和 `PrivateDrivers/` 代码应保持一致**，修改算法模块时应同步两个代码树的对应文件

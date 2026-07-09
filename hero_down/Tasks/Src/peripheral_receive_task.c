@@ -1,4 +1,4 @@
-﻿#include "tim.h"
+#include "tim.h"
 #include "usbd_cdc_if.h"
 #include "usb_device.h"
 
@@ -8,6 +8,7 @@
 #include "ekf_imu_solver.h"
 #include "LK_driver.h"
 #include "dm_imu.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 #include "distance_measure.h"
 #include "LK_485_driver.h"
 
@@ -18,8 +19,6 @@ uint8_t uart1RecBuffer[32];       /* 上位机(USB CDC) 当前未启用 */
 uint8_t uart5RecBuffer[64];       /* 遥控器: DT7=18B / VT3=21B */
 uint8_t uart6RecBuffer[160];      /* 裁判系统 最大帧~128B */
 uint8_t uart10RecBuffer[49];      /* 激光测距 */
-uint8_t uartServentRecBuffer[40]; /* RS485云台→底盘 40B协议帧 */
-uint8_t uartMasterRecBuffer[64];  /* RS485底盘→云台 */
 
 /* ==================================================================
  * RemoteRecTask — 遥操作指令接收
@@ -211,6 +210,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
                 stirMotorRec.Tmos     = (float)(aData[6]);
                 stirMotorRec.Tcoil    = (float)(aData[7]);
                 break;
+
+            default:
+                B2BCanRxHandler(RxHeader.Identifier, aData);  /* B2B 0x228-0x22B */
+                break;
             }
         }
     }
@@ -280,7 +283,6 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 }
 
 /* ==================================================================
- * RS485 云台接收数据（gimbal yaw/pitch/fric 回传）
  * ================================================================== */
 volatile float    gimbal_yaw_rx_d          = 0.0f;
 volatile float    gimbal_yaw_dps_rx        = 0.0f;
@@ -513,6 +515,7 @@ void PeripheralRecEnable(void)
 {
     DT7RemoteRecEnable(&RC_UART, uart5RecBuffer);
     can_bsp_init();
+    B2BInit();
 
 #if defined ONBOARD_EKF_SOLVE
     IMUSolverUseEKFInitialize(&imuUseEKFSolver, &imuRecData, IMU_TASK_PERIOD_SET / 1000.0f);
@@ -524,11 +527,12 @@ void PeripheralRecEnable(void)
     HAL_UARTEx_ReceiveToIdle_DMA(&LASER_UART, uart10RecBuffer, LASER_UART_LENGTH);
     __HAL_DMA_DISABLE_IT(LASER_UART.hdmarx, DMA_IT_HT);
 
-    HAL_UARTEx_ReceiveToIdle_DMA(&SERVENT_485_UART, uartServentRecBuffer, sizeof(uartServentRecBuffer));
-    __HAL_DMA_DISABLE_IT(SERVENT_485_UART.hdmarx, DMA_IT_HT);
+    /* B2B CAN 替代 RS485，485 DMA 不启动（浮空脚会触发 idle 中断清零 gimbal_yaw_rx_valid） */
+    // HAL_UARTEx_ReceiveToIdle_DMA(&SERVENT_485_UART, uartServentRecBuffer, sizeof(uartServentRecBuffer));
+    // __HAL_DMA_DISABLE_IT(SERVENT_485_UART.hdmarx, DMA_IT_HT);
 
-    HAL_UARTEx_ReceiveToIdle_DMA(&MASTER_485_UART, uartMasterRecBuffer, sizeof(uartMasterRecBuffer));
-    __HAL_DMA_DISABLE_IT(MASTER_485_UART.hdmarx, DMA_IT_HT);
+    // HAL_UARTEx_ReceiveToIdle_DMA(&MASTER_485_UART, uartMasterRecBuffer, sizeof(uartMasterRecBuffer));
+    // __HAL_DMA_DISABLE_IT(MASTER_485_UART.hdmarx, DMA_IT_HT);
 }
 
 /* ---- UART DMA 不定长接收回调 ---- */
@@ -618,10 +622,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     else if (huart->Instance == REFEREE_UART.Instance) {
         HAL_UARTEx_ReceiveToIdle_DMA(&REFEREE_UART, uart6RecBuffer, sizeof(uart6RecBuffer));
         __HAL_DMA_DISABLE_IT(REFEREE_UART.hdmarx, DMA_IT_HT);
-    }
-    else if (huart->Instance == SERVENT_485_UART.Instance) {
-        HAL_UARTEx_ReceiveToIdle_DMA(&SERVENT_485_UART, uartServentRecBuffer, sizeof(uartServentRecBuffer));
-        __HAL_DMA_DISABLE_IT(SERVENT_485_UART.hdmarx, DMA_IT_HT);
     }
     else if (huart->Instance == MASTER_485_UART.Instance) {
         HAL_UARTEx_ReceiveToIdle_DMA(&MASTER_485_UART, uartMasterRecBuffer, sizeof(uartMasterRecBuffer));

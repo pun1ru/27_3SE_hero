@@ -15,6 +15,7 @@
 #include "usbd_cdc_if.h"
 //#include "distance_check.h"
 #include "LK_485_driver.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 /*回传速度*/
 extern float predict_speed0;
 //串口接收数据缓冲区
@@ -22,9 +23,8 @@ uint8_t uart1RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uart5RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];	
 uint8_t uart6RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uart10RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
-int64_t circle_angle;
 uint8_t uartServentRecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
-uint8_t uartShootRecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
+int64_t circle_angle;
 volatile float shoot485_yaw_rx_d = 0.0f;
 volatile uint8_t shoot485_yaw_rx_valid = 0;
 volatile float servant485_pitch_d = 0.0f;   /* 下板传输的机体pitch角 */
@@ -203,7 +203,9 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO0, &RxHeader, aData);
 		switch(RxHeader.Identifier)
 	{		
-		case 0x141:
+		default:
+				if (B2BCanRxHandler(RxHeader.Identifier, aData)) break;  /* B2B 0x220-0x222 */
+			case 0x141:
 	
 			if(aData[0]==0xA1||aData[0]==0xA6||aData[0]==0xA4){
 			pitchMotorRec.frame_counter++;
@@ -537,6 +539,17 @@ void UpperPCCommTask(void* argument)
 		//HAL_UART_Transmit_DMA(&MINIPC_UART, (uint8_t*)&(upperComputerComm.Send), UPPER_PC_COMM_SEND_LENGTH);
 		#endif
 		CDC_Transmit_HS((uint8_t*)&(upperComputerComm.Send), UPPER_PC_COMM_SEND_LENGTH);//使用虚拟串口CDC的库，类似uart但是其信号层不一样
+
+		/* B2B CAN: GimbalTarget 100Hz -> hero_down */
+		{
+			float ty = _upperComputerComm->Receive.target_yaw_angle_d;
+			float tp = _upperComputerComm->Receive.target_pitch_angle_d;
+			if (worldGimbal.enable) {
+				ty = worldGimbal.WorldGimbalControl.q_yaw_cmd_deg;
+				tp = worldGimbal.WorldGimbalControl.q_pitch_cmd_deg;
+			}
+			B2BSendGimbalTarget(ty, tp);
+		}
 		//memset(upperComputerComm.Send.reserved, 0, 3);  // 发送后清零，由state_task下一周期置位
 		/*计算任务实际运行周期*/
 		current_tick_count = xTaskGetTickCount();
@@ -703,6 +716,7 @@ void PeripheralRecEnable(void)
 	
 	//一键init所有can总线
 	can_bsp_init();
+	B2BInit();
 	
 	/*UpperCommRec init*/
 	HAL_UARTEx_ReceiveToIdle_DMA(&MINIPC_UART, uart1RecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
@@ -720,10 +734,6 @@ void PeripheralRecEnable(void)
 	__HAL_DMA_DISABLE_IT(LASER_UART.hdmarx, DMA_IT_HT);
 	
 	/*双板通讯*/
-	HAL_UARTEx_ReceiveToIdle_DMA(&SERVANT_485_UART, uartServentRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-	__HAL_DMA_DISABLE_IT(SERVANT_485_UART.hdmarx, DMA_IT_HT);
-	HAL_UARTEx_ReceiveToIdle_DMA(&SHOOT_485_UART, uartShootRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-	__HAL_DMA_DISABLE_IT(SHOOT_485_UART.hdmarx, DMA_IT_HT);	
 }   
 /**
  * @brief 串口dma不定长接收
@@ -822,9 +832,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 	  __HAL_DMA_DISABLE_IT(SERVANT_485_UART.hdmarx, DMA_IT_HT);
 	}
 	if(huart == &SHOOT_485_UART){
-		HAL_UARTEx_ReceiveToIdle_DMA(&SHOOT_485_UART, uartShootRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-		__HAL_DMA_DISABLE_IT(SHOOT_485_UART.hdmarx, DMA_IT_HT);
-	}
+			}
 }
 extern QueueHandle_t g_musicQueue;
 
@@ -848,31 +856,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart){
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart10, uart10RecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
 		__HAL_DMA_DISABLE_IT(huart10.hdmarx, DMA_IT_HT);
 	}
-	else if (huart->Instance == USART3)
-	{
-		HAL_UARTEx_ReceiveToIdle_DMA(&SERVANT_485_UART, uartServentRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-		__HAL_DMA_DISABLE_IT(SERVANT_485_UART.hdmarx, DMA_IT_HT);
-	}
-	else if (huart->Instance == MINIPC_UART.Instance)  // 假设 MINIPC_UART 是 huart1
-		HAL_UARTEx_ReceiveToIdle_DMA(&MINIPC_UART, uart1RecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-	else if (huart == &SHOOT_485_UART)
-	{
-		HAL_UARTEx_ReceiveToIdle_DMA(&SHOOT_485_UART, uartShootRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-		__HAL_DMA_DISABLE_IT(SHOOT_485_UART.hdmarx, DMA_IT_HT);
-	}
-	else if (huart->Instance == REFEREE_UART.Instance)  // 假设 REFEREE_UART 是 huart6
-	{
-		HAL_UARTEx_ReceiveToIdle_DMA(&REFEREE_UART, uart6RecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
-		__HAL_DMA_DISABLE_IT(REFEREE_UART.hdmarx, DMA_IT_HT);
-	}
-	//一点点小史因为只有uart10出问题，不对，现在裁判也有问题了，可能是GND没接好
-	/**/
-	short temp=1;
-	BaseType_t xHigherPriorityTaskWoken=0;
-	//xQueueSend(g_musicQueue,&temp,portMAX_DELAY);这个有阻塞，不好
-	xQueueSendFromISR(g_musicQueue, &temp, &xHigherPriorityTaskWoken);
 }
-#define FDCAN_ERROR_MASK (FDCAN_IR_ELO | FDCAN_IR_WDI | FDCAN_IR_PEA | FDCAN_IR_PED | FDCAN_IR_ARA)
+	#define FDCAN_ERROR_MASK (FDCAN_IR_ELO | FDCAN_IR_WDI | FDCAN_IR_PEA | FDCAN_IR_PED | FDCAN_IR_ARA)
 /*没有24V供电启动CAN会导致CAN错误失能，然后再加上24V也启动不了，这里试图让CAN重新启动*/
 void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan){
 	extern CANTxMonitor canMonitor[3];

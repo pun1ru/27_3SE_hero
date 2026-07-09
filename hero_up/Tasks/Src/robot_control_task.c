@@ -1084,20 +1084,20 @@ static void ShootEstimateUpdate(void)
 /**
  * @brief 云台闭环控制，难绷云台控制里面没有云台了，O(∩_∩)O哈哈~
  */ 
-int duoji=100000;
-int duoji2=52300;
+// int duoji=100000;
+// int duoji2=52300;
 float K1=0,K2=0,K3=0;//妈的
 static void GimbalControlUpdate(void)
 {
-	/*望远瞄具舵机决策+控制+发送*/
+// 	/*望远瞄具舵机决策+控制+发送*/
 	
 	//if(CONTROL_STOP != _robotState->ctrl_terminal)
 	//{
 		//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET);
-		if(_robotState->lens==LENS_OFF)//调试用
-			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji);
-		if(_robotState->lens==LENS_ON)
-			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji2);
+// 		if(_robotState->lens==LENS_OFF)//调试用
+// 			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji);
+// 		if(_robotState->lens==LENS_ON)
+// 			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji2);
 
 
 

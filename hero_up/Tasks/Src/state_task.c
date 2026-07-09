@@ -3,6 +3,7 @@
 #include "general_config_label.h"
 #include "distance_check.h"
 #include "general_task_include.h"
+#include "ws2812.h"
 #include "iwdg.h"
 /*---------------------------------------------------------------------------task monitor-----------------------------------------------------------------------------------*/
 TaskMonitor taskMonitor;
@@ -33,8 +34,16 @@ void MonitorTask(void* argument)
 		/*连接看门狗*/
 		
 		
-		/*若任务各标志位均为0，灯继续闪烁变化*/
-		
+		/*--- WS2812 LED Strip: green breathing ---*/
+		{
+			static uint8_t breath_ctr = 0;
+			breath_ctr++;
+			if (breath_ctr >= 200) breath_ctr = 0;
+			uint8_t brightness = (breath_ctr < 100) ? breath_ctr : (200 - breath_ctr);
+			for (int i = 0; i < WS2812_NUM_LEDS; i++)
+				WS2812_SetLED(i, 0, brightness >> 1, 0);
+			WS2812_Send();
+		}
 		vTaskDelayUntil(&xLastWakeUpTime, MONITOR_TASK_PERIOD_SET);
 	}
 }

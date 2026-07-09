@@ -3,6 +3,7 @@
 #include "general_task_include.h"
 #include "CAN_driver.h"
 #include "LK_driver.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 #include "judge_receive.h"
 #include "DMJ4310.h"
 #include "bsp_dwt.h"
@@ -36,49 +37,20 @@ void ALLHighFreqCal(void);//不放在其他电机一起
 /* IMU数据快速发送：IMUTask调用，PoseUpdateFromIMU后立即发出，消除任务调度延迟 */
 void RS485_SendIMU(void)
 {
-static uint8_t tx_485[40] = {0};
+/* --- B2B CAN: 云台姿态 500Hz → hero_down --- */
 extern Pose gimbalPose;
-extern DJIGMotorRec fricMotorRec[FRIC_MOTOR_NUM];
 float yaw_f   = gimbalPose.yaw_d;
 float pitch_f = gimbalControl.GimbalEstimate.pitch_angle_d;
-float yaw_dps   = gimbalPose.yaw_radps * 57.29578f;   /* rad/s → °/s, 去LPF与pitch一致 */
-float pitch_dps = gimbalPose.pitch_radps * 57.29578f;   /* rad/s → °/s */
-float target_yaw_d  = _upperComputerComm->Receive.target_yaw_angle_d;
-float target_pitch_d = _upperComputerComm->Receive.target_pitch_angle_d;
+float yaw_dps   = gimbalPose.yaw_radps * 57.29578f;
+float pitch_dps = gimbalPose.pitch_radps * 57.29578f;
 
-/* 世界系模式下，485帧中yaw/pitch目标替换为IK输出（下板据此控制DMJ4310 yaw电机） */
 extern WorldGimbal worldGimbal;
-if (worldGimbal.enable) {
-    target_yaw_d   = worldGimbal.WorldGimbalControl.q_yaw_cmd_deg;
-    target_pitch_d = worldGimbal.WorldGimbalControl.q_pitch_cmd_deg;
-
-    /* 当前yaw/pitch估计值替换为世界系欧拉角（向量f_des_B→elevation/azimuth） */
-    if (_robotState->sniper == SNIPER_ON) {
-        yaw_f   = worldGimbal.WorldGimbalEstimate.world_yaw_deg;
-        pitch_f = worldGimbal.WorldGimbalEstimate.world_pitch_deg;
-    }
+if (worldGimbal.enable && _robotState->sniper == SNIPER_ON) {
+    yaw_f   = worldGimbal.WorldGimbalEstimate.world_yaw_deg;
+    pitch_f = worldGimbal.WorldGimbalEstimate.world_pitch_deg;
 }
 
-tx_485[0]  = 0xA5;
-tx_485[1]  = 0x5A;
-memcpy(&tx_485[2], &yaw_f, 4);         // [2..5]   yaw角度
-memcpy(&tx_485[6], &pitch_f, 4);       // [6..9]   pitch角度(当前估计值)
-memcpy(&tx_485[10], &yaw_dps, 4);      // [10..13] yaw角速度
-memcpy(&tx_485[14], &pitch_dps, 4);    // [14..17] pitch角速度
-memcpy(&tx_485[18], &target_yaw_d, 4); // [18..21] 世界系yaw目标deg / 上位机yaw目标
-memcpy(&tx_485[22], &target_pitch_d, 4); // [22..25] 世界系pitch目标deg / 上位机pitch目标
-
-for (uint8_t i = 0; i < 6; i++)
-{
-	int16_t fric_rpm = (i < FRIC_MOTOR_NUM) ? fricMotorRec[i].mechanical_speed_rpm : 0;
-	memcpy(&tx_485[26 + i * 2], &fric_rpm, 2);
-}
-
-tx_485[38] = 0x0D; // 帧尾
-tx_485[39] = 0x0A;
-		/* 仅当上一次 DMA 发送完成后才发送新帧 */
-		if (SHOOT_485_UART.gState == HAL_UART_STATE_READY)
-			HAL_UART_Transmit_DMA(&SHOOT_485_UART, tx_485, 40);
+B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
 }
 
 void MotorControlCANSend(void)

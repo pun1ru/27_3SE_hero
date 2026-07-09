@@ -77,7 +77,7 @@ void InitTask(void const * argument)
 	DWT_Init(480);
 	/*初始化PWM，让蜂鸣器先狗叫*/
 	HAL_TIM_PWM_Start(&htim12,TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
+	WS2812_PWM_Init();  // WS2812 PWM+DMA LED strip init (replaces servo PWM on PA0/TIM2_CH1)
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);//升温
 	
 	StartupNotice();//奏乐！
@@ -85,7 +85,7 @@ void InitTask(void const * argument)
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2,500);//蜂鸣器！我的心跳！
 	
 	xTaskCreate(MonitorTask,        "MonitorTask_",       128,  NULL,  7,  &monitorTaskHandle      );
-	xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    	256,  NULL,  7,  &remoteRecTaskHandle    );
+	// xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    	256,  NULL,  7,  &remoteRecTaskHandle    ); /* B2B CAN替代 */
 	xTaskCreate(StateMachineTask,   "StateMachineTask_",  2048, NULL,  7,  &stateMachineTaskHandle );	
 	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	    512,  NULL,  4,  &decisionTaskHandle     );
 	xTaskCreate(ControlTask,        "ControlTask_",       512,  NULL,  6,  &controlTaskHandle      );

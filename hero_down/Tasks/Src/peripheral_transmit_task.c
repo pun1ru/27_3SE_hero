@@ -1,15 +1,15 @@
-﻿#include "tim.h"
+#include "tim.h"
 #include "usart.h"
 #include "general_task_include.h"
 #include "LK_driver.h"
 #include "bsp_dwt.h"
 #include "dm_imu.h"
 #include "LK_485_driver.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
 /* ==================================================================
  * HAL 回调
  * ================================================================== */
-uint8_t uart10_tx_complete = 1;
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -38,13 +38,9 @@ extern const NormRemoteCmd* _normRemoteCmd;
 extern int                 crawler_rotate_flag;
 
 /* ---- 双板通信帧 ---- */
-#define MCU_FRAME_LEN  (1U + 21U + 4U + 2U + 12U)
-extern uint8_t  dt7RecBuffer[18U];
-extern uint8_t  VT3RecBuffer[21U];
 extern DMJ4310MotorRec DMyawMotorRec;
 extern float    yaw_dm_forward_offset_rad;
 extern JointBodyState g_joint_body_state_body_dbg;
-uint8_t double_mcu_frame[MCU_FRAME_LEN];
 
 void MotorControlCANSend(void)
 {
@@ -207,31 +203,20 @@ void MotorControlCANSend(void)
     slot = (slot + 1) % 20;
     }  /* else: 正常运行态结束 */
 
-    /* ---- 双板通信：UART 转发遥控器 + yaw + HP + 机体姿态到上板 ---- */
-    HAL_GPIO_WritePin(RS485_MASTER_DE_GPIO_Port, RS485_MASTER_DE_Pin, GPIO_PIN_SET);
-    if (_normRemoteCmd->remote_source == DT7)
+    /* ---- 双板通信 CAN：替代 RS485 转发 ---- */
     {
-        double_mcu_frame[0] = 0x07;
-        memcpy(double_mcu_frame + 1, dt7RecBuffer, 18U);
+        float yaw_enc = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
+
+        B2BSendGimbalInput();   /* 0x221 500Hz 云台控制输入 */
+        B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
+                         g_joint_body_state_body_dbg.pitch_d,
+                         g_joint_body_state_body_dbg.yaw_d,
+                         yaw_enc);                        /* 0x220 500Hz 机体姿态+yaw编码器 */
+
+        if (slot % 5 == 0)
+            B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
     }
-    else if (_normRemoteCmd->remote_source == VT13)
-    {
-        double_mcu_frame[0] = 0x03;
-        memcpy(double_mcu_frame + 1, VT3RecBuffer, 21U);
-    }
-    else
-    {
-        double_mcu_frame[0] = 0x88;
-        double_mcu_frame[1] = 0x88;
-    }
-    float yaw_enc_deg_tx = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
-    memcpy(double_mcu_frame + 1U + 21U,                              &yaw_enc_deg_tx, sizeof(yaw_enc_deg_tx));
-    memcpy(double_mcu_frame + 1U + 21U + 4U,                         &ext_game_robot_status.current_HP, sizeof(ext_game_robot_status.current_HP));
-    memcpy(double_mcu_frame + 1U + 21U + 4U + 2U,                    &g_joint_body_state_body_dbg.pitch_d, sizeof(float));
-    memcpy(double_mcu_frame + 1U + 21U + 4U + 2U + 4U,               &g_joint_body_state_body_dbg.roll_d,  sizeof(float));
-    memcpy(double_mcu_frame + 1U + 21U + 4U + 2U + 8U,               &g_joint_body_state_body_dbg.yaw_d,   sizeof(float));
-    HAL_UART_Transmit_DMA(&MASTER_485_UART, double_mcu_frame, MCU_FRAME_LEN);
-}
+
 
 /* ==================================================================
  * DebugTask — 调试数据发送（yaw ADRC 观测值）

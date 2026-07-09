@@ -1340,6 +1340,21 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>Users/PrivateDrivers/Board2Board</GroupName>
+          <Files>
+            <File>
+              <FileName>Board2Board.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateDrivers\Board2Borad\Board2Board.c</FilePath>
+            </File>
+            <File>
+              <FileName>Board2Board.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateDrivers\Board2Borad\Board2Board.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>
