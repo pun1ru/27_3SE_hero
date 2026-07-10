@@ -1,3 +1,5 @@
 CompileFlags:
   CompilationDatabase: >-
     c:\Users\liaoz\Desktop\rm\Code\27_3SE_hero\hero_up\MDK-ARM\out\Hero_Reeeee64\Hero_Reeeee64
+  Add:
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_up/PrivateApplications/MainControl

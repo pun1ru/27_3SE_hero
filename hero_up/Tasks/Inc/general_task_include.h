@@ -22,13 +22,27 @@
 #include "peripheral_transmit_task.h"
 #include "peripheral_receive_task.h"
 #include "music_task.h"
-#include "robot_control_task.h"
 #include "judge_receive.h"
-
-
+#include "task_estimate.h"
+#include "task_decision.h"
+#include "task_control.h"
 #include "distance_check.h"
+
+/* 算法/控制模块 */
+#include "algorism.h"
+#include "pid.h"
+#include "shoot_speed_best_contrl.h"
+#include "adrc.h"
+#include "arm_math.h"
+
+/* MainControl + 驱动 */
+#include "robot_control_task.h"
+#include "DMJ4310.h"
+#include "CAN_driver.h"
+
 /*该头文件只extern共享各任务共需的全局变量*/
 extern TaskHandle_t decisionTaskHandle;
+extern TaskHandle_t estimateTaskHandle;
 extern TaskHandle_t stateMachineTaskHandle;
 extern TaskHandle_t controlTaskHandle;
 extern TaskHandle_t upperPCCommTaskHandle;
@@ -52,7 +66,6 @@ void MusicTask(void* argument);
 extern TaskMonitor* _taskMonitor;		//该结构体内部均为常量指针
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const RobotState* _robotState;
-extern const DJIGMotorRec* _yawMotorRec;
 extern const DMJ4310MotorRec* _stirMotorRec;
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const DJIGMotorRec *_fricMotorRec;

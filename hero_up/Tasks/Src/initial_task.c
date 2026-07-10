@@ -54,6 +54,7 @@ TaskHandle_t remoteRecTaskHandle;
 TaskHandle_t uiOperationTaskHandle;
 TaskHandle_t monitorTaskHandle;
 TaskHandle_t imuTaskHandle;
+TaskHandle_t estimateTaskHandle;
 TaskHandle_t debugTaskHandle;
 TaskHandle_t musicTaskHandle;
 QueueHandle_t g_musicQueue;//报错音乐的队列
@@ -87,8 +88,9 @@ void InitTask(void const * argument)
 	xTaskCreate(MonitorTask,        "MonitorTask_",       128,  NULL,  7,  &monitorTaskHandle      );
 	// xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    	256,  NULL,  7,  &remoteRecTaskHandle    ); /* B2B CAN替代 */
 	xTaskCreate(StateMachineTask,   "StateMachineTask_",  2048, NULL,  7,  &stateMachineTaskHandle );	
-	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	    512,  NULL,  4,  &decisionTaskHandle     );
-	xTaskCreate(ControlTask,        "ControlTask_",       512,  NULL,  6,  &controlTaskHandle      );
+	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	    512,  NULL,  5,  &decisionTaskHandle     );
+	xTaskCreate(EstimateTask,       "EstimateTask_",      512,  NULL,  5,  &estimateTaskHandle     );
+	xTaskCreate(ControlTask,        "ControlTask_",       512,  NULL,  5,  &controlTaskHandle      );
 	xTaskCreate(IMUTask, 						"IMUTask_",						512,  NULL,	 5,	 &imuTaskHandle			 		 );
 	xTaskCreate(DebugTask,          "DebugTask_",         256,  NULL,  4,  &debugTaskHandle        );
 	xTaskCreate(UpperPCCommTask,  	"UpperPCCommTask_", 	256,  NULL,  5,  &upperPCCommTaskHandle	 );	

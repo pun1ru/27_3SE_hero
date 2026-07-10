@@ -14,6 +14,7 @@ typedef struct
 		const uint16_t* _state_task;
 		const uint16_t* _decision_task;
 		const uint16_t* _control_task;
+		const uint16_t* _estimate_task;
 		const uint16_t* _imu_task;
 		const uint16_t* _debug_task;
 		const uint16_t* _upper_pc_comm_task;
@@ -27,10 +28,11 @@ typedef struct
 		const uint32_t* _state_task;
 		const uint32_t* _decision_task;
 		const uint32_t* _control_task;
+		const uint32_t* _estimate_task;
 		const uint32_t* _imu_task;
 		const uint32_t* _debug_task;
 		const uint32_t* _upper_pc_comm_task;
-		const uint32_t* _ui_operation_task;		
+		const uint32_t* _ui_operation_task;
 		const uint32_t* _music_task;
 
 	}TaskRunPeriodPtr;
@@ -45,7 +47,40 @@ typedef struct
 #define DEBUG_TASK_MASK		 0x20
 #define UPPER_COMM_TASK_MASK 0x40
 #define UI_OPERATION_TASK_MASK 0x80
+#define ESTIMATE_TASK_MASK 0x100
 #define MUSIC_TASK_MASK 0x90
+/*---------------------------------------------------------------------------控制链延迟监控-----------------------------------------------------------------------------------*/
+/**
+ * @brief 控制链计时器 — 监控 IMU→Estimate→Control 通知链各段延迟
+ * @note  DWT CYCCNT 为 480MHz 计数，CYC_TO_US(c) = c/480 换算微秒
+ *        在 debugger watch 窗口直接看 _us 字段，历史最大看 chain_max_us
+ */
+#define CTRL_CHAIN_CYC_TO_US(cyc) ((cyc) / 480U)
+
+typedef struct
+{
+    /* 原始 DWT->CYCCNT 快照 */
+    uint32_t cyc_imu_notify;        /* IMUTask 发通知时刻 */
+    uint32_t cyc_est_entry;         /* EstimateTask 开始执行 */
+    uint32_t cyc_est_exit;          /* EstimateTask 发通知时刻 */
+    uint32_t cyc_ctrl_entry;        /* ControlTask 开始执行 */
+    uint32_t cyc_ctrl_exit;         /* ControlTask 执行完毕 */
+
+    /* 各段微秒延迟（每周期 ControlTask 退出时刷新） */
+    uint32_t imu_to_est_us;         /* IMU通知 → Estimate 开始 (调度延迟) */
+    uint32_t est_exec_us;           /* Estimate 执行耗时 */
+    uint32_t est_to_ctrl_us;        /* Estimate通知 → Control 开始 (调度延迟) */
+    uint32_t ctrl_exec_us;          /* Control 执行耗时 */
+    uint32_t chain_total_us;        /* 全链路: IMU通知 → Control 完成 */
+    uint32_t chain_max_us;          /* 历史最大全链路耗时 */
+
+    /* 实际控制周期（微秒） */
+    uint32_t cyc_last_ctrl_exit;    /* 上一周期 Control 退出时刻 */
+    uint32_t ctrl_period_us;        /* ControlTask 实际执行周期 */
+    uint32_t ctrl_period_max_us;    /* 历史最大周期 */
+} CtrlChainTimer;
+
+extern CtrlChainTimer g_chain_timer;
 /*---------------------------------------------------------------------------state task-----------------------------------------------------------------------------------*/
 /*define different state*/
 /*control terminal*/

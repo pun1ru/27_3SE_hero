@@ -286,12 +286,14 @@ static void DebugTransmit(void)
     HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
 
 #else
-	    /* ===== 拨盘 + 摩擦轮调试帧 (38B) =====
+	    /* ===== 拨盘 + 摩擦轮调试帧 (26B) =====
 	     * [0-1]   0xAA 0xBB  帧头
-	     * [2-5]   float       stir_pos  拨盘角度 [-180, 180]
-	     * [6-9]   float       stir_vel  拨盘角速度 rad/s
-	     * [10-13] float       stir_toq  拨盘力矩 Nm
-	     * [14-37] float×6     fric[0..5] 摩擦轮转速 RPM / 100
+	     * [2-5]   float       yaw_enc_deg     yaw编码器角度 [-180, 180]
+	     * [6-9]   float       yaw_target      目标yaw角度
+	     * [10-13] float       yaw_rx_raw      B2B接收yaw原始值
+	     * [14-17] float       b2b_cnt         B2B接收计数
+	     * [18-21] float       pos_pid_out     yaw位置PID输出
+	     * [22-25] float       yaw_p_int_f     yaw编码器原始值 (p_int转float)
 	     */
 	    debug_data[0] = 0xAA;
 	    debug_data[1] = 0xBB;
@@ -306,14 +308,16 @@ static void DebugTransmit(void)
 	    float yaw_rx_raw   = gimbal_yaw_rx_d;
 	    float b2b_cnt      = (float)b2b_pose_rx_count;
 	    float pos_pid_out  = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+	    float yaw_p_int_f = (float)DMyawMotorRec.p_int;
 
 	    memcpy(&debug_data[2],  (void*)&yaw_enc_deg,  4);
 	    memcpy(&debug_data[6],  (void*)&yaw_target,   4);
 	    memcpy(&debug_data[10], (void*)&yaw_rx_raw,   4);
 	    memcpy(&debug_data[14], (void*)&b2b_cnt,      4);
 	    memcpy(&debug_data[18], (void*)&pos_pid_out,  4);
+	    memcpy(&debug_data[22], (void*)&yaw_p_int_f,  4);
 
-	    HAL_UART_Transmit_DMA(&huart7, debug_data, 22);
+	    HAL_UART_Transmit_DMA(&huart7, debug_data, 26);
 #endif
 }
 

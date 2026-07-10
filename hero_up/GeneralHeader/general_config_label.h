@@ -93,7 +93,7 @@
 #define SP_ZERO_ANGLE 43900
 #define  P_ZERO_ANGLE 0
 /*当前所开任务线程数-除软件看门狗任务外*/
-#define CREATE_TASK_NUM 8+1
+#define CREATE_TASK_NUM 9+1
 
 /*任务编号*/
 #define REMOTE_RECEIVE_TASK_NUM 	0
@@ -105,6 +105,7 @@
 #define UPPER_COMM_TASK_NUM				6
 #define UI_OPERATION_TASK_NUM			7
 #define MUSIC_TASK_NUM						8
+#define ESTIMATE_TASK_NUM         9
 /*设定任务周期-如果有定周期执行的任务*/
 //所有任务周期设置不能大于软件看门狗MONITOR_TASK_PERIOD_SET
 #define MONITOR_TASK_PERIOD_SET				50

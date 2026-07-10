@@ -165,9 +165,6 @@ static void DT7ToNormCmd(NormRemoteCmd* norm_remote_cmd, const DT7CmdData* dt7_c
 DJIGMotorRec chassisMotorRec[CHASSIS_MOTOR_NUM];
 const DJIGMotorRec *_chassisMotorRec = chassisMotorRec;
 
-DJIGMotorRec yawMotorRec;
-const DJIGMotorRec* _yawMotorRec = &yawMotorRec;
- 
 DJIGMotorRec fricMotorRec[FRIC_MOTOR_NUM];
 const DJIGMotorRec *_fricMotorRec = fricMotorRec;
 
@@ -439,7 +436,17 @@ void IMUTask(void* argument)
 		#endif
 		PoseUpdateFromIMU(&gimbalPose, &imuUseEKFSolver);
 		RS485_SendIMU();  /* IMU数据立即发出 */
-		
+
+		/* 通知 EstimateTask */
+		{
+			extern TaskHandle_t estimateTaskHandle;
+			if (estimateTaskHandle != NULL)
+				xTaskNotifyGive(estimateTaskHandle);
+		}
+
+		/* 控制链监控：记录 IMU 通知发出的时刻 */
+		g_chain_timer.cyc_imu_notify = DWT->CYCCNT;
+
 		/*任务状态更新*/
 		task_counter++;
 		current_tick_count = xTaskGetTickCount();

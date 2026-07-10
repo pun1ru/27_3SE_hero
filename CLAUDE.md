@@ -6,7 +6,7 @@ RoboMaster 机甲大师赛 **Hero 机器人** 嵌入式控制代码。基于 **S
 
 项目为双板架构：
 - **hero_down（下板）**：底盘 + 云台 + 发射主控逻辑，包含完整的 `MainControl` 模块 ★ 已重构
-- **hero_up（上板）**：下板的精简镜像，无 `MainControl`，负责世界系云台解算等 **⚠ 待同步重构**
+- **hero_up（上板）**：世界系云台解算 + 射击控制 ★ 已完成三段式重构（2026-07），与 hero_down 架构一致
 
 ## 目录结构
 
@@ -63,7 +63,7 @@ RoboMaster 机甲大师赛 **Hero 机器人** 嵌入式控制代码。基于 **S
 │   │   ├── general_define.h            # 设备端口映射（UART/SPI/TIM/CAN 宏）
 │   │   └── general_config_label.h      # 编译开关 + 模式配置标签
 │   └── USB_DEVICE/                     # USB CDC 虚拟串口
-├── hero_up/                            # 上板（结构镜像，无 MainControl）⚠ 待重构
+├── hero_up/                            # 上板（已完成三段式重构 ✅）
 ├── .gitignore
 ├── 27_3SE_hero.code-workspace          # VS Code 工作区（clangd 启用，IntelliSense 禁用）
 └── CLAUDE.md                           # 本文件
@@ -157,18 +157,36 @@ extern const ShootControl* _shootControl;
 
 **注意**：所有模块间数据共享通过 `general_task_include.h` 中声明的 `const` 指针实现，确保只有「拥有者 task」可写，其他 task 只读。
 
-## hero_down vs hero_up 差异对照
+## hero_up 架构（已重构 ✅）
 
-| 方面 | hero_down（重构后） | hero_up（待修正） |
+hero_up 已于 2026-07 完成三段式任务架构重构，与 hero_down 保持一致：
+
+```
+IMUTask(p5,2ms) ──通知──▶ EstimateTask(p5,阻塞) ──通知──▶ ControlTask(p5,阻塞)
+DecisionTask(p5,10ms) 独立运行
+```
+
+### hero_up MainControl 模块
+- `PrivateApplications/MainControl/gimbalControl.h/c` — 云台控制（GimbalInputUpdate/PoseUpdate/Init/ControlUpdate/EstimateUpdate）
+- `PrivateApplications/MainControl/shootControl.h/c` — 射击控制（ShootInputUpdate/ControlUpdate/EstimateUpdate + CRC16_Modbus）
+- `PrivateApplications/MainControl/worldGimbal.h/c` — **世界系云台控制**（hero_up 独有，hero_down 无）
+  - 虚拟目标指向 f_des_B + 阻尼最小二乘 IK 反解
+  - 详细文档：[gimbalControl.md](gimbalControl.md)
+
+### hero_up vs hero_down 差异对照
+
+| 方面 | hero_down（重构后） | hero_up（已重构 ✅） |
 |------|---------------------|---------------------|
-| Task 架构 | 三段分离：task_decision + task_estimate + task_control | 旧架构：robot_control_task.c 单体 |
-| MainControl | ✅ gimbal + chassis + stir + joint | ❌ 无（robot_control_task.h 内置类型） |
-| WorldGimbal | ❌ 无（下板不需要世界系） | ✅ 世界系云台 IK（在 robot_control_task.h 中） |
+| Task 架构 | 三段分离：task_decision + task_estimate + task_control | 三段分离：task_decision + task_estimate + task_control |
+| MainControl | ✅ gimbal + chassis + stir + joint | ✅ gimbal + shoot + worldGimbal |
+| WorldGimbal | ❌ 无（下板不需要世界系） | ✅ 世界系云台 IK（MainControl/worldGimbal） |
+| ChassisControl | ✅ 底盘控制（chassisControl.c） | ❌ 无（底盘由 hero_down 控制，B2B 通信） |
+| JointControl | ✅ 关节控制（jointControl.c） | ❌ 无（关节由 hero_down 控制） |
 | Board2Borad | ✅ 发送（下板→上板） | ✅ 接收 + 发送（上板→下板） |
 | MIT 驱动 | ✅ PrivateDrivers/MIT/ | ❌ 无 |
-| general_task_include | include task_decision/estimate/control | include robot_control_task |
+| general_task_include | include task_decision/estimate/control | include task_decision/estimate/control |
 | 485 用途 | MASTER_485_UART (huart2) | SHOOT_485_UART (huart2) |
-| ShootControl 类型 | stirControl.h 中定义 | robot_control_task.h 中定义 |
+| ShootControl 类型 | stirControl.h 中定义 | shootControl.h 中定义 |
 
 ## 板间通信 — Board2Borad
 
@@ -295,16 +313,12 @@ void ModuleNameInitialize(ModuleName* module);
 
 ## 注意事项
 
-- **hero_down 已重构为三段式任务架构**，hero_up 仍使用旧 robot_control_task.c 单体架构，后续需同步重构
+- **hero_down 和 hero_up 均已重构为三段式任务架构**，通过 IMU→Estimate→Control 通知链实现高频同步
 - **`general_task_include.h` 是高频公用接口**，所有模块的数据共享、const 指针暴露、头文件包含都集中在这里；新增模块时必须同步更新
 - **Board2Borad** 是双板通信的核心通道，修改 CAN 配置时注意不与电机 ID（0x01-0x08, 0x141）冲突
 - **FreeRTOS 任务优先级** 在 `initial_task.c` 创建任务时指定，修改时注意实时性约束：
-  - `7`: RemoteRecTask, IMUTask
-  - `6`: StateMachineTask
-  - `5`: DecisionTask, EstimateTask, ControlTask, UpperPCCommTask
-  - `4`: MonitorTask, DebugTask
-  - `3`: UIOperationTask
-  - `2`: MusicTask
+  - **hero_down**: `7`: RemoteRecTask, IMUTask / `6`: StateMachineTask / `5`: DecisionTask, EstimateTask, ControlTask, UpperPCCommTask / `4`: MonitorTask, DebugTask / `3`: UIOperationTask / `2`: MusicTask
+  - **hero_up**: `7`: MonitorTask, StateMachineTask / `5`: DecisionTask, EstimateTask, ControlTask, IMUTask, UpperPCCommTask / `4`: DebugTask / `2`: MusicTask
 - **CAN 总线** 是主要的外设通信方式，电机、IMU、裁判系统、板间通信均通过 CAN 连接
 - **ADRC 模块** 的 `hero_down` 版本有额外的安全检查（`isfinite`），比 `hero_up` 更成熟
 - **调试信息** 通过 `peripheral_transmit_task.c` 向 DT7 上位机发送

@@ -30,7 +30,7 @@ uint8_t uart10_tx_complete=1;
  int first_flag=1;
  uint32_t StateCount=0;
  uint8_t tx[8] = {0};
-void ALLHighFreqCal(void);//不放在其他电机一起
+
  float angle_temp=0;
  int run_cnt;
 
@@ -76,7 +76,7 @@ void MotorControlCANSend(void)
 	
 	
 	/*大小pitch计算，有些保护写在这里*/
-	ALLHighFreqCal();//你觉得真的有必要么？
+	/* ALLHighFreqCal 已搬迁至 GimbalControlUpdate + EstimateTask */
    StateCount++;
 	/*pitch高速计算*/
 	 uint8_t sadata[8] = {0x94};//这是为什么来着
@@ -196,7 +196,6 @@ uint8_t debug_data[42];
 //extern uint8_t stall_count;
 extern DataFromJudge bulletSpeed;
 extern float predict_speed0;
-//extern float yaw_angle_from_mach;
  float lastspeed=0;
 // float temp=0;
 // int temp1=0;
@@ -219,8 +218,6 @@ extern float predict_speed0;
  extern GimbalControl gimbalControl;
  extern ext_shoot_data_t ext_shoot_data;
  extern DJIGMotorRec chassisMotorRec[CHASSIS_MOTOR_NUM];
-//gimbalControl.GimbalEstimate.pitch_angular_velocity_dps
-extern float w_d;
 int16_t trans[6];
 int cnt;
 static void DebugTransmit(void)  //hxgdebug
