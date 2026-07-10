@@ -70,8 +70,8 @@ void GimbalInit(void)
 #ifdef YAW_DUAL_PID
 		/* yaw轴 LTD + 双环PID 初始化 */
 		LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.002, -180, 180);
-		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   5.0, 0.02, 0,    300, 40);
-		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.030, 0.0, 0.005, 0, 10);
+		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   4.0, 0.01, 0,    500, 40);
+		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.020, 0.0, 0.003, 0, 10);
 #endif
 }
 
@@ -270,12 +270,16 @@ void GimbalControlUpdate(void)
 		}
 		LTDUpdate(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalTargetInput.yaw_angle_d);
 		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_pos_pid, yaw_pos_err_d);
-		/* 速度环：位置环输出作速度给定 + LTD前馈 */
+		/* 速度环：位置环输出低通滤波后作速度给定 + LTD前馈 */
+		static float yaw_pos_out_lpf = 0.0f;
+		const float yaw_pos_lpf_alpha = 0.3f;
+		float yaw_pos_out_raw = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+		yaw_pos_out_lpf = yaw_pos_lpf_alpha * yaw_pos_out_raw + (1.0f - yaw_pos_lpf_alpha) * yaw_pos_out_lpf;
 		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_speed_pid,
-			  gimbalControl.GimbalMotorControl.yaw_pos_pid.output - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
+			  yaw_pos_out_lpf - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
 		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_speed_pid.output + pre_yaw_Tff);
-		gimbalControl.GimbalMotorControl.w_d = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
-		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+		gimbalControl.GimbalMotorControl.w_d = yaw_pos_out_lpf;
+		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = yaw_pos_out_lpf;
 #else
 		/* ===== LADRC V2 角度环控制 ===== */
 		float yaw_fb = SmoothFilterUpdate(&yawEncFilter, gimbalControl.GimbalEstimate.yaw_angle_d);

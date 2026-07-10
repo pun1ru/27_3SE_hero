@@ -19,6 +19,8 @@ uint8_t uart1RecBuffer[32];       /* 上位机(USB CDC) 当前未启用 */
 uint8_t uart5RecBuffer[64];       /* 遥控器: DT7=18B / VT3=21B */
 uint8_t uart6RecBuffer[160];      /* 裁判系统 最大帧~128B */
 uint8_t uart10RecBuffer[49];      /* 激光测距 */
+uint8_t uartServentRecBuffer[40]; /* RS485云台→底盘 40B协议帧（B2B CAN替代，保留声明供回调引用） */
+uint8_t uartMasterRecBuffer[64];  /* RS485底盘→云台（B2B CAN替代，保留声明供回调引用） */
 
 /* ==================================================================
  * RemoteRecTask — 遥操作指令接收

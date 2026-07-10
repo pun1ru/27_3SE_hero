@@ -254,16 +254,21 @@ void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b)
 }
 
 /**
- * @brief   通过 DMA+PWM 将颜色缓冲发送到 12 灯灯带
- * @note    阻塞等待 DMA 传输完成，总耗时约 338 × 1.25µs ≈ 423µs
+ * @brief   通过 DMA+PWM 将颜色缓冲发送到 12 灯灯带（非阻塞）
+ * @note    DMA 硬件自动完成传输（~423µs），CPU 立即返回。
+ *          调用间隔 50ms >> 423µs，下次调用时 DMA 早已完成。
  *          - 发送前自动编码 LED 颜色到 CCR 缓冲区
  *          - 第一个 CCR 值预装入 CCR1 寄存器，DMA 从第二个值开始传输
- *          - 发送完成后 TIM2 继续运行且 CCR=0 → 输出保持低电平 → 灯带自动锁存
- *          - 下次 WS2812_Send() 时重新启动 DMA
+ *          - DMA 传完后 TIM2 继续以 CCR=0 运行 → 输出低电平 → 灯带自动锁存
  */
 void WS2812_Send(void)
 {
     if (!pwm_ready) return;
+
+    /*--- 0. 清理上次传输（上次 DMA 早在 423µs 内完成，50ms 后才来下一次）---*/
+    __HAL_TIM_DISABLE_DMA(&htim2, TIM_DMA_CC1);
+    WS2812_DMA_STREAM->CR &= ~DMA_SxCR_EN;
+    while (WS2812_DMA_STREAM->CR & DMA_SxCR_EN);
 
     /*--- 1. 将颜色数据编码为 CCR 值填充 DMA 缓冲区 ---*/
     WS2812_EncodeBuffer();
@@ -272,10 +277,6 @@ void WS2812_Send(void)
     WS2812_TIM_INSTANCE->CCR1 = ccr_dma_buf[0];
 
     /*--- 3. 配置 DMA 传输 ---*/
-    /* 先禁用 Stream（如果上次传输结束后没清理） */
-    WS2812_DMA_STREAM->CR &= ~DMA_SxCR_EN;
-    while (WS2812_DMA_STREAM->CR & DMA_SxCR_EN);
-
     /* 内存地址从 ccr_dma_buf[1] 开始（[0] 已预装入 CCR1） */
     WS2812_DMA_STREAM->M0AR = (uint32_t)&ccr_dma_buf[1];
     /* 剩余传输次数 = TOTAL_BITS - 1 */
@@ -285,27 +286,10 @@ void WS2812_Send(void)
     DMA1->LIFCR = DMA_LIFCR_CTCIF0 | DMA_LIFCR_CHTIF0
                 | DMA_LIFCR_CTEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CFEIF0;
 
-    /*--- 4. 使能 TIM2_CH1 DMA 请求 + 启动 DMA Stream（TIM2 已在 Init 中运行）---*/
-    __HAL_TIM_ENABLE_DMA(&htim2, TIM_DMA_CC1);          // TIM2 CC1 DMA 请求使能
-    WS2812_DMA_STREAM->CR |= DMA_SxCR_EN;               // DMA Stream 使能
+    /*--- 4. 使能 TIM2_CH1 DMA 请求 + 启动 DMA Stream，立即返回 ---*/
+    __HAL_TIM_ENABLE_DMA(&htim2, TIM_DMA_CC1);
+    WS2812_DMA_STREAM->CR |= DMA_SxCR_EN;
 
-    /*--- 5. 轮询等待 DMA 传输完成（NDTR 递减到 0）---*/
-    /*     338 次传输 × 1.25µs/次 ≈ 423µs，在 50ms 周期的 MonitorTask 中完全可接受 */
-    while (WS2812_DMA_STREAM->NDTR > 0)
-    {
-        /* 忙等 —— Cortex-M7 @ 480MHz，循环开销远小于位周期 */
-    }
-
-    /*--- 6. 等待最后一次定时器溢出 —— 确保最后一个 CCR 值(0)的预装载已生效 ---*/
-    /*     溢出发生在最后一次比较匹配后，间隔 ≤ 1.25µs（0-码为 0.85µs，1-码为 0.45µs）
-           延时 ~2µs 覆盖最坏情况 + 安全余量                                    */
-    for (volatile uint32_t d = 0; d < 2400; d++)
-    {
-        __NOP();
-    }
-
-    /*--- 7. 停 DMA 请求，定时器继续以 CCR=0 运行 → 输出低电平 → 灯带锁存/空闲 ---*/
-    __HAL_TIM_DISABLE_DMA(&htim2, TIM_DMA_CC1);
-    WS2812_DMA_STREAM->CR &= ~DMA_SxCR_EN;
-    /* 定时器不停止：CCR1 保持在 0（最后传输的值），输出持续低电平 */
+    /* 不等待！DMA 硬件在后台自动搬运 338 个 CCR 值，
+       420µs 后灯带自动锁存，下次调用再做清理。 */
 }

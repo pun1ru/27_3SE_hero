@@ -6,11 +6,7 @@
  */
 
 #include "Board2Board.h"
-#include "CAN_driver.h"
-#include "cmsis_os.h"
-#include "peripheral_receive_task.h"
-#include "general_config_label.h"
-#include <string.h>
+#include "general_task_include.h"
 
 /* ---- 485 原有全局变量 ---- */
 extern NormRemoteCmd       normRemoteCmd;
@@ -66,28 +62,18 @@ static void b2bParseBodyState(uint8_t* data,
 }
 
 /**
- * @brief   解析 0x110 云台控制输入 → NormRemoteCmd
+ * @brief   解析 0x221 云台 pitch 控制 → NormRemoteCmd
+ * @note    上板只有 pitch 电机，帧内不传 yaw。
+ *          pitch_cmd 用于 RC 模式（ch3 摇杆），mouse_speed_y 用于 PC 模式（鼠标）。
  */
 static void b2bParseGimbalInput(uint8_t* data, NormRemoteCmd* dst)
 {
-    float pitch_cmd = (float)b2bReadI16BE(data + 0) / 1000.0f;
-    float yaw_cmd   = (float)b2bReadI16BE(data + 2) / 1000.0f;
+    float pitch_cmd     = (float)b2bReadI16BE(data + 0) / 1000.0f;
+    dst->PCMouse.mouse_speed_y = b2bReadI16BE(data + 2);
 
     dst->RelativeCH.ch0 = (float)b2bReadI16BE(data + 4) / 1000.0f;
     dst->RelativeCH.ch1 = (float)b2bReadI16BE(data + 6) / 1000.0f;
-
-    if (b2b_switch_r == NORM_RC_SW_DOWN)
-    {
-        /* PC 模式 */
-        dst->PCMouse.mouse_speed_y = -(int16_t)(pitch_cmd * 1000.0f);
-        dst->PCMouse.mouse_speed_x =  (int16_t)(yaw_cmd   * 1000.0f);
-    }
-    else
-    {
-        /* RC 模式 */
-        dst->RelativeCH.ch3 = pitch_cmd;
-        dst->RelativeCH.ch2 = yaw_cmd;
-    }
+    dst->RelativeCH.ch3 = pitch_cmd;
 }
 
 /**

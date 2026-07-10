@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32H723xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;\PrivateDrivers\Board2Board</IncludePath>
+              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;\PrivateDrivers\Board2Board;..\PrivateApplications\MainControl</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -464,6 +464,36 @@
               <FileName>music_task.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Tasks\Inc\music_task.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Tasks\Src\task_control.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_decision.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Tasks\Src\task_decision.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_estimate.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Tasks\Src\task_estimate.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_control.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\task_control.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_decision.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\task_decision.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_estimate.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\task_estimate.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1246,6 +1276,41 @@
               <FileName>Board2Board.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\PrivateDrivers\Board2Borad\Board2Board.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Users/PrivateApplications/MainControl</GroupName>
+          <Files>
+            <File>
+              <FileName>gimbalControl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\MainControl\gimbalControl.c</FilePath>
+            </File>
+            <File>
+              <FileName>gimbalControl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\gimbalControl.h</FilePath>
+            </File>
+            <File>
+              <FileName>shootControl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\MainControl\shootControl.c</FilePath>
+            </File>
+            <File>
+              <FileName>shootControl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\shootControl.h</FilePath>
+            </File>
+            <File>
+              <FileName>worldGimbal.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\MainControl\worldGimbal.c</FilePath>
+            </File>
+            <File>
+              <FileName>worldGimbal.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\worldGimbal.h</FilePath>
             </File>
           </Files>
         </Group>

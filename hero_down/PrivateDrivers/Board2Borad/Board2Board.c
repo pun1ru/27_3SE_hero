@@ -3,20 +3,17 @@
  * @brief   双板 CAN 通信驱动实现（下板端 — 发送）
  * @note    仿照 serialleg 模式：发送端完成模式选择 + 语义打包，上板零解析消费。
  *          按频率分帧：
- *            B2BSendGimbalInput() → 500Hz，云台控制（鼠标或摇杆）
+ *            B2BSendGimbalInput() → 500Hz，云台 pitch 控制（摇杆 + 鼠标）
  *            B2BSendKeysSwitch()  →  50Hz，键位 + 开关
  *            B2BSendBodyState()   → 按需，  机体姿态 + yaw 编码器
  */
 
 #include "Board2Board.h"
-#include "CAN_driver.h"
-#include "general_config_label.h"
-#include "judge_receive.h"
-#include "peripheral_receive_task.h"
-#include <string.h>
+#include "general_task_include.h"
 
 /* ---- 遥控器归一化指令（只读） ---- */
 extern const NormRemoteCmd* _normRemoteCmd;
+extern const RobotState* _robotState;
 
 /* ======================================================================
  * 内部辅助 — int16 BE 编码
@@ -44,34 +41,23 @@ void B2BInit(void)
 }
 
 /**
- * @brief   发送云台控制输入帧
- * @note    模式自适应：PC 模式发鼠标，遥控模式发摇杆。
+ * @brief   发送云台 pitch 控制输入帧
+ * @note    上板只有 pitch 电机，只需 pitch 控制量，yaw 在下板直接处理。
+ *          RC 模式用 ch3（摇杆），PC 模式用 mouse_speed_y（鼠标）。
  *          上板收到后直接用语义值，无需判断模式。
  */
 uint8_t B2BSendGimbalInput(void)
 {
     uint8_t data[8];
-    int16_t pitch_cmd, yaw_cmd;
 
-    /* ---- 模式自适应：PC 用鼠标，RC 用摇杆 ---- */
-    if (_normRemoteCmd->Switch.switch_R1 == NORM_RC_SW_DOWN)
-    {
-        /* PC 模式：鼠标控制云台 */
-        pitch_cmd = (int16_t)(-_normRemoteCmd->PCMouse.mouse_speed_y);
-        yaw_cmd   = (int16_t)( _normRemoteCmd->PCMouse.mouse_speed_x);
-    }
-    else
-    {
-        /* 遥控模式（SW_R = MID/UP）：摇杆控制云台，ch2→yaw, ch3→pitch */
-        pitch_cmd = (int16_t)(_normRemoteCmd->RelativeCH.ch3 * 1000.0f);
-        yaw_cmd   = (int16_t)(_normRemoteCmd->RelativeCH.ch2 * 1000.0f);
-    }
-
+    /* pitch_cmd: RC=ch3摇杆, mouse_speed_y: PC=鼠标Y增量 */
+    int16_t pitch_cmd     = (int16_t)(_normRemoteCmd->RelativeCH.ch3 * 1000.0f);
+    int16_t mouse_speed_y = _normRemoteCmd->PCMouse.mouse_speed_y;
     int16_t ch0 = (int16_t)(_normRemoteCmd->RelativeCH.ch0 * 1000.0f);
     int16_t ch1 = (int16_t)(_normRemoteCmd->RelativeCH.ch1 * 1000.0f);
 
     b2bWriteI16BE(data + 0, pitch_cmd);
-    b2bWriteI16BE(data + 2, yaw_cmd);
+    b2bWriteI16BE(data + 2, mouse_speed_y);
     b2bWriteI16BE(data + 4, ch0);
     b2bWriteI16BE(data + 6, ch1);
 
@@ -177,11 +163,13 @@ static void b2bParseGimbalTarget(uint8_t* data,
 }
 
 /* ---- 接收 dispatcher ---- */
+uint32_t b2b_pose_rx_count = 0;  /* B2B云台姿态帧接收计数，在线watch判断丢帧 */
 uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
 {
     switch (can_id)
     {
         case B2B_UP_GIMBAL_POSE:
+            b2b_pose_rx_count++;
             b2bParseGimbalPose(data,
                                (float*)&gimbal_yaw_rx_d,
                                (float*)&gimbal_pitch_rx_d,

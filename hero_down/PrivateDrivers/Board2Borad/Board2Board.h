@@ -24,7 +24,7 @@
 
 /* ── 下板→上板 ───────────────────────────── */
 #define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态 + yaw 编码器    500Hz(2ms) */
-#define B2B_DOWN_GIMBAL_INPUT  0x221U  /**< 云台控制输入(模式自适应) 500Hz(2ms) */
+#define B2B_DOWN_GIMBAL_INPUT  0x221U  /**< 云台控制输入(pitch)      500Hz(2ms) */
 #define B2B_DOWN_KEYS_SWITCH   0x222U  /**< 键位 + 开关 + HP         100Hz(10ms,同RC) */
 
 /* ── 上板→下板 ───────────────────────────── */
@@ -40,15 +40,14 @@ void B2BInit(void);
 /* ---- 下板→上板 发送 ---- */
 
 /**
- * @brief   发送云台控制输入帧（500Hz / 2ms，每 slot）
- * @note    自动根据 _normRemoteCmd->Switch.switch_R1 选择数据源：
- *          PC 模式（SW_R = DOWN）→ 鼠标 X/Y
- *          遥控模式             → 摇杆 ch2/ch3
+ * @brief   发送云台 pitch 控制输入帧（500Hz / 2ms，每 slot）
+ * @note    上板只有 pitch 电机，只需 pitch 控制量。
+ *          RC 模式用 ch3（摇杆），PC 模式用 mouse_speed_y（鼠标）。
  *          帧格式（8 字节）：
- *          [0..1] pitch_cmd int16  PC=-mouse_y, RC=ch3×1000
- *          [2..3] yaw_cmd   int16  PC=mouse_x,  RC=ch2×1000
- *          [4..5] ch0       int16  ×1000
- *          [6..7] ch1       int16  ×1000
+ *          [0..1] pitch_cmd      int16  RC=ch3×1000, 始终发送
+ *          [2..3] mouse_speed_y  int16  PC鼠标Y增量（上板世界系pitch用）
+ *          [4..5] ch0            int16  ×1000
+ *          [6..7] ch1            int16  ×1000
  * @retval  0: 发送成功, 1: 发送失败
  */
 uint8_t B2BSendGimbalInput(void);

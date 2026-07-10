@@ -205,6 +205,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	{		
 		default:
 				if (B2BCanRxHandler(RxHeader.Identifier, aData)) break;  /* B2B 0x220-0x222 */
+				break;  /* 非B2B帧不穿透到0x141 */
 			case 0x141:
 	
 			if(aData[0]==0xA1||aData[0]==0xA6||aData[0]==0xA4){

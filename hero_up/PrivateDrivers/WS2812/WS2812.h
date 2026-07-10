@@ -44,7 +44,7 @@ void WS2812_SetLED(uint8_t index, uint8_t r, uint8_t g, uint8_t b);
 /** @brief 设置全部 LED 同色（不立即发送） */
 void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b);
 
-/** @brief 将缓冲区数据通过 DMA+PWM 发送到灯带（阻塞 ~420µs） */
+/** @brief 将缓冲区数据通过 DMA+PWM 发送到灯带（非阻塞，立即返回） */
 void WS2812_Send(void);
 
 #endif

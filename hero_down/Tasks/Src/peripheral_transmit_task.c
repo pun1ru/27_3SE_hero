@@ -1,4 +1,4 @@
-#include "tim.h"
+﻿#include "tim.h"
 #include "usart.h"
 #include "general_task_include.h"
 #include "LK_driver.h"
@@ -10,6 +10,7 @@
 /* ==================================================================
  * HAL 回调
  * ================================================================== */
+uint8_t uart10_tx_complete = 1;
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -117,6 +118,7 @@ void MotorControlCANSend(void)
 #define ZERO_JOINTS
 #define ZERO_WHEELS
 //#define ZERO_STIR
+//#define ZERO_YAW
 #define ZERO_CATERPILLAR
     /* ---- T1: Yaw — 每 slot (500Hz) ---- */
 #ifdef ZERO_YAW
@@ -207,7 +209,7 @@ void MotorControlCANSend(void)
     {
         float yaw_enc = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
 
-        B2BSendGimbalInput();   /* 0x221 500Hz 云台控制输入 */
+        B2BSendGimbalInput();   /* 0x221 500Hz 云台pitch控制（摇杆+鼠标） */
         B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
                          g_joint_body_state_body_dbg.pitch_d,
                          g_joint_body_state_body_dbg.yaw_d,
@@ -216,7 +218,7 @@ void MotorControlCANSend(void)
         if (slot % 5 == 0)
             B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
     }
-
+}
 
 /* ==================================================================
  * DebugTask — 调试数据发送（yaw ADRC 观测值）
@@ -294,26 +296,24 @@ static void DebugTransmit(void)
 	    debug_data[0] = 0xAA;
 	    debug_data[1] = 0xBB;
 
-	    /* 拨盘多圈角度 → [-180, 180] */
-	    float stir_pos = fmod(_shootControl->ShootEstimate.stir_all_angle_d, 360.0f);
-	    if (stir_pos > 180.0f)       stir_pos -= 360.0f;
-	    else if (stir_pos < -180.0f) stir_pos += 360.0f;
+	    extern DMJ4310MotorRec DMyawMotorRec;
+	    extern float yaw_dm_forward_offset_rad;
+	    extern uint32_t b2b_pose_rx_count;
+	    extern volatile float gimbal_yaw_rx_d;
 
-	    float stir_vel = stirMotorRec.vel_radps;
-	    float stir_toq = stirMotorRec.toq;
+	    float yaw_enc_deg = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
+	    float yaw_target   = gimbalControl.GimbalTargetInput.yaw_angle_d;
+	    float yaw_rx_raw   = gimbal_yaw_rx_d;
+	    float b2b_cnt      = (float)b2b_pose_rx_count;
+	    float pos_pid_out  = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
 
-	    memcpy(&debug_data[2],  (void*)&stir_pos, 4);
-	    memcpy(&debug_data[6],  (void*)&stir_vel, 4);
-	    memcpy(&debug_data[10], (void*)&stir_toq, 4);
+	    memcpy(&debug_data[2],  (void*)&yaw_enc_deg,  4);
+	    memcpy(&debug_data[6],  (void*)&yaw_target,   4);
+	    memcpy(&debug_data[10], (void*)&yaw_rx_raw,   4);
+	    memcpy(&debug_data[14], (void*)&b2b_cnt,      4);
+	    memcpy(&debug_data[18], (void*)&pos_pid_out,  4);
 
-	    /* 6 摩擦轮: int16_t RPM → float / 100 */
-	    for (uint8_t i = 0; i < 6; i++)
-	    {
-	        float fric = (float)gimbal_fric_rpm_rx_arr[i] / 100.0f;
-	        memcpy(&debug_data[14 + i * 4], (void*)&fric, 4);
-	    }
-
-	    HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
+	    HAL_UART_Transmit_DMA(&huart7, debug_data, 22);
 #endif
 }
 
