@@ -20,7 +20,7 @@
  *   CAN1 电机: 0x01-0x08(MIT)   0x141(LK pitch)
  *   滤波器:    RANGE [0x000,0x300] → 0x220-0x22F 全部放行
  * =================================================================== */
-#define B2B_CAN                hfdcan1  /**< 双板通信用 CAN 总线（与上板 CAN1 直连） */
+#define B2B_CAN                hfdcan3  /**< 双板通信用 CAN 总线（CAN3 独立通道，不抢电机帧优先级） */
 
 /* ── 下板→上板 ───────────────────────────── */
 #define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态 + yaw 编码器    500Hz(2ms) */
@@ -94,6 +94,8 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data);
  * @brief   B2B 云台姿态超时tick（由 GimbalPoseUpdate 每周期调用）
  * @note    递减心跳计数器，归零时自动清零 gimbal_yaw_rx_valid 触发安全回退
  */
+extern volatile uint32_t can3_rx_isr_cnt;  /* CAN3 ISR触发计数，丢帧时看是否停 */
+extern volatile uint16_t can3_last_rx_id;  /* CAN3最后收到的帧ID */
 void B2B_PoseAliveTick(void);
 
 #endif /* _BOARD2BOARD_H_ */

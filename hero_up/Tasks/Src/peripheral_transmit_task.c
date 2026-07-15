@@ -35,8 +35,10 @@ uint8_t uart10_tx_complete=1;
  int run_cnt;
 
 /* IMU数据快速发送：IMUTask调用，PoseUpdateFromIMU后立即发出，消除任务调度延迟 */
+volatile uint32_t b2b_pose_tx_cnt = 0;  /* 0x228 GIMBAL_POSE 发送计数 */
 void RS485_SendIMU(void)
 {
+	b2b_pose_tx_cnt++;
 /* --- B2B CAN: 云台姿态 500Hz → hero_down --- */
 extern Pose gimbalPose;
 float yaw_f   = gimbalPose.yaw_d;
@@ -50,11 +52,39 @@ if (worldGimbal.enable && _robotState->sniper == SNIPER_ON) {
     pitch_f = worldGimbal.WorldGimbalEstimate.world_pitch_deg;
 }
 
-B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
+/* B2B已移至MotorControlCANSend */ // B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
 }
 
 void MotorControlCANSend(void)
 {
+	/* B2B CAN: 云台姿态 0x228 — 从 IMUTask/RS485_SendIMU 移至此处 */
+	{
+		b2b_pose_tx_cnt++;
+		extern Pose gimbalPose;
+		float yaw_f   = gimbalPose.yaw_d;
+		float pitch_f = gimbalControl.GimbalEstimate.pitch_angle_d;
+		float yaw_dps   = gimbalPose.yaw_radps * 57.29578f;
+		float pitch_dps = gimbalPose.pitch_radps * 57.29578f;
+
+		extern WorldGimbal worldGimbal;
+		if (worldGimbal.enable && _robotState->sniper == SNIPER_ON) {
+			yaw_f   = worldGimbal.WorldGimbalEstimate.world_yaw_deg;
+			pitch_f = worldGimbal.WorldGimbalEstimate.world_pitch_deg;
+		}
+
+		B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
+	}
+
+	/* B2B 下行保护：下板信号丢失 → 停摩擦轮 + pitch零力矩 */
+	B2B_DownAliveCheck();
+	if (!g_b2b_down_valid) {
+		CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
+		CANTransmit_I16(&hfdcan2, 0x1FF, 0,0,0,0);
+		uint8_t sadata[8] = {0x94};
+		LK_iqControl(sadata, 0);
+		CANTransmit_U8(&hfdcan1, 0x141, sadata);
+		return;
+	}
 
 		/*摩擦轮作一帧，加一点额外保护*/
 	if(_robotState->ctrl_terminal != CONTROL_STOP)  {
@@ -102,10 +132,11 @@ void MotorControlCANSend(void)
 						 LK_iqControl(sadata,0);
 						 CANTransmit_U8(&hfdcan1, 0x141 , sadata);
 	     break;
-		}		
-	
+		}
+
 	/*测距部分*/
 	//extern uint8_t lastRobotState.sniper;
+
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	    if (huart->Instance == PITCH_UART.Instance) 

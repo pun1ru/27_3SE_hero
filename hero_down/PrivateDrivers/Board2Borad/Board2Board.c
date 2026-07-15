@@ -147,8 +147,8 @@ static void b2bParseGimbalPose(uint8_t* data,
 {
     *yaw_deg   = (float)b2bReadI16BE(data + 0) / 100.0f;
     *pitch_deg = (float)b2bReadI16BE(data + 2) / 100.0f;
-    *yaw_dps   = (float)b2bReadI16BE(data + 4) / 10.0f;
-    *pitch_dps = (float)b2bReadI16BE(data + 6) / 10.0f;
+    *yaw_dps   = (float)b2bReadI16BE(data + 4) / 100.0f;
+    *pitch_dps = (float)b2bReadI16BE(data + 6) / 100.0f;
 }
 
 /**
@@ -164,6 +164,8 @@ static void b2bParseGimbalTarget(uint8_t* data,
 
 /* ---- 接收 dispatcher ---- */
 uint32_t b2b_pose_rx_count = 0;  /* B2B云台姿态帧接收计数，在线watch判断丢帧 */
+volatile uint32_t can3_rx_isr_cnt = 0;  /* CAN3 RxFifo1Callback 触发计数，>0表示ISR在运行 */
+volatile uint16_t can3_last_rx_id = 0;   /* CAN3最后收到的帧ID，丢帧时确认实际收到什么 */
 volatile uint32_t g_b2b_pose_alive_ctr = 0;  /* B2B心跳：ISR置位→GimbalPoseUpdate递减，>0认为在线 */
 
 /**
@@ -173,11 +175,30 @@ volatile uint32_t g_b2b_pose_alive_ctr = 0;  /* B2B心跳：ISR置位→GimbalPo
  */
 void B2B_PoseAliveTick(void)
 {
+    static uint16_t lost_beep_timer = 0;
+
     if (g_b2b_pose_alive_ctr > 0) {
         g_b2b_pose_alive_ctr--;
     }
     if (g_b2b_pose_alive_ctr == 0) {
         gimbal_yaw_rx_valid = 0;
+    }
+
+    /* 心跳丢失 → 直接短促"嘀"(500ms周期/前50ms响)，不经过music_task */
+    if (gimbal_yaw_rx_valid == 0) {
+        lost_beep_timer++;
+        if (lost_beep_timer >= 250U) {      /* 500ms = 250×2ms */
+            lost_beep_timer = 0;
+        } else if (lost_beep_timer < 25U) {  /* 前50ms = 25×2ms 响 */
+            __HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 500);
+        } else if (lost_beep_timer == 25U) {
+            __HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
+        }
+    } else {
+        if (lost_beep_timer != 0) {
+            __HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);  /* 恢复时立即关 */
+            lost_beep_timer = 0;
+        }
     }
 }
 

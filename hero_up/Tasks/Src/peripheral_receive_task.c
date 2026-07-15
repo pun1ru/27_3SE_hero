@@ -201,8 +201,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		switch(RxHeader.Identifier)
 	{		
 		default:
-				if (B2BCanRxHandler(RxHeader.Identifier, aData)) break;  /* B2B 0x220-0x222 */
-				break;  /* 非B2B帧不穿透到0x141 */
+				break;
 			case 0x141:
 	
 			if(aData[0]==0xA1||aData[0]==0xA6||aData[0]==0xA4){
@@ -246,8 +245,10 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
   	{
 		FDCAN_RxHeaderTypeDef RxHeader;
 		uint8_t aData[8];
-		HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO1, &RxHeader, aData);
-		if(hfdcan == & hfdcan2){
+		while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0U)
+		{
+			HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader, aData);
+			if(hfdcan == & hfdcan2){
 			switch(RxHeader.Identifier){
 		case 0x201:
 			
@@ -311,30 +312,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			}
 		}
 		else if(hfdcan == &hfdcan3){
-			switch(RxHeader.Identifier){
-				case 0x142:
-					smallpitchMotorRec.frame_counter++;
-					if(aData[0]==0x94)
-					{
-					multicircle = (uint32_t)aData[7] << 24 | aData[6] << 16 | aData[5] << 8 | aData[4];
-					smallpitchMotorRec.mechanical_angle=multicircle;//不要了，什么呀
-					pitchrecangle=(float)pitchMotorRec.mechanical_angle;
-				//gimbalControl.GimbalEstimate.small_pitch_actual_angle=(float)smallpitchMotorRec.mechanical_angle/100.f+(gimbalControl.GimbalEstimate.pitch_angle_d-(6266-(float)pitchMotorRec.mechanical_angle)/65535*360);
-					gimbalControl.GimbalEstimate.small_pitch_actual_angle=((float)multicircle-LK_SMALL_PITCH_HORIZEN_ENCODE)/1000;
-					}
-					else if(aData[0]==0xA1)
-					{
-					smallpitchMotorRec.mechanical_speed_rpm = aData[5] << 8 | aData[4]; 
-					smallpitchMotorRec.torque_current_real = aData[3] << 8 | aData[2]; 
-					smallpitchMotorRec.motor_temperature_d = aData[1];
-					}
-					break;
-				case 0xBB:
-				case 0x11:
-					IMU_UpdateData(aData);//达妙IMU，感觉没鸟用,
-					break;
-				default:
-					break;
+				B2BCanRxHandler(RxHeader.Identifier, aData);  /* B2B 0x220-0x222（CAN3专用于双板通信） */
 			}
 		}
 	}

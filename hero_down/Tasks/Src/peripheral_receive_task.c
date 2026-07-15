@@ -214,7 +214,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
                 break;
 
             default:
-                B2BCanRxHandler(RxHeader.Identifier, aData);  /* B2B 0x228-0x22B */
                 break;
             }
         }
@@ -269,6 +268,9 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
                 }
             }
             else if (hfdcan == &hfdcan3) {
+                can3_rx_isr_cnt++;  /* ISR触发计数：丢帧时watch此值是否停止增长 */
+                can3_last_rx_id = RxHeader.Identifier;  /* 记录最后收到的CAN ID */
+                if (B2BCanRxHandler(RxHeader.Identifier, aData)) continue;  /* B2B 0x228-0x22B（从CAN1迁至CAN3），处理完继续读下一帧 */
                 switch (RxHeader.Identifier) {
                 case 0x211:
                     superCapacity.frame_counter++;

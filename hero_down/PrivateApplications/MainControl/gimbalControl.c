@@ -7,9 +7,17 @@
 #include "gimbalControl.h"
 #include "general_task_include.h"
 #include "../../PrivateDrivers/Board2Borad/Board2Board.h"
+#include "../../PrivateApplications/System_IDF/system_idf.h"
 
 /* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
  #define YAW_DUAL_PID
+
+/* TEST_YAW: 系统辨识阶跃测试 → 定义在 system_idf.h */
+
+/* 系统辨识：全局实例（供debug帧读取） */
+#ifdef TEST_YAW
+SysIDTest g_sysid_yaw = {0};
+#endif
 
 /*---------------------------------------------------------------------------全局实例-------------------------------------------------------------------------------------------*/
 GimbalControl gimbalControl = {0};
@@ -331,28 +339,75 @@ void GimbalControlUpdate(void)
 		//x2(速度方向):逆时针是负,顺时针是正,大概十几,几十
 		//假设向顺时针方向旋转,pos_error是正,pos_output是正值对的,speed_output也是正,实际应该给负值
 	if(CONTROL_STOP != pDecisionAO->ctrl_terminal){
-		/* ===== yaw轴 MIT 力矩/速度指令输出 ===== */
+#ifdef TEST_YAW
+			/* ── 系统辨识：阶跃力矩测试 ── */
+			{
+				extern const NormRemoteCmd* _normRemoteCmd;
+				static uint8_t sysid_inited = 0;
+				if(!sysid_inited) { SysIDInit(&g_sysid_yaw); sysid_inited = 1; }
+
+				/* 触发：狙击模式 + ch0 > 阈值 */
+				if(pDecisionAO->sniper == SNIPER_ON
+				   && _normRemoteCmd->RelativeCH.ch0 > g_sysid_yaw.ch0_threshold)
+				{
+					if(!SysIDStepActive(&g_sysid_yaw))
+						SysIDStepStart(&g_sysid_yaw, 0.5f, 1000);
+				}
+
+				SysIDStepUpdate(&g_sysid_yaw, 1);
+
+				if(SysIDStepActive(&g_sysid_yaw))
+				{
+					MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+						0.0f, 0.0f, 0.0f, 0.0f, g_sysid_yaw.out_torque_nm);
+				}
+				else
+#endif
+			/* ===== yaw轴 MIT 力矩/速度指令输出 ===== */
+
+			{
+			#ifdef TEST_YAW
+			/* TEST_YAW: 非阶跃期间位置保持，零力矩 */
+			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+				DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
+			#else
 		if (!gimbal_yaw_rx_valid)
 		{
-			/* B2B/DM CAN超时 → 统一开环MIT速度控制，鼠标映射yaw转速 */
+			/* B2B/DM CAN超时 → 零力矩（保持当前编码器位置，速度/刚度/阻尼/前馈全0） */
 			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
-				DMyawMotorRec.pos_d, (float)_normRemoteCmd->PCMouse.mouse_speed_x * 0.03f,
-				0.5f, 0.3f, 0.0f);
+				DMyawMotorRec.pos_d, 0.0f,
+				0.0f, 0.0f, 0.0f);
 		}
 		else if (pDecisionAO->sniper == SNIPER_ON)
 		{
+#ifdef TEST_YAW
+				/* TEST_YAW: 狙击也走PID，不独立出力矩 */
+				MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+					0.0f, 0.0f, 0.0f, 0.0f,
+					AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
+			}
+			else
+			{
+#endif
 			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
 				0.0f, 0.0f,
 				0.0f, 0.0f,
 				AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
-		}
-		else
-		{
-			/* 普通模式 + CAN正常 → 双环PID输出转力矩 */
-			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
-				0.0f, 0.0f, 0.0f, 0.0f,
-				AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
-		}
+			}
+#ifndef TEST_YAW
+			else
+			{
+				/* 普通模式 + CAN正常 → 双环PID输出转力矩 */
+				MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+					0.0f, 0.0f, 0.0f, 0.0f,
+					AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
+			}
+#endif
+			#endif
+			}
+#ifdef TEST_YAW
+			}
+#endif
 	}
 	else{
 		/* CONTROL_STOP: 停转保持当前位置 */

@@ -6,18 +6,16 @@
 #include "dm_imu.h"
 #include "LK_485_driver.h"
 #include "../../PrivateDrivers/Board2Borad/Board2Board.h"
-
+#include "../../PrivateApplications/System_IDF/system_idf.h"
 /* ==================================================================
  * HAL 回调
  * ================================================================== */
 uint8_t uart10_tx_complete = 1;
-
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == PITCH_UART.Instance)
         uart10_tx_complete = 1;
 }
-
 /* ==================================================================
  * MotorControlCANSend — CAN 总线电机控制帧发送 + 双板通信 UART
  *
@@ -37,16 +35,13 @@ extern JointControl        jointControl;
 extern GimbalControl       gimbalControl;
 extern const NormRemoteCmd* _normRemoteCmd;
 extern int                 crawler_rotate_flag;
-
 /* ---- 双板通信帧 ---- */
 extern DMJ4310MotorRec DMyawMotorRec;
 extern float    yaw_dm_forward_offset_rad;
 extern JointBodyState g_joint_body_state_body_dbg;
-
 void MotorControlCANSend(void)
 {
     static uint8_t slot = 0;   /* 20-slot 循环, 20ms 周期 */
-
     /* CAN 总线电机维护 ID 数组 */
     static const uint16_t can1_maintain[] = {
         CAN1_JOINT_LF, CAN1_JOINT_RF, CAN1_JOINT_RB, CAN1_JOINT_LB,
@@ -55,37 +50,31 @@ void MotorControlCANSend(void)
     static const uint16_t can2_maintain[] = {
         CAN2_CATERPILLAR_L, CAN2_CATERPILLAR_R
     };
-
     /* ====== 停止态：锁电机 + 清错误 + 零值 ====== */
     if (pDecisionAO->ctrl_terminal == CONTROL_STOP
         || pDecisionAO->can_enable == CAN_DISABLE)
     {
         /* T1: Yaw 零值 — 每 slot */
         DM_MITControl_Send(&hfdcan1, CAN1_YAW, 0,0,0,0,0);
-
         /* T2: 关节零值 + 轮零值 — 偶数 slot */
         if ((slot & 1) == 0)
         {
             DM_MITControl_JointsSendTorq(&hfdcan1, (float[4]){0,0,0,0});
             CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
         }
-
         /* T2: 拨弹零值 — 每5 slot */
         if (slot % 5 == 0)
             ctrl_motor2(&hfdcan1, GMJ4310MOTOR_ID, 0, 0);
-
         /* T3: 履带零值 — 每4 slot 偏移1 */
         if (slot % 4 == 1)
         {
             DM_MITControl_Send(&hfdcan2, CAN2_CATERPILLAR_L, 0,0,0,0,0);
             DM_MITControl_Send(&hfdcan2, CAN2_CATERPILLAR_R, 0,0,0,0,0);
         }
-
         /* T3: 功率限制 — 每5 slot 偏移3 */
         if (slot % 5 == 3)
             CANTransmit_I16(&hfdcan2, 0x2FF, 0,0,
                 ext_game_robot_status.chassis_power_limit - 1, 0);
-
         /* T4: 维护 — 1帧/slot 散布（Lock + ClearError 交替） */
         {
             static uint8_t maint_seq_stop = 0;
@@ -108,14 +97,12 @@ void MotorControlCANSend(void)
             }
             maint_seq_stop = (maint_seq_stop + 1) % 16;
         }
-
         slot = (slot + 1) % 20;
         /* 不 return，继续执行下面的双板通信 RS485 发送 */
     }
     else
     {
     /* ====== 正常运行态 ====== */
-
 #define ZERO_JOINTS
 #define ZERO_WHEELS
 //#define ZERO_STIR
@@ -132,7 +119,6 @@ void MotorControlCANSend(void)
         gimbalControl.GimbalMotorControl.mit.Kd,
         gimbalControl.GimbalMotorControl.mit.Tff);
 #endif
-
     /* ---- T2: 关节 MIT ×4 — 偶数 slot (250Hz) ---- */
     if ((slot & 1) == 0)
     {
@@ -149,7 +135,6 @@ void MotorControlCANSend(void)
                 jointControl.JointMotorControl.mit_Tff[i]);
 #endif
     }
-
     /* ---- T2: 轮电机 0x200 — 偶数 slot (250Hz) ---- */
     if ((slot & 1) == 0)
 #ifdef ZERO_WHEELS
@@ -161,7 +146,6 @@ void MotorControlCANSend(void)
             _chassisControl->WheelMotorControl.target_motor_output[2],
             _chassisControl->WheelMotorControl.target_motor_output[3]);
 #endif
-
     /* ---- T2: 拨弹 Stir — 每5 slot (100Hz) ---- */
     if (slot % 5 == 0)
 #ifdef ZERO_STIR
@@ -171,7 +155,6 @@ void MotorControlCANSend(void)
             _shootControl->ShootTargetInput.stir_all_target_pos_rad,
             _shootControl->ShootTargetInput.stir_target_vol);
 #endif
-
     /* ---- T3: 履带 MIT ×2 — 每4 slot 偏移1 (125Hz) ---- */
     if (slot % 4 == 1)
 #ifdef ZERO_CATERPILLAR
@@ -187,12 +170,10 @@ void MotorControlCANSend(void)
             0,0,0,0,  3.1f * crawler_rotate_flag);
     }
 #endif
-
     /* ---- T3: 超级电容功率限制 0x2FF — 每5 slot 偏移3 (100Hz) ---- */
     if (slot % 5 == 3)
         CANTransmit_I16(&hfdcan2, 0x2FF, 0, 0,
             ext_game_robot_status.chassis_power_limit - 1, 0);
-
     /* ---- T4: 维护 Start — 1帧/slot 散布 (~42Hz 完整周期) ---- */
     {
         static uint8_t maint_seq = 0;
@@ -202,37 +183,29 @@ void MotorControlCANSend(void)
             start_motor(&hfdcan2, can2_maintain[maint_seq - 6]);
         maint_seq = (maint_seq + 1) % 8;
     }
-
     slot = (slot + 1) % 20;
     }  /* else: 正常运行态结束 */
-
     /* ---- 双板通信 CAN：替代 RS485 转发 ---- */
     {
         float yaw_enc = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
-
         B2BSendGimbalInput();   /* 0x221 500Hz 云台pitch控制（摇杆+鼠标） */
         B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
                          g_joint_body_state_body_dbg.pitch_d,
                          g_joint_body_state_body_dbg.yaw_d,
                          yaw_enc);                        /* 0x220 500Hz 机体姿态+yaw编码器 */
-
         if (slot % 5 == 0)
             B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
     }
 }
-
 /* ==================================================================
  * DebugTask — 调试数据发送（yaw ADRC 观测值）
  * ================================================================== */
-
 /* ---- Debug 外部引用 ---- */
 extern const GimbalControl* _gimbalControl;
 extern DMJ4310MotorRec      stirMotorRec;
 extern volatile int16_t     gimbal_fric_rpm_rx_arr[6];
-
 /* ---- Debug 本地数据 ---- */
 static uint8_t debug_data[42];
-
 /* ---- Debug 工具函数 ---- */
 static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
 {
@@ -248,9 +221,14 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     }
     return crc;
 }
-
+/* ---- Debug 帧类型选择（只定义一个） ---- */
+//#define DEBUG_FRAME_CTRL     /* 云台控制调试帧 0xAABB 26B */
+#define DEBUG_FRAME_SYSID      /* 系统辨识调试帧 0xAABB 30B */
 static void DebugTransmit(void)
 {
+    /* ---- 公用外部引用 ---- */
+    extern DMJ4310MotorRec DMyawMotorRec;
+    extern volatile float gimbal_yaw_dps_rx;
 #if 0
     /* ===== 原始帧格式（保留） ===== */
     static uint16_t debug_seq = 0;
@@ -259,36 +237,25 @@ static void DebugTransmit(void)
                stir_torque 4B | stir_speed 4B | CRC-8 1B = 38B */
     debug_data[0] = 0xAA;
     debug_data[1] = 0xBB;
-
     memcpy(&debug_data[2], &debug_seq, 2);
     debug_seq++;
-
     debug_data[4] = (uint8_t)_shootControl->ShootTargetInput.shoot_flag;
-
     memcpy(&debug_data[5], &ext_shoot_data.initial_speed, 4);
-
     memcpy(&debug_data[9],  (void*)&gimbal_fric_rpm_rx_arr[0], 2);
     memcpy(&debug_data[11], (void*)&gimbal_fric_rpm_rx_arr[1], 2);
     memcpy(&debug_data[13], (void*)&gimbal_fric_rpm_rx_arr[2], 2);
     memcpy(&debug_data[15], (void*)&gimbal_fric_rpm_rx_arr[3], 2);
     memcpy(&debug_data[17], (void*)&gimbal_fric_rpm_rx_arr[4], 2);
     memcpy(&debug_data[19], (void*)&gimbal_fric_rpm_rx_arr[5], 2);
-
     memcpy(&debug_data[21], (void*)&gimbal_pitch_rx_d, 4);
-
     memcpy(&debug_data[25], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
-
     memcpy(&debug_data[29], &stirMotorRec.toq, 4);
-
     memcpy(&debug_data[33], &stirMotorRec.vel_radps, 4);
-
     debug_data[37] = crc8_maxim(debug_data, 37);
-
     HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
-
-#else
-	    /* ===== 拨盘 + 摩擦轮调试帧 (26B) =====
-	     * [0-1]   0xAA 0xBB  帧头
+#elif defined(DEBUG_FRAME_CTRL)
+    /* ===== 云台控制调试帧 (26B) =====
+     * [0-1]   0xAA 0xBB  帧头
 	     * [2-5]   float       yaw_enc_deg     yaw编码器角度 [-180, 180]
 	     * [6-9]   float       yaw_target      目标yaw角度
 	     * [10-13] float       yaw_rx_raw      B2B接收yaw原始值
@@ -298,38 +265,70 @@ static void DebugTransmit(void)
 	     */
 	    debug_data[0] = 0xAA;
 	    debug_data[1] = 0xBB;
-
-	    extern DMJ4310MotorRec DMyawMotorRec;
 	    extern float yaw_dm_forward_offset_rad;
 	    extern uint32_t b2b_pose_rx_count;
 	    extern volatile float gimbal_yaw_rx_d;
-
 	    float yaw_enc_deg = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
 	    float yaw_target   = gimbalControl.GimbalTargetInput.yaw_angle_d;
 	    float yaw_rx_raw   = gimbal_yaw_rx_d;
 	    float b2b_cnt      = (float)b2b_pose_rx_count;
 	    float pos_pid_out  = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
 	    float yaw_p_int_f = (float)DMyawMotorRec.p_int;
-
 	    memcpy(&debug_data[2],  (void*)&yaw_enc_deg,  4);
 	    memcpy(&debug_data[6],  (void*)&yaw_target,   4);
 	    memcpy(&debug_data[10], (void*)&yaw_rx_raw,   4);
 	    memcpy(&debug_data[14], (void*)&b2b_cnt,      4);
 	    memcpy(&debug_data[18], (void*)&pos_pid_out,  4);
 	    memcpy(&debug_data[22], (void*)&yaw_p_int_f,  4);
-
 	    HAL_UART_Transmit_DMA(&huart7, debug_data, 26);
+#elif defined(DEBUG_FRAME_SYSID)
+    /* ===== 系统辨识调试帧 (30B) =====
+     * [0-1]   0xAA 0xBB  帧头
+     * [2-5]   float       yaw_angle_raw       YAW实际角度 (rad, DM电机回传raw)
+     * [6-9]   float       yaw_torque_raw      YAW电机力矩 (Nm, raw)
+     * [10-13] float       yaw_vel_motor       YAW角速度电机回传 (rad/s, raw)
+     * [14-17] float       yaw_angle_imu       YAW角度上板IMU (rad, B2B接收deg→rad)
+     * [18-21] float       yaw_vel_imu         YAW角速度上板IMU (rad/s, B2B接收deg/s→rad/s)
+     * [22-25] float       target_torque       目标力矩 (Nm, 阶跃注入值)
+     * [26-29] float       target_velocity     目标速度 (rad/s)
+     */
+    extern volatile float gimbal_yaw_rx_d;
+    static uint8_t sysid_data[30];
+
+    float yaw_angle_raw  = DMyawMotorRec.pos_d;                          /* rad, 电机原始角度 */
+    float yaw_torque_raw = DMyawMotorRec.toq;                            /* Nm, 电机原始力矩 */
+    float yaw_vel_motor  = DMyawMotorRec.vel_radps;                      /* rad/s, 电机原始角速度 */
+    float yaw_angle_imu  = gimbal_yaw_rx_d * 0.0174533f;                 /* deg→rad, 上板B2B角度 */
+    float yaw_vel_imu    = gimbal_yaw_dps_rx * 0.0174533f;               /* deg/s→rad/s, 上板B2B角速度 */
+
+#ifdef TEST_YAW
+    extern SysIDTest g_sysid_yaw;
+    float target_torque   = g_sysid_yaw.out_torque_nm;
+    float target_velocity = g_sysid_yaw.out_velocity_radps;
+#else
+    float target_torque   = 0.0f;
+    float target_velocity = 0.0f;
+#endif
+
+    sysid_data[0] = 0xAA;
+    sysid_data[1] = 0xBB;
+    memcpy(&sysid_data[2],  (void*)&yaw_angle_raw,  4);
+    memcpy(&sysid_data[6],  (void*)&yaw_torque_raw, 4);
+    memcpy(&sysid_data[10], (void*)&yaw_vel_motor,  4);
+    memcpy(&sysid_data[14], (void*)&yaw_angle_imu,  4);
+    memcpy(&sysid_data[18], (void*)&yaw_vel_imu,    4);
+    memcpy(&sysid_data[22], (void*)&target_torque,  4);
+    memcpy(&sysid_data[26], (void*)&target_velocity, 4);
+
+    HAL_UART_Transmit_DMA(&huart7, sysid_data, 30);
 #endif
 }
-
-
 void DebugTask(void* argument)
 {
     static uint32_t last_tick_count, current_tick_count, this_tick_count;
     static uint16_t task_counter;
     _taskMonitor->TaskFrameCounterPtr._debug_task = &task_counter;
     _taskMonitor->TaskRunPeriodPtr._debug_task = &this_tick_count;
-
     current_tick_count = last_tick_count = xTaskGetTickCount();
     while (1)
     {
@@ -343,7 +342,6 @@ void DebugTask(void* argument)
         vTaskDelayUntil(&current_tick_count, DEBUG_TASK_PERIOD_SET);
     }
 }
-
 /* ==================================================================
  * UIOperationTask — 裁判系统 UI 绘制
  * 绘制实现位于 UI_design 模块
@@ -354,14 +352,12 @@ void UIOperationTask(void* argument)
     static uint16_t task_counter;
     _taskMonitor->TaskFrameCounterPtr._ui_operation_task = &task_counter;
     _taskMonitor->TaskRunPeriodPtr._ui_operation_task = &this_tick_count;
-
     current_tick_count = last_tick_count = xTaskGetTickCount();
     while (1)
     {
         /* 降低发送频率至 ~27.8Hz（3ms×12=36ms），满足裁判系统0x0301的30Hz上限 */
         if (task_counter % 12 == 0)
             UiOperation();
-
         task_counter++;
         current_tick_count = xTaskGetTickCount();
         this_tick_count = current_tick_count - last_tick_count;

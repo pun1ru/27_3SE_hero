@@ -16,7 +16,7 @@
  *
  * 不与任何总线现有 ID 冲突，详见 hero_down/Board2Board.h
  * =================================================================== */
-#define B2B_CAN                hfdcan1  /**< 双板通信用 CAN 总线（与下板 CAN1 直连） */
+#define B2B_CAN                hfdcan3  /**< 双板通信用 CAN 总线（CAN3 独立通道，不抢电机帧优先级） */
 
 /* ── 下板→上板（收） ─────────────────────── */
 #define B2B_DOWN_BODY_STATE    0x220U
@@ -33,6 +33,10 @@
 
 void    B2BInit(void);
 uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data);
+
+/* ---- B2B 下行（下板→上板）心跳监测 ---- */
+extern volatile uint8_t  g_b2b_down_valid;      /* 0=下板B2B丢失，已进保护 */
+void B2B_DownAliveCheck(void);                  /* ControlTask每周期调用，递减计数器 */
 
 /* ---- 上板→下板 发送 ---- */
 

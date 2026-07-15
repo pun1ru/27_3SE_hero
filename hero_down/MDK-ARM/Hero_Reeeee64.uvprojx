@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32H723xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;..\PrivateApplications\MainControl;..\PrivateDrivers\MIT;..\qp;..\qp\qm;..\qp\qpc\include;..\qp\qpc\ports;..\qp\qpc\src</IncludePath>
+              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;..\PrivateApplications\MainControl;..\PrivateDrivers\MIT;..\qp;..\qp\qm;..\qp\qpc\include;..\qp\qpc\ports;..\qp\qpc\src;..\PrivateApplications\System_IDF</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1562,6 +1562,21 @@
               <FileName>decision_ao.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\qp\decision_ao.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Users/PrivateApplications/System_IDF</GroupName>
+          <Files>
+            <File>
+              <FileName>system_idf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\System_IDF\system_idf.c</FilePath>
+            </File>
+            <File>
+              <FileName>system_idf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\System_IDF\system_idf.h</FilePath>
             </File>
           </Files>
         </Group>

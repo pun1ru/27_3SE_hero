@@ -22,6 +22,11 @@ extern EventGroupHandle_t  remoteRecEventGroup;
 /* ---- 模式缓存 ---- */
 static uint8_t b2b_switch_r = NORM_RC_SW_MID;
 
+/* ---- B2B 下行（下板→上板）心跳 ---- */
+#define B2B_DOWN_ALIVE_THRESHOLD  20U   /* 20周期×~2ms ≈ 40ms超时 */
+volatile uint32_t g_b2b_down_alive_ctr = 0;  /* ISR置位，task递减 */
+volatile uint8_t  g_b2b_down_valid = 0;      /* 0=下行丢失 */
+
 /* ======================================================================
  * 内部辅助
  * ====================================================================== */
@@ -128,10 +133,14 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
                               (float*)&servant485_roll_d,
                               (float*)&servant485_yaw_d);
             shoot485_yaw_rx_valid = 1;
+            g_b2b_down_alive_ctr = B2B_DOWN_ALIVE_THRESHOLD;
+            g_b2b_down_valid = 1;
             return 1U;
 
         case B2B_DOWN_GIMBAL_INPUT:
             b2bParseGimbalInput(data, &normRemoteCmd);
+            g_b2b_down_alive_ctr = B2B_DOWN_ALIVE_THRESHOLD;
+            g_b2b_down_valid = 1;
             return 1U;
 
         case B2B_DOWN_KEYS_SWITCH:
@@ -140,6 +149,26 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
 
         default:
             return 0U;
+    }
+}
+
+/* ======================================================================
+ * B2B 下行心跳检测
+ * ====================================================================== */
+
+/**
+ * @brief   B2B 下板帧超时检测（ControlTask 每周期调用）
+ * @note    递减 alive 计数器，归零时标记 g_b2b_down_valid = 0
+ *          B2B 下行 500Hz（2ms/帧），阈值 20→~40ms 超时
+ *          B2BCanRxHandler 每收到一帧就重置计数器
+ */
+void B2B_DownAliveCheck(void)
+{
+    if (g_b2b_down_alive_ctr > 0U) {
+        g_b2b_down_alive_ctr--;
+    }
+    if (g_b2b_down_alive_ctr == 0U) {
+        g_b2b_down_valid = 0;
     }
 }
 
@@ -153,8 +182,8 @@ uint8_t B2BSendGimbalPose(float yaw_d, float pitch_d, float yaw_dps, float pitch
 
     b2bWriteI16BE(data + 0, (int16_t)(yaw_d    * 100.0f));
     b2bWriteI16BE(data + 2, (int16_t)(pitch_d  * 100.0f));
-    b2bWriteI16BE(data + 4, (int16_t)(yaw_dps  * 10.0f));
-    b2bWriteI16BE(data + 6, (int16_t)(pitch_dps * 10.0f));
+    b2bWriteI16BE(data + 4, (int16_t)(yaw_dps  * 100.0f));
+    b2bWriteI16BE(data + 6, (int16_t)(pitch_dps * 100.0f));
 
     return fdcanx_send_data(&B2B_CAN, B2B_UP_GIMBAL_POSE, data, 8);
 }

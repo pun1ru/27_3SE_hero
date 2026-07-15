@@ -100,7 +100,7 @@ QState DecisionAO_initial(DecisionAO * const me, void const * const par) {
 //${Hero_Demo::DecisionAO::SM::Protected} ....................................
 QState DecisionAO_Protected(DecisionAO * const me, QEvt const * const e) {
     QState status_;
-    switch (e->sig) {
+    switch (e->sig) {//手动更新,entry进不去
         //${Hero_Demo::DecisionAO::SM::Protected}
         case Q_ENTRY_SIG: {
             me->ctrl_terminal = CTRL_STOP;
