@@ -37,7 +37,7 @@ void ChassisInputUpdate(void)
 	//老电容控制板
 	float max_speed_y_rps_error = 0.07 / (0.7 * fabs(chassisControl.ChassisEstimate.speed_y_mps) + 0.5) + 0.22 - (_robotState->auto_slope * 0.2 * (chassisControl.ChassisEstimate.speed_y_mps > 1.95));
 
-	switch(_robotState->ctrl_terminal)
+	switch(pDecisionAO->ctrl_terminal)
 	{
 		case CONTROL_STOP:
 			chassisControl.GimbalCoordinateInput.speed_x_mps = chassisControl.GimbalCoordinateInput.speed_y_mps = 0;
@@ -173,7 +173,7 @@ void ChassisInputUpdate(void)
 	}
 
 	#ifdef CENTRIFUGE_REVOLVE		//偏心陀螺，老车不需要
-	if(_robotState->chassis_mode == CHASSIS_REVOLVE)
+	if(pDecisionAO->chassis_mode == CHASSIS_REVOLVE)
 	{
 		chassisControl.GimbalCoordinateInput.speed_y_mps += 0.1f * delta_angle_cos;
 		chassisControl.GimbalCoordinateInput.speed_x_mps += 0.1f * delta_angle_sin;
@@ -216,7 +216,7 @@ void ChassisInputUpdate(void)
 	//比赛模式下为盲道检录降陀螺转速
 	#ifdef MATCH_MODE
 		static uint16_t match_count = 0;
-		if(CONTROL_FROM_REMOTE == _robotState->ctrl_terminal && _robotState->chassis_mode == CHASSIS_REVOLVE)
+		if(CONTROL_FROM_REMOTE == pDecisionAO->ctrl_terminal && pDecisionAO->chassis_mode == CHASSIS_REVOLVE)
 			match_count = 300;
 		if(match_count > 0)
 		{
@@ -227,7 +227,7 @@ void ChassisInputUpdate(void)
 
 
 	/*底盘跟随及自旋方向速度输入*/
-	switch(_robotState->chassis_mode)
+	switch(pDecisionAO->chassis_mode)
 	{
 		case CHASSIS_FOLLOW:
 		case CHASSIS_FOLLOW_BACK:
@@ -263,7 +263,7 @@ void ChassisInputUpdate(void)
 		break;
 
 		case CHASSIS_REVOLVE:
-			if((CONTROL_FROM_REMOTE == _robotState->ctrl_terminal || CONTROL_FROM_PC == _robotState->ctrl_terminal) && DT7 == _normRemoteCmd->remote_source)
+			if((CONTROL_FROM_REMOTE == pDecisionAO->ctrl_terminal || CONTROL_FROM_PC == pDecisionAO->ctrl_terminal) && DT7 == _normRemoteCmd->remote_source)
 			{
 				chassisControl.ChassisCoordinateInput.speed_w_rps = -chassisControl.GimbalCoordinateInput.max_revolve_speed_rps;//调试限速，赛场上不限速，你妈的记得删
 
@@ -296,12 +296,12 @@ void ChassisInputUpdate(void)
 	//自旋速度限幅
 	chassisControl.ChassisCoordinateInput.speed_w_rps = limiter(chassisControl.ChassisCoordinateInput.speed_w_rps, chassisControl.GimbalCoordinateInput.max_revolve_speed_rps);
 	//保护赋值
-	if(CONTROL_STOP == _robotState->ctrl_terminal)
+	if(CONTROL_STOP == pDecisionAO->ctrl_terminal)
 		chassisControl.ChassisCoordinateInput.speed_w_rps = 0;
 
 	/*另外的状态机，在吊射模式下防止底盘跟随，速度给0，但是输出不给0，尽量保持静止
 	后来发现可以和分离模式耦合*/
-	if((_robotState->sniper==SNIPER_ON)){
+	if((pDecisionAO->sniper == SNIPER_ON)){
 		chassisControl.ChassisCoordinateInput.speed_x_mps=0;
 		chassisControl.ChassisCoordinateInput.speed_y_mps=0;
 		chassisControl.ChassisCoordinateInput.speed_w_rps=0;
@@ -322,14 +322,14 @@ void ChassisEstimateUpdate(void)
 	/*跟随角度 = 云台与底盘的相对角，云台正前方时为0*/
 	chassisControl.ChassisEstimate.chassis_follow_angle_d = chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d;														  //+ (- gimbalControl.GimbalMotorControl.yaw_angle_adrc.esf.e_1);
 	/* CHASSIS_FOLLOW_BACK: 跟随方向反转180度，机体背向云台朝向 */
-	if (_robotState->chassis_mode == CHASSIS_FOLLOW_BACK)
+	if (pDecisionAO->chassis_mode == CHASSIS_FOLLOW_BACK)
 	{
 		chassisControl.ChassisEstimate.chassis_follow_angle_d += 180.0f;
 	}
 
 	static uint16_t shake_count = 0;
 	//唉，为什么这里一点那里一点啊,我也懒得给你重构了，加史
-	if(_robotState->sniper==SNIPER_OFF)
+	if(pDecisionAO->sniper == SNIPER_OFF)
 	if(_normRemoteCmd->PCKeyBoard.level_key_CTRL)
 		shake_count = 400;
 	if (shake_count > 0)
@@ -381,7 +381,7 @@ void ChassisControlUpdate(void)
 	chassisControl.ChassisRealNeedInput.speed_y_mps = chassisControl.ChassisCoordinateInput.speed_y_mps;
 
 	chassisControl.ChassisRealNeedInput.speed_w_rps = chassisControl.ChassisCoordinateInput.speed_w_rps;
-	if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB )
+	if (pDecisionAO->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB )
 	{
 		if (fabs(_normRemoteCmd->RelativeCH.ch1) > 0.1f)
 		{
@@ -448,18 +448,18 @@ void ChassisControlUpdate(void)
 	speedCount++;
 	if(!_normRemoteCmd->PCKeyBoard.level_key_A && !_normRemoteCmd->PCKeyBoard.level_key_D\
 	 &&!_normRemoteCmd->PCKeyBoard.level_key_W && !_normRemoteCmd->PCKeyBoard.level_key_S\
-	 && _robotState->chassis_mode != CHASSIS_REVOLVE)
+	 && pDecisionAO->chassis_mode != CHASSIS_REVOLVE)
 		speedCount = 0;
 
 
 
 	/*陀螺切跟随限功率计时器--切回跟随时给出瞬间功率补偿*/
 	static uint16_t timeCount = 0, last_state = 0;
-	if(_robotState->chassis_mode != CHASSIS_REVOLVE && last_state == CHASSIS_REVOLVE)
+	if(pDecisionAO->chassis_mode != CHASSIS_REVOLVE && last_state == CHASSIS_REVOLVE)
 		timeCount = 200;
 	if(timeCount > 0)
 		timeCount--;
-	last_state = _robotState->chassis_mode;
+	last_state = pDecisionAO->chassis_mode;
 
 	/*电容电压高于一定值时放宽底盘功率限制*/
 	if(_superCapacity->cap_volt >= 10.4 )
@@ -487,15 +487,15 @@ void ChassisControlUpdate(void)
 	else if(timeCount)
 		chassis_permitted_power *= 0.6;
 
-	if(_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB)
+	if(pDecisionAO->joint_mode == ROBOT_JOINT_MODE_CLIMB)
 	   {/* 上坡模式(CLIMB)：电容加压 */
 		if(_robotState->capacity_mode != NO_CAPACITY && _superCapacity->cap_volt >= 10.4)
 		    chassis_permitted_power *= 2.2f;
         else
 		    chassis_permitted_power *= 2.2f;
 	   }
-	else if(_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR ||
-	        _robotState->stand_mode == ROBOT_STAND_MODE_STAIR_UP)
+	else if(pDecisionAO->stand_mode == ROBOT_STAND_MODE_PRE_STAIR ||
+	        pDecisionAO->stand_mode == ROBOT_STAND_MODE_STAIR_UP)
 	   {//上坡模式强制
 		if(_robotState->capacity_mode != NO_CAPACITY&&_superCapacity->cap_volt >= 10.4 )
 		    chassis_permitted_power = 50.0*(2.1f);
@@ -535,7 +535,7 @@ void ChassisControlUpdate(void)
 
 
 	}
-	if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB )
+	if (pDecisionAO->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB )
 	{
 		float total_output = abs(chassisControl.WheelMotorControl.target_motor_output[LF]) +
 					  abs(chassisControl.WheelMotorControl.target_motor_output[RF]) +
@@ -553,7 +553,7 @@ void ChassisControlUpdate(void)
 			chassisControl.WheelMotorControl.target_motor_output[RB] * scale*0.8, 16000);
 	}
 	/* 上坡模式(CLIMB)：前腿功率1:3分配到后腿 */
-	if (_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB)
+	if (pDecisionAO->joint_mode == ROBOT_JOINT_MODE_CLIMB)
 	{
 		float front_sum = (float)abs(chassisControl.WheelMotorControl.target_motor_output[LF]) +
 		                  (float)abs(chassisControl.WheelMotorControl.target_motor_output[RF]);
@@ -584,7 +584,7 @@ void ChassisControlUpdate(void)
 		chassisControl.WheelMotorControl.target_motor_output[LF] = chassisControl.WheelMotorControl.target_motor_output[RF] = 0;
 	}
 	cur_slope = _robotState->auto_slope;
-	if(CONTROL_FROM_REMOTE == _robotState->ctrl_terminal && cur_slope == 0 && cur_slope != last_slope)
+	if(CONTROL_FROM_REMOTE == pDecisionAO->ctrl_terminal && cur_slope == 0 && cur_slope != last_slope)
 		slope_count = 200;
 	last_slope = cur_slope;
 
@@ -593,7 +593,7 @@ void ChassisControlUpdate(void)
 			chassisControl.WheelMotorControl.target_motor_output[i] = 0;
 	#endif
 
-	if(CONTROL_STOP == _robotState->ctrl_terminal)// || ext_game_robot_status.power_management_chassis_output == 0)
+	if(CONTROL_STOP == pDecisionAO->ctrl_terminal)// || ext_game_robot_status.power_management_chassis_output == 0)
 	{
 		for(uint8_t i = 0; i < CHASSIS_MOTOR_NUM; i++)
 			chassisControl.WheelMotorControl.target_motor_output[i] = 0;

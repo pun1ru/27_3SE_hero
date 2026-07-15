@@ -21,7 +21,7 @@
  */
 
 #include "qpc_init.h"
-#include "demo_ao.h"     /* Demo 学习用 AO，后面换成你真正的决策 AO */
+#include "decision_ao.h"     /* QM 生成的决策 AO */
 
 /*===========================================================================
  * QpInit() — QP 框架启动（从 InitTask 末尾调用）
@@ -33,63 +33,32 @@
  *===========================================================================*/
 void QpInit(void)
 {
-    /*--- 第1步：初始化事件池（QP 的动态内存） ---*/
-    /*
-     * 每个 QP AO 之间发消息用的是"事件"，事件有固定大小。
-     * 事件池 = 预分配一坨内存块，需要发消息时从池子里拿一块，
-     * 用完还回去。这样 rtos 运行时不 malloc，不会有碎片。
-     *
-     * lPoolSto[100] = 池子里最多100个事件同时在途
-     * sizeof(lPoolSto[0]) = 每个存储单元的大小（QF_MPOOL_EL 已对齐过）
-     */
+    /* 严格对齐 serialleg Bsp_Start 顺序，一步不差 */
+
+    /* 1. 事件池 */
     static QF_MPOOL_EL(QEvt) lPoolSto[100];
     QF_poolInit(lPoolSto, sizeof(lPoolSto), sizeof(lPoolSto[0]));
 
-    /*--- 第2步：初始化发布-订阅系统 ---*/
-    /*
-     * 发布-订阅 = QP 的广播机制
-     * 某个 AO 发广播 → 所有"订阅了该信号"的 AO 都能收到
-     * 比如"遥控器丢信号了" → 云台AO和底盘AO都收到 → 各自做安全处理
-     *
-     * MAX_PUB_SIG = 可广播的信号上限（在 demo_ao.h 中定义）
-     */
+    /* 2. 发布-订阅 */
     static QSubscrList subscrSto[MAX_PUB_SIG];
     QActive_psInit(subscrSto, Q_DIM(subscrSto));
 
-    /*--- 框架自检 ---*/
-    QF_init();
+    /* 3. 构造 AO（serialleg: Class1_ctor） */
+    DecisionAO_ctor();
 
-    /*--- 第3步：构造 AO ---*/
-    /*
-     * 构造函数做两件事：
-     *   1. QActive_ctor() → 告诉 QP "这个 AO 的初始状态函数是谁"
-     *   2. QTimeEvt_ctorX() → 给 AO 装定时器
-     */
-    DemoAO_ctor();
+    /* 4. 启动 AO（serialleg: pri=5, 我们: pri=5 同 serialleg） */
+    static QEvt const *demoQueue[32] __attribute__((aligned(8))) = {0};
+    static StackType_t demoStack[512] __attribute__((aligned(8)));
 
-    /*--- 第4步：启动 AO ---*/
-    /*
-     * QACTIVE_START() 内部做：
-     *   1. xQueueCreateStatic() → 创建 FreeRTOS 消息队列（AO 的邮箱）
-     *   2. xTaskCreateStatic()  → 创建 FreeRTOS 任务（AO 的执行线程）
-     *
-     * 参数说明：
-     *   5U               → QP 优先级（数字越大优先级越高）
-     *   demoQueue[32]    → 事件队列存储（最多积压32个事件）
-     *   demoStack[512]   → FreeRTOS 任务栈
-     *   NULL             → 启动参数（不需要）
-     */
-    static QEvt const *demoQueue[32];
-    static StackType_t demoStack[512];
-
-    QActive_setAttr(&demoAO.super, TASK_NAME_ATTR, "DemoAO");
-    QACTIVE_START(&demoAO.super,
+    QActive_setAttr(AO_DecisionAO, TASK_NAME_ATTR, "DecisionAO");
+    QACTIVE_START(AO_DecisionAO,
                   5U,
                   demoQueue,
                   Q_DIM(demoQueue),
                   demoStack,
                   sizeof(demoStack),
                   (void *)0);
+
 }
 
 /*===========================================================================

@@ -164,12 +164,30 @@ static void b2bParseGimbalTarget(uint8_t* data,
 
 /* ---- 接收 dispatcher ---- */
 uint32_t b2b_pose_rx_count = 0;  /* B2B云台姿态帧接收计数，在线watch判断丢帧 */
+volatile uint32_t g_b2b_pose_alive_ctr = 0;  /* B2B心跳：ISR置位→GimbalPoseUpdate递减，>0认为在线 */
+
+/**
+ * @brief   B2B 云台姿态超时检测（由 GimbalPoseUpdate 每周期调用）
+ * @note    递减心跳计数器，归零时清零 gimbal_yaw_rx_valid 触发安全回退
+ *          B2B 500Hz 发送 → 2ms/帧，超时阈值 ~10ms (5帧丢失)
+ */
+void B2B_PoseAliveTick(void)
+{
+    if (g_b2b_pose_alive_ctr > 0) {
+        g_b2b_pose_alive_ctr--;
+    }
+    if (g_b2b_pose_alive_ctr == 0) {
+        gimbal_yaw_rx_valid = 0;
+    }
+}
+
 uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
 {
     switch (can_id)
     {
         case B2B_UP_GIMBAL_POSE:
             b2b_pose_rx_count++;
+            g_b2b_pose_alive_ctr = 10U;  /* 10ms超时（≈5帧@500Hz），IMU 1kHz = 10次tick */
             b2bParseGimbalPose(data,
                                (float*)&gimbal_yaw_rx_d,
                                (float*)&gimbal_pitch_rx_d,

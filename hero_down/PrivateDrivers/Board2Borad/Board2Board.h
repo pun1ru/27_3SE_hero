@@ -90,4 +90,10 @@ uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_enc
  */
 uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data);
 
+/**
+ * @brief   B2B 云台姿态超时tick（由 GimbalPoseUpdate 每周期调用）
+ * @note    递减心跳计数器，归零时自动清零 gimbal_yaw_rx_valid 触发安全回退
+ */
+void B2B_PoseAliveTick(void);
+
 #endif /* _BOARD2BOARD_H_ */

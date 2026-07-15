@@ -133,12 +133,12 @@ void UiInit(uint32_t const * ui)
 			UIframeInit(_UIframe, subcontent_id, sender_id, receiver_id);
 			
 			ext_interaction_character_t char1;
-			if(_robotState->mouse_fix == MOUSE_FIX_ON)
+			if(pDecisionAO->mouse_fix == MOUSE_FIX_ON)
 			{
 				uname = (unsigned char*)"mfx";
 				DrawChar(&char1, OperateAdd, 200, 630, uname, 2, 20, 6, (uint8_t*)"MOUSE_FIX:on ", 13, ColorAmaranth);
 			}
-			else if(_robotState->mouse_fix == MOUSE_FIX_OFF)
+			else if(pDecisionAO->mouse_fix == MOUSE_FIX_OFF)
 			{
 				uname = (unsigned char*)"mfx";
 				DrawChar(&char1, OperateAdd, 200, 630, uname, 2, 20, 6, (uint8_t*)"MOUSE_FIX:off", 13, ColorGreen);
@@ -157,12 +157,12 @@ void UiInit(uint32_t const * ui)
 			subcontent_id = 0x0110;
 			UIframeInit(_UIframe, subcontent_id, sender_id, receiver_id);
 			ext_interaction_character_t char_snp;
-			if(_robotState->sniper == SNIPER_ON)
+			if(pDecisionAO->sniper == SNIPER_ON)
 			{
 				uname = (unsigned char*)"snp";
 				DrawChar(&char_snp, OperateAdd, 200, 870, uname, 2, 20, 6, (uint8_t*)"SNIPER:ON ", 10, ColorAmaranth);
 			}
-			else if(_robotState->sniper == SNIPER_OFF)
+			else if(pDecisionAO->sniper == SNIPER_OFF)
 			{
 				uname = (unsigned char*)"snp";
 				DrawChar(&char_snp, OperateAdd, 200, 870, uname, 2, 20, 6, (uint8_t*)"SNIPER:OFF", 10, ColorGreen);
@@ -183,7 +183,7 @@ void UiInit(uint32_t const * ui)
 			ext_interaction_character_t char2;
 			
 			uname = (unsigned char*)"std";
-			switch(_robotState->stand_mode)
+			switch(pDecisionAO->stand_mode)
 			{
 				case ROBOT_STAND_MODE_NORMAL:
 					DrawChar(&char2, OperateAdd, 200, 820, uname, 2, 20, 6, (uint8_t*)"STAIR:NORMAL    ", 16, ColorGreen);
@@ -285,9 +285,9 @@ void UiInit(uint32_t const * ui)
 			ext_interaction_character_t char3;
 			
 			uname = (unsigned char*)"dio";
-				if(_robotState->follow==FOLLOW_ON)//吊射模式
+				if(pDecisionAO->sniper == SNIPER_ON)//吊射模式
 				DrawChar(&char3, OperateAdd, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow On ", 10, ColorAmaranth);
-			else if(_robotState->follow==FOLLOW_OFF)//普通模式
+			else if(pDecisionAO->sniper == SNIPER_OFF)//普通模式
 				DrawChar(&char3, OperateAdd, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow Off ", 10, ColorGreen);
 			
 			CharacterToUIframe(&char3, subcontent_id, _UIframe->data);
@@ -304,7 +304,7 @@ void UiInit(uint32_t const * ui)
 			ext_interaction_character_t char1;
 			
 			uname = (unsigned char*)"fri";
-			if(_robotState->fric_mode == FRIC_ON)
+			if(pDecisionAO->fric_mode == FRIC_ON)
 				DrawChar(&char1, OperateAdd, 200, 680, uname, 2, 20, 7, (uint8_t*)"Fric: On  ", 10, ColorAmaranth);
 			else
 				DrawChar(&char1, OperateAdd, 200, 680, uname, 2, 20, 7, (uint8_t*)"Fric: Close", 11, ColorGreen);
@@ -329,7 +329,7 @@ void UiInit(uint32_t const * ui)
 			OperateAdd, 685, 240, 1235, 710, uname, 5, 8, ColorAmaranth);
 			
 			static uint8_t draw_flag = 0;
-			if(_robotState->chassis_mode == CHASSIS_SEPARATE && !draw_flag)
+			if(pDecisionAO->chassis_mode == CHASSIS_SEPARATE && !draw_flag)
 			{
 				uname = (unsigned char*)"bbb";
 				DrawCircle(&figure3.ext_interaction_figure_3.interaction_figure[1],\
@@ -361,7 +361,7 @@ void UiInit(uint32_t const * ui)
 				
 				draw_flag = 1;
 		    }
-			else if( _robotState->chassis_mode != CHASSIS_SEPARATE && draw_flag )
+			else if( pDecisionAO->chassis_mode != CHASSIS_SEPARATE && draw_flag )
 			{
 				uname = (unsigned char*)"bbb";
 				DrawCircle(&figure3.ext_interaction_figure_3.interaction_figure[1],\
@@ -437,7 +437,7 @@ void UiInit(uint32_t const * ui)
 			ext_interaction_character_t char3;
 			
 			uname = (unsigned char*)"fuk";
-			if(_robotState->chassis_mode == CHASSIS_REVOLVE)
+			if(pDecisionAO->chassis_mode == CHASSIS_REVOLVE)
 				DrawChar(&char3, OperateAdd, 200, 780, uname, 2, 20, 6, (uint8_t*)"Spin On", 7, ColorAmaranth);
 			else
 				DrawChar(&char3, OperateAdd, 200, 780, uname, 2, 20, 6, (uint8_t*)"Spin Off", 8, ColorGreen);
@@ -456,9 +456,9 @@ void UiInit(uint32_t const * ui)
 //			ext_interaction_character_t char3;
 //			
 //			uname = (unsigned char*)"dio";
-//				if(_robotState->follow==FOLLOW_ON)//吊射模式
+//				if(pDecisionAO->sniper == SNIPER_ON)//吊射模式
 //				DrawChar(&char3, OperateAdd, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow On ", 10, ColorAmaranth);
-//			else if(_robotState->follow==FOLLOW_OFF)//普通模式
+//			else if(pDecisionAO->sniper == SNIPER_OFF)//普通模式
 //				DrawChar(&char3, OperateAdd, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow Off ", 10, ColorGreen);
 //			
 //			CharacterToUIframe(&char3, subcontent_id, _UIframe->data);
@@ -575,12 +575,12 @@ void FrameUpdate(uint32_t * ui)
 			UIframeInit(_UIframe, subcontent_id, sender_id, receiver_id);
 			
 			ext_interaction_character_t char1;
-			if(_robotState->mouse_fix == MOUSE_FIX_ON)
+			if(pDecisionAO->mouse_fix == MOUSE_FIX_ON)
 			{
 				uname = (unsigned char*)"mfx";
 				DrawChar(&char1, OperateChange, 200, 630, uname, 2, 20, 6, (uint8_t*)"MOUSE_FIX:on ", 13, ColorAmaranth);
 			}
-			else if(_robotState->mouse_fix == MOUSE_FIX_OFF)
+			else if(pDecisionAO->mouse_fix == MOUSE_FIX_OFF)
 			{
 				uname = (unsigned char*)"mfx";
 				DrawChar(&char1, OperateChange, 200, 630, uname, 2, 20, 6, (uint8_t*)"MOUSE_FIX:off", 13, ColorGreen);
@@ -599,12 +599,12 @@ void FrameUpdate(uint32_t * ui)
 			subcontent_id = 0x0110;
 			UIframeInit(_UIframe, subcontent_id, sender_id, receiver_id);
 			ext_interaction_character_t char_snp;
-			if(_robotState->sniper == SNIPER_ON)
+			if(pDecisionAO->sniper == SNIPER_ON)
 			{
 				uname = (unsigned char*)"snp";
 				DrawChar(&char_snp, OperateChange, 200, 870, uname, 2, 20, 6, (uint8_t*)"SNIPER:ON ", 10, ColorAmaranth);
 			}
-			else if(_robotState->sniper == SNIPER_OFF)
+			else if(pDecisionAO->sniper == SNIPER_OFF)
 			{
 				uname = (unsigned char*)"snp";
 				DrawChar(&char_snp, OperateChange, 200, 870, uname, 2, 20, 6, (uint8_t*)"SNIPER:OFF", 10, ColorGreen);
@@ -625,7 +625,7 @@ void FrameUpdate(uint32_t * ui)
 			ext_interaction_character_t char2;
 			
 			uname = (unsigned char*)"std";
-			switch(_robotState->stand_mode)
+			switch(pDecisionAO->stand_mode)
 			{
 				case ROBOT_STAND_MODE_NORMAL:
 					DrawChar(&char2, OperateChange, 200, 820, uname, 2, 20, 6, (uint8_t*)"STAIR:NORMAL    ", 16, ColorGreen);
@@ -717,9 +717,9 @@ void FrameUpdate(uint32_t * ui)
 			ext_interaction_character_t char3;
 			
 			uname = (unsigned char*)"dio";
-				if(_robotState->follow==FOLLOW_ON)//吊射模式
+				if(pDecisionAO->sniper == SNIPER_ON)//吊射模式
 				DrawChar(&char3, OperateChange, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow On ", 10, ColorAmaranth);
-			else if(_robotState->follow==FOLLOW_OFF)//普通模式
+			else if(pDecisionAO->sniper == SNIPER_OFF)//普通模式
 				DrawChar(&char3, OperateChange, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow Off", 11, ColorGreen);
 			
 			CharacterToUIframe(&char3, subcontent_id, _UIframe->data);
@@ -737,7 +737,7 @@ void FrameUpdate(uint32_t * ui)
 			ext_interaction_character_t char1;
 			
 			uname = (unsigned char*)"fri";
-			if(_robotState->fric_mode == FRIC_ON)
+			if(pDecisionAO->fric_mode == FRIC_ON)
 				DrawChar(&char1, OperateChange, 200, 680, uname, 2, 20, 7, (uint8_t*)"Fric: On  ", 10, ColorAmaranth);
 			else
 				DrawChar(&char1, OperateChange, 200, 680, uname, 2, 20, 7, (uint8_t*)"Fric: Close", 11, ColorGreen);
@@ -775,7 +775,7 @@ void FrameUpdate(uint32_t * ui)
 			OperateChange, 695, 240, 1235, 710, uname, 5, 8, color);
 			
 			static uint8_t draw_flag = 0;
-			if(_robotState->chassis_mode == CHASSIS_SEPARATE && !draw_flag)
+			if(pDecisionAO->chassis_mode == CHASSIS_SEPARATE && !draw_flag)
 			{
 				uname = (unsigned char*)"bbb";
 				DrawCircle(&figure3.ext_interaction_figure_3.interaction_figure[1],\
@@ -807,7 +807,7 @@ void FrameUpdate(uint32_t * ui)
 				
 				draw_flag = 1;
 		    }
-			else if( _robotState->chassis_mode != CHASSIS_SEPARATE && draw_flag )
+			else if( pDecisionAO->chassis_mode != CHASSIS_SEPARATE && draw_flag )
 			{
 				uname = (unsigned char*)"bbb";
 				DrawCircle(&figure3.ext_interaction_figure_3.interaction_figure[1],\
@@ -839,7 +839,7 @@ void FrameUpdate(uint32_t * ui)
 				
 				draw_flag = 0;
 			}
-			else if( _robotState->chassis_mode == CHASSIS_SEPARATE && draw_flag )
+			else if( pDecisionAO->chassis_mode == CHASSIS_SEPARATE && draw_flag )
 			{
 				uname = (unsigned char*)"bbb";
 				DrawCircle(&figure3.ext_interaction_figure_3.interaction_figure[1],\
@@ -912,7 +912,7 @@ void FrameUpdate(uint32_t * ui)
 			ext_interaction_character_t char3;
 			
 			uname = (unsigned char*)"fuk";
-			if(_robotState->chassis_mode == CHASSIS_REVOLVE)
+			if(pDecisionAO->chassis_mode == CHASSIS_REVOLVE)
 				DrawChar(&char3, OperateChange, 200, 780, uname, 2, 20, 6, (uint8_t*)"Spin On ", 8, ColorAmaranth);
 			else
 				DrawChar(&char3, OperateChange, 200, 780, uname, 2, 20, 6, (uint8_t*)"Spin Off ", 9, ColorGreen);
@@ -931,9 +931,9 @@ void FrameUpdate(uint32_t * ui)
 //			ext_interaction_character_t char3;
 //			
 //			uname = (unsigned char*)"dio";
-//				if(_robotState->follow==FOLLOW_ON)//吊射模式
+//				if(pDecisionAO->sniper == SNIPER_ON)//吊射模式
 //				DrawChar(&char3, OperateChange, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow On ", 10, ColorAmaranth);
-//			else if(_robotState->follow==FOLLOW_OFF)//普通模式
+//			else if(pDecisionAO->sniper == SNIPER_OFF)//普通模式
 //				DrawChar(&char3, OperateChange, 200, 580, uname, 2, 20, 6, (uint8_t*)"Follow Off", 11, ColorGreen);
 //			
 //			CharacterToUIframe(&char3, subcontent_id, _UIframe->data);

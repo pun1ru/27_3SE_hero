@@ -29,592 +29,380 @@ For more QM examples for QP/C see:
 https://www.state-machine.com/qpc/exa.html</documentation>
  <!--${qpc}-->
  <framework name="qpc"/>
- <!--${App}-->
- <package name="App" stereotype="0x01">
-  <!--${App::AppSignals}-->
-  <attribute name="AppSignals" type="enum" visibility="0x04" properties="0x00">
-   <code>{
-    TIMEOUT_SIG = Q_USER_SIG,
-    MAX_SIG // the last signal
-};</code>
-  </attribute>
-  <!--${App::AO_Blinky}-->
-  <attribute name="AO_Blinky" type="QActive * const" visibility="0x00" properties="0x00">
-   <code>= Q_ACTIVE_UPCAST(&amp;Blinky_inst);</code>
-  </attribute>
-  <!--${App::Blinky_ctor}-->
-  <operation name="Blinky_ctor" type="void" visibility="0x00" properties="0x01">
-   <documentation>The Blinky &quot;constructor&quot; is provided outside of the Blinky class, so that it can be used independently from the class. This is part of the &quot;opaque pointer&quot; design idiom.</documentation>
-   <code>Blinky * const me = &amp;Blinky_inst;
-QActive_ctor(&amp;me-&gt;super, Q_STATE_CAST(&amp;Blinky_initial));
-QTimeEvt_ctorX(&amp;me-&gt;timeEvt, &amp;me-&gt;super, TIMEOUT_SIG, 0U);</code>
-  </operation>
- </package>
- <!--${AOs}-->
- <package name="AOs" stereotype="0x02">
-  <!--${AOs::Blinky}-->
-  <class name="Blinky" superclass="qpc::QActive">
-   <!--${AOs::Blinky::timeEvt}-->
-   <attribute name="timeEvt" type="QTimeEvt" visibility="0x02" properties="0x00"/>
-   <!--${AOs::Blinky::inst}-->
-   <attribute name="inst" type="Blinky" visibility="0x00" properties="0x01"/>
-   <!--${AOs::Blinky::SM}-->
-   <statechart properties="0x03">
-    <documentation>Blinky state machine</documentation>
-    <!--${AOs::Blinky::SM::initial}-->
+ <!--${Hero_Demo}-->
+ <package name="Hero_Demo" stereotype="0x00">
+  <!--${Hero_Demo::DecisionAO}-->
+  <class name="DecisionAO" superclass="qpc::QActive">
+   <!--${Hero_Demo::DecisionAO::ctrl_terminal}-->
+   <attribute name="ctrl_terminal" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::chassis_mode}-->
+   <attribute name="chassis_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::sniper}-->
+   <attribute name="sniper" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::fric_mode}-->
+   <attribute name="fric_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::stir_mode}-->
+   <attribute name="stir_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::joint_mode}-->
+   <attribute name="joint_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::stand_mode}-->
+   <attribute name="stand_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::mouse_fix}-->
+   <attribute name="mouse_fix" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::cam_target}-->
+   <attribute name="cam_target" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::world_enable}-->
+   <attribute name="world_enable" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::stable}-->
+   <attribute name="stable" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::timeEvt_test}-->
+   <attribute name="timeEvt_test" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::rc_lost_flag}-->
+   <attribute name="rc_lost_flag" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::can_enable}-->
+   <attribute name="can_enable" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <!--${Hero_Demo::DecisionAO::inst}-->
+   <attribute name="inst" type="DecisionAO" visibility="0x00" properties="0x01"/>
+   <!--${Hero_Demo::DecisionAO::State_Stable}-->
+   <operation name="State_Stable" type="void" visibility="0x00" properties="0x00">
+    <code>me-&gt;stable=1;</code>
+   </operation>
+   <!--${Hero_Demo::DecisionAO::Stable_Unstable}-->
+   <operation name="Stable_Unstable" type="void" visibility="0x00" properties="0x00">
+    <code>me-&gt;stable=0;</code>
+   </operation>
+   <!--${Hero_Demo::DecisionAO::is_Stable}-->
+   <operation name="is_Stable" type="uint8_t" visibility="0x00" properties="0x00">
+    <code>return me-&gt;stable;</code>
+   </operation>
+   <!--${Hero_Demo::DecisionAO::SM}-->
+   <statechart properties="0x00">
+    <!--${Hero_Demo::DecisionAO::SM::initial}-->
     <initial target="../1">
-     <action>Q_UNUSED_PAR(par);
-
-QS_OBJ_DICTIONARY(&amp;Blinky_inst);
-QS_OBJ_DICTIONARY(&amp;Blinky_inst.timeEvt);
-
-QTimeEvt_armX(&amp;me-&gt;timeEvt,
-    BSP_TICKS_PER_SEC/2U, BSP_TICKS_PER_SEC/2U);</action>
-     <initial_glyph color="3" conn="2,3,5,1,20,6,-4">
-      <action box="0,-2,6,2"/>
+     <initial_glyph conn="61,4,4,0,10">
+      <action box="0,2,10,2"/>
      </initial_glyph>
     </initial>
-    <!--${AOs::Blinky::SM::off}-->
-    <state name="off">
-     <entry>BSP_ledOff();</entry>
-     <!--${AOs::Blinky::SM::off::TIMEOUT}-->
-     <tran trig="TIMEOUT" target="../../2">
-      <tran_glyph color="1" conn="2,16,3,1,18,7,-2">
-       <action box="0,-2,8,2"/>
+    <!--${Hero_Demo::DecisionAO::SM::Protected}-->
+    <state name="Protected">
+     <entry>me-&gt;ctrl_terminal = CTRL_STOP;
+me-&gt;chassis_mode = CHS_FOLLOW;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;fric_mode = FRIC_OFF;
+me-&gt;stir_mode = STIR_LOCK;
+me-&gt;joint_mode = JOINT_NORMAL;
+me-&gt;stand_mode = STAND_NORMAL;
+me-&gt;mouse_fix = MOUSE_FIX_ON;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;world_enable = WORLD_ENABLE_ON;
+me-&gt;can_enable = CAN_DISABLE;</entry>
+     <!--${Hero_Demo::DecisionAO::SM::Protected::RC_LOST}-->
+     <tran trig="RC_LOST" target="..">
+      <tran_glyph conn="193,14,0,1,5,16">
+       <action box="0,-2,10,2"/>
       </tran_glyph>
      </tran>
-     <state_glyph node="2,6,16,12">
-      <entry box="0,3,16,4"/>
-     </state_glyph>
-    </state>
-    <!--${AOs::Blinky::SM::on}-->
-    <state name="on">
-     <entry>BSP_ledOn();</entry>
-     <!--${AOs::Blinky::SM::on::TIMEOUT}-->
-     <tran trig="TIMEOUT" target="../../1">
-      <tran_glyph color="1" conn="2,30,3,1,20,-19,-4">
-       <action box="0,-2,8,2"/>
+     <!--${Hero_Demo::DecisionAO::SM::Protected::Switch_RC}-->
+     <tran trig="Switch_RC" target="../4">
+      <action>me-&gt;ctrl_terminal = CTRL_REMOTE;</action>
+      <tran_glyph conn="172,14,0,0,12">
+       <action box="0,-2,10,2"/>
       </tran_glyph>
      </tran>
-     <state_glyph color="2" node="2,20,16,12">
-      <entry box="0,3,16,4"/>
+     <!--${Hero_Demo::DecisionAO::SM::Protected::Switch_PC}-->
+     <tran trig="Switch_PC" target="../4">
+      <action>me-&gt;ctrl_terminal = CTRL_PC;</action>
+      <tran_glyph conn="161,14,0,0,12">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::Protected::SWITCH_FINAL}-->
+     <tran trig="SWITCH_FINAL">
+      <tran_glyph conn="150,14,0,-1,5">
+       <action box="-6,-2,19,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode}-->
+     <state name="NormalMode">
+      <entry>//switch2Normal
+me-&gt;chassis_mode = CHS_FOLLOW;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;fric_mode = FRIC_OFF;
+me-&gt;stir_mode = STIR_ANGLE_CONTROL;
+me-&gt;joint_mode = JOINT_NORMAL;
+me-&gt;stand_mode = STAND_NORMAL;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;can_enable = CAN_ENABLE;</entry>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_FINAL}-->
+      <tran trig="SWITCH_FINAL" target="../..">
+       <tran_glyph conn="191,26,0,1,-4,18">
+        <action box="4,-3,14,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_SNIPER}-->
+      <tran trig="SWITCH_SNIPER" target="../8">
+       <tran_glyph conn="135,26,0,0,29">
+        <action box="0,16,15,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAND}-->
+      <tran trig="SWITCH_STAND" target="../11">
+       <tran_glyph conn="16,48,3,3,12">
+        <action box="0,-2,13,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_REVOLVE}-->
+      <tran trig="SWITCH_REVOLVE" target="../12">
+       <tran_glyph conn="16,63,3,3,12">
+        <action box="0,-2,16,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAIR}-->
+      <tran trig="SWITCH_STAIR" target="../9">
+       <tran_glyph conn="16,79,3,3,12">
+        <action box="0,-2,13,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_BACK}-->
+      <tran trig="SWITCH_BACK" target="../13">
+       <tran_glyph conn="16,33,3,3,12">
+        <action box="0,-2,15,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_PC}-->
+      <tran trig="Switch_PC">
+       <action>me-&gt;ctrl_terminal = CTRL_PC;</action>
+       <tran_glyph conn="163,26,0,-1,5">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_RC}-->
+      <tran trig="Switch_RC">
+       <action>me-&gt;ctrl_terminal = CTRL_REMOTE;</action>
+       <tran_glyph conn="174,26,0,-1,5">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode}-->
+      <state name="SniperMode">
+       <entry>me-&gt;sniper = SNIPER_ON;</entry>
+       <exit>me-&gt;sniper = SNIPER_OFF;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SwitchR_down}-->
+       <tran trig="SwitchR_down">
+        <tran_glyph conn="119,61,3,-1,11">
+         <action box="0,-2,12,2"/>
+        </tran_glyph>
+       </tran>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_SNIPER}-->
+       <tran trig="SWITCH_SNIPER" target="../..">
+        <tran_glyph conn="128,55,0,0,-29">
+         <action box="-14,-12,15,3"/>
+        </tran_glyph>
+       </tran>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_WORLD}-->
+       <tran trig="SWITCH_WORLD" target="../3">
+        <tran_glyph conn="119,99,3,3,8">
+         <action box="0,-2,16,2"/>
+        </tran_glyph>
+       </tran>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal}-->
+       <state name="WorldGimbal">
+        <entry>me-&gt;world_enable = WORLD_ENABLE_ON;</entry>
+        <exit>me-&gt;world_enable = WORLD_ENABLE_OFF;</exit>
+        <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal::SWITCH_WORLD}-->
+        <tran trig="SWITCH_WORLD" target="../..">
+         <tran_glyph conn="127,103,3,3,-8">
+          <action box="-8,-2,15,2"/>
+         </tran_glyph>
+        </tran>
+        <state_glyph node="127,89,34,21">
+         <entry box="0,3,6,2"/>
+         <exit box="0,5,6,2"/>
+        </state_glyph>
+       </state>
+       <state_glyph node="119,55,90,62">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair}-->
+      <state name="PreStair">
+       <entry>me-&gt;joint_mode = JOINT_PRESTAIR;</entry>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::SWITCH_STAIR}-->
+       <tran trig="SWITCH_STAIR" target="../..">
+        <tran_glyph conn="28,83,3,3,-12">
+         <action box="-12,-2,13,2"/>
+        </tran_glyph>
+       </tran>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::STAIR_OK}-->
+       <tran trig="STAIR_OK" target="../../10">
+        <tran_glyph conn="46,81,1,3,11">
+         <action box="0,-2,10,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="28,76,18,13">
+        <entry box="0,3,6,2"/>
+       </state_glyph>
+      </state>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp}-->
+      <state name="StairUp">
+       <entry>me-&gt;joint_mode = JOINT_STAIRUP;</entry>
+       <exit>me-&gt;joint_mode = JOINT_NORMAL;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp::SWITCH_STAIR}-->
+       <tran trig="SWITCH_STAIR" target="../..">
+        <tran_glyph conn="66,89,2,3,4,-50">
+         <action box="-13,4,15,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="57,76,18,13">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High}-->
+      <state name="Stand_High">
+       <entry>me-&gt;stand_mode = STAND_HIGH;</entry>
+       <exit>me-&gt;stand_mode = STAND_NORMAL;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High::SWITCH_STAND}-->
+       <tran trig="SWITCH_STAND" target="../..">
+        <tran_glyph conn="28,51,3,3,-12">
+         <action box="-12,-2,16,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="28,43,18,12">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve}-->
+      <state name="Revolve">
+       <entry>me-&gt;chassis_mode = CHS_REVOLVE;</entry>
+       <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve::SWITCH_REVOLVE}-->
+       <tran trig="SWITCH_REVOLVE" target="../..">
+        <tran_glyph conn="28,67,3,3,-12">
+         <action box="-12,-2,17,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="28,59,18,13">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck}-->
+      <state name="FollowBck">
+       <entry>me-&gt;chassis_mode = CHS_FOLLOW_BACK;</entry>
+       <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck::SWITCH_BACK}-->
+       <tran trig="SWITCH_BACK" target="../..">
+        <tran_glyph conn="28,37,3,3,-12">
+         <action box="-12,-2,13,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="28,29,18,12">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph node="16,26,193,91">
+       <entry box="0,3,6,2"/>
+      </state_glyph>
+     </state>
+     <state_glyph node="14,14,195,104">
+      <entry box="0,3,57,26"/>
      </state_glyph>
     </state>
-    <state_diagram size="30,34"/>
+    <state_diagram size="222,133"/>
    </statechart>
   </class>
  </package>
- <!--${.}-->
- <directory name=".">
-  <!--${.::qp_config.h}-->
-  <file name="qp_config.h">
-   <text>#ifndef QP_CONFIG_H_
-#define QP_CONFIG_H_
-
-// put here macros that override the default QP/C settings
-
-#endif // QP_CONFIG_H_</text>
-  </file>
-  <!--${.::app.h}-->
-  <file name="app.h">
-   <text>#ifndef APP_H_
-#define APP_H_
-
-$declare ${App}
-
-#endif // APP_H_</text>
-  </file>
-  <!--${.::bsp.h}-->
-  <file name="bsp.h">
-   <text>#ifndef BSP_H_
-#define BSP_H_
-
-#define BSP_TICKS_PER_SEC    100U
-
-void BSP_init(void const * const arg);
-void BSP_ledOn(void);
-void BSP_ledOff(void);
-
-#endif // BSP_H_</text>
-  </file>
-  <!--${.::bsp.c}-->
-  <file name="bsp.c">
-   <text>#include &quot;qpc.h&quot;    // QP/C real-time event framework
-#include &quot;bsp.h&quot;    // Board Support Package
-#include &quot;app.h&quot;    // Application
-
-#include &lt;stdio.h&gt;  // for printf()/fprintf()
-#include &lt;stdlib.h&gt; // for exit()
-
-//============================================================================
-Q_DEFINE_THIS_FILE  // file name for assertions
-
-// local variables -----------------------------------------------------------
-#ifdef Q_SPY
-    enum AppRecords { // application-specific trace records
-        LED_STAT = QS_USER,
-    };
-
-    // QSpy source IDs
-    static QSpyId const l_clock_tick = { QS_ID_AP };
-#endif // Q_SPY
-
-//============================================================================
-// Error handler
-
-Q_NORETURN Q_onError(char const * const module, int_t const id) {
-    // NOTE: this implementation of the error handler is intended only
-    // for debugging and MUST be changed for deployment of the application
-    // (assuming that you ship your production code with assertions enabled).
-    fprintf(stderr, &quot;Assertion failed in %s:%d&quot;, module, id);
-    QS_ASSERTION(module, id, 10000U); // report assertion to QS
-    exit(-1);
-}
-
-//============================================================================
-// BSP...
-
-void BSP_init(void const * const arg) {
-    Q_UNUSED_PAR(arg);
-
-    printf(&quot;Simple Blinky example\n&quot;
-           &quot;QP/C version: %s\n&quot;
-           &quot;Press Ctrl-C to quit...\n&quot;,
-           QP_VERSION_STR);
-
-    // initialize QS software tracing...
-    if (!QS_INIT(arg)) {
-        Q_ERROR();
-    }
-
-    // QS dictionaries...
-    QS_OBJ_DICTIONARY(&amp;l_clock_tick);
-    QS_SIG_DICTIONARY(TIMEOUT_SIG, (void *)0);
-    QS_USR_DICTIONARY(LED_STAT);
-
-    // setup the QS filters...
-    QS_GLB_FILTER(QS_GRP_ALL);  // enable all records
-    QS_GLB_FILTER(-QS_QF_TICK); // exclude the tick record
-
-    // mutable events not used -- no need to call QF_poolInit()
-    // publish-subscribe not used -- no need to call QActive_psInit()
-
-    // instantiate and start AOs/threads...
-    Blinky_ctor();
-    static QEvtPtr blinkyQueueSto[10];
-    QActive_start(AO_Blinky,
-        1U,                    // QP prio. of the AO
-        blinkyQueueSto,        // event queue storage
-        Q_DIM(blinkyQueueSto), // queue length [events]
-        (void *)0, 0U,         // no stack storage
-        (void *)0);            // no initialization param
-}
-//............................................................................
-void BSP_ledOn(void) {
-    printf(&quot;LED ON\n&quot;);
-    // application-specific record
-    QS_BEGIN_ID(LED_STAT, AO_Blinky-&gt;prio)
-        QS_STR(&quot;ON&quot;); // LED status
-    QS_END()
-}
-//............................................................................
-void BSP_ledOff(void) {
-    printf(&quot;LED OFF\n&quot;);
-    // application-specific record
-    QS_BEGIN_ID(LED_STAT, AO_Blinky-&gt;prio)
-        QS_STR(&quot;OFF&quot;); // LED status
-    QS_END()
-}
-
-//============================================================================
-// QF...
-
-void QF_onStartup(void) {
-}
-//............................................................................
-void QF_onCleanup(void) {
-}
-//............................................................................
-void QF_onClockTick(void) {
-    QTIMEEVT_TICK_X(0U, &amp;l_clock_tick); // clock tick processing for rate 0
-
-    QS_RX_INPUT(); // handle the QS-RX input
-    QS_OUTPUT();   // handle the QS output
-}
-
-//============================================================================
-// QS callbacks...
-#ifdef Q_SPY
-
-//............................................................................
-void QS_onCommand(uint8_t cmdId,
-    uint32_t param1, uint32_t param2, uint32_t param3)
-{
-    Q_UNUSED_PAR(cmdId);
-    Q_UNUSED_PAR(param1);
-    Q_UNUSED_PAR(param2);
-    Q_UNUSED_PAR(param3);
-}
-
-#endif // Q_SPY</text>
-  </file>
-  <!--${.::main.c}-->
-  <file name="main.c">
-   <text>#include &quot;qpc.h&quot;          // QP/C real-time event framework
-#include &quot;bsp.h&quot;          // Board Support Package
-
-//............................................................................
-int main(int argc, char *argv[]) {
-    QF_init();            // initialize the framework
-    // initialize the BSP and instantiate/start the AOs
-    BSP_init((argc &gt; 1) ? argv[1] : (void *)0);
-    return QF_run();      // run the framework
-}</text>
-  </file>
-  <!--${.::blinky.c}-->
-  <file name="blinky.c">
-   <text>#include &quot;qpc.h&quot;    // QP/C real-time event framework
-#include &quot;bsp.h&quot;    // Board Support Package
-#include &quot;app.h&quot;    // Application
-
-$declare ${AOs::Blinky}
-
-$define ${App}
-$define ${AOs::Blinky}</text>
-  </file>
-  <!--${.::Makefile}-->
-  <file name="Makefile">
-   <text>##############################################################################
-# Makefile for QP/C on the host (Windows/Linux/macOS)
-#
-# Copyright (C) 2005 Quantum Leaps, LLC. All rights reserved.
-#
-#                   Q u a n t u m  L e a P s
-#                   ------------------------
-#                   Modern Embedded Software
-#
-# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-QL-commercial
-#
-# The QP/C software is dual-licensed under the terms of the open-source GNU
-# General Public License (GPL) or under the terms of one of the closed-
-# source Quantum Leaps commercial licenses.
-#
-# Redistributions in source code must retain this top-level comment block.
-# Plagiarizing this software to sidestep the license obligations is illegal.
-#
-# NOTE:
-# The GPL (see &lt;www.gnu.org/licenses/gpl-3.0&gt;) does NOT permit the
-# incorporation of the QP/C software into proprietary programs. Please
-# contact Quantum Leaps for commercial licensing options, which expressly
-# supersede the GPL and are designed explicitly for licensees interested
-# in using QP/C in closed-source proprietary applications.
-#
-# Quantum Leaps contact information:
-# &lt;www.state-machine.com/licensing&gt;
-# &lt;info@state-machine.com&gt;
-##############################################################################
-#
-# examples of invoking this Makefile:
-# building configurations: Debug (default), Release, and Spy
-# make
-# make CONF=rel
-# make CONF=spy
-# make clean   # cleanup the build
-# make CONF=spy clean   # cleanup the build
-#
-# NOTE:
-# To use this Makefile on Windows, you will need the GNU make utility, which
-# is included in the QTools collection for Windows, see:
-#    https://github.com/QuantumLeaps/qtools
-
-#-----------------------------------------------------------------------------
-# project:
-#
-PROJECT := blinky
-
-VPATH := .
-
-INCLUDES := -I.
-
-C_SRCS := \
-    main.c \
-    bsp.c \
-    blinky.c
-
-DEFINES  :=
-
-CPP_SRCS :=
-
-LIB_DIRS :=
-LIBS     :=
-OUTPUT   := $(PROJECT)
-
-#-----------------------------------------------------------------------------
-# target
-#
-TARGET   := host
-
-DEFINES +=
-
-BIN_DIR := build_$(TARGET)
-
-#-----------------------------------------------------------------------------
-# QP framework
-#
-
-# location of the QP framework (if not provided in an env. variable)
-ifeq ($(QPC),)
-QPC := ../../..
-endif
-
-ifeq ($(OS),Windows_NT)
-
-ifdef QV
-QP_PORT_DIR := $(QPC)/ports/win32-qv
-else
-QP_PORT_DIR := $(QPC)/ports/win32
-endif
-LIBS += -lws2_32
-
-else
-
-ifdef QV
-QP_PORT_DIR := $(QPC)/ports/posix-qv
-else
-QP_PORT_DIR := $(QPC)/ports/posix
-endif
-LIBS += -lpthread
-
-endif
-
-VPATH += \
-    $(QP_PORT_DIR)
-
-INCLUDES += \
-    -I$(QPC)/include \
-    -I$(QP_PORT_DIR)
-
-#-----------------------------------------------------------------------------
-# QP framework sources
-#
-QP_SRCS := \
-    qep_hsm.c \
-    qep_msm.c \
-    qf_act.c \
-    qf_actq.c \
-    qf_defer.c \
-    qf_dyn.c \
-    qf_mem.c \
-    qf_ps.c \
-    qf_qact.c \
-    qf_qeq.c \
-    qf_qmact.c \
-    qf_time.c \
-    qf_port.c
-
-QS_SRCS := \
-    qs.c \
-    qs_64bit.c \
-    qs_rx.c \
-    qs_fp.c \
-    qs_port.c
-
-VPATH += \
-    $(QPC)/src/qf \
-    $(QPC)/src/qs \
-    $(QP_PORT_DIR)
-
-INCLUDES += \
-    -I$(QPC)/include \
-    -I$(QP_PORT_DIR)
-
-# add the QP sources to the build
-C_SRCS += $(QP_SRCS)
-
-ifeq (spy, $(CONF))  # Spy configuration
-VPATH  += $(QPC)/src/qs
-C_SRCS += $(QS_SRCS)
-endif
-
-#-----------------------------------------------------------------------------
-# GNU GCC toolset for the host:
-# NOTE: GNU toolset for Windows (MinGW) is included in the QTools collection
-# for Windows, see: https://www.state-machine.com/qtools
-#
-# It is assumed that %QTOOLS%\bin directory is added to the PATH
-#
-CC    := gcc
-CPP   := g++
-LINK  := gcc    # for C programs
-#LINK  := g++   # for C++ programs
-
-#-----------------------------------------------------------------------------
-# basic utilities (included in QTools for Windows), see:
-#     https://www.state-machine.com/qtools
-#
-ifeq ($(OS),Windows_NT)
-    TARGET_EXT := .exe
-    MKDIR      := mkdir
-    RM         := rm
-    CAT        := type
-    COV        := gcov -abcgum
-    CODE_COV := --coverage -fcondition-coverage  # NOTE: required gcc 14 or newer
-else ifeq ($(OSTYPE),cygwin)
-    TARGET_EXT := .exe
-    MKDIR      := mkdir -p
-    RM         := rm -f
-    CAT        := cat
-    COV        := gcov -b
-    CODE_COV := -fprofile-arcs -ftest-coverage   # old gcc (version &lt; 14)
-else
-    TARGET_EXT :=
-    MKDIR      := mkdir -p
-    RM         := rm -f
-    CAT        := cat
-    COV        := gcov -b
-    CODE_COV := -fprofile-arcs -ftest-coverage   # old gcc (version &lt; 14)
-endif
-
-##############################################################################
-# Typically you should not need to change anything below this line
-
-#-----------------------------------------------------------------------------
-# build configurations...
-
-ifeq (rel, $(CONF)) # Release configuration ..................................
-
-BIN_DIR := build_rel
-# gcc options:
-CFLAGS := -c -fno-pie -std=c11 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion \
-    -O3 $(INCLUDES) $(DEFINES) $(DEF) -DNDEBUG
-
-CPPFLAGS := -c -g -fno-pie -std=c++17 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion -Wold-style-cast \
-    -fno-rtti -fno-exceptions \
-    -O3 $(INCLUDES) $(DEFINES) $(DEF) -DNDEBUG
-
-else ifeq (spy, $(CONF))  # Spy configuration ................................
-
-BIN_DIR := build_spy
-
-# gcc options:
-CFLAGS := -c -g -fno-pie -std=c11 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion \
-    -O $(INCLUDES) $(DEFINES) $(DEF) -DQ_SPY
-
-CPPFLAGS := -c -g -fno-pie -std=c++11 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion -Wold-style-cast \
-    -fno-rtti -fno-exceptions \
-    -O $(INCLUDES) $(DEFINES) -DQ_SPY
-
-else # default Debug configuration .........................................
-
-BIN_DIR := build
-
-# gcc options:
-CFLAGS := -c -g -fno-pie -std=c11 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion \
-    -O $(INCLUDES) $(DEFINES) $(DEF)
-
-CPPFLAGS := -c -g -fno-pie -std=c++11 -pedantic \
-    -Wall -Wextra -Wpedantic -Wsign-conversion -Wold-style-cast \
-    -fno-rtti -fno-exceptions \
-    -O $(INCLUDES) $(DEFINES) $(DEF)
-
-endif  # .....................................................................
-
-ifdef GCOV
-    CFLAGS    += $(CODE_COV)
-    CPPFLAGS  += $(CODE_COV)
-    LINKFLAGS := $(CODE_COV)
-endif
-
-ifndef GCC_OLD
-    LINKFLAGS += -no-pie
-endif
-
-#-----------------------------------------------------------------------------
-C_OBJS       := $(patsubst %.c,%.o,   $(C_SRCS))
-CPP_OBJS     := $(patsubst %.cpp,%.o, $(CPP_SRCS))
-
-TARGET_EXE   := $(BIN_DIR)/$(PROJECT)$(TARGET_EXT)
-C_OBJS_EXT   := $(addprefix $(BIN_DIR)/, $(C_OBJS))
-C_DEPS_EXT   := $(patsubst %.o, %.d, $(C_OBJS_EXT))
-CPP_OBJS_EXT := $(addprefix $(BIN_DIR)/, $(CPP_OBJS))
-CPP_DEPS_EXT := $(patsubst %.o, %.d, $(CPP_OBJS_EXT))
-
-# create $(BIN_DIR) if it does not exist
-ifeq (&quot;$(wildcard $(BIN_DIR))&quot;,&quot;&quot;)
-$(shell $(MKDIR) $(BIN_DIR))
-endif
-
-#-----------------------------------------------------------------------------
-# rules
-
-.PHONY: clean show
-
-all: $(TARGET_EXE)
-
-ifeq (spy, $(CONF))
-
-$(TARGET_EXE) : $(C_OBJS_EXT) $(CPP_OBJS_EXT)
-    $(CC) $(CFLAGS) $(QPC)/src/qs/qstamp.c -o $(BIN_DIR)/qstamp.o
-    $(LINK) $(LINKFLAGS) $(LIB_DIRS) -o $@ $^ $(BIN_DIR)/qstamp.o $(LIBS)
-
-else
-
-$(TARGET_EXE) : $(C_OBJS_EXT) $(CPP_OBJS_EXT)
-    $(LINK) $(LINKFLAGS) $(LIB_DIRS) -o $@ $^ $(LIBS)
-
-endif
-
-$(BIN_DIR)/%.d : %.c
-    $(CC) -MM -MT $(@:.d=.o) $(CFLAGS) $&lt; &gt; $@
-
-$(BIN_DIR)/%.d : %.cpp
-    $(CPP) -MM -MT $(@:.d=.o) $(CPPFLAGS) $&lt; &gt; $@
-
-$(BIN_DIR)/%.o : %.c
-    $(CC) $(CFLAGS) $&lt; -o $@
-
-$(BIN_DIR)/%.o : %.cpp
-    $(CPP) $(CPPFLAGS) $&lt; -o $@
-
-# create BIN_DIR and include dependencies only if needed
-ifneq ($(MAKECMDGOALS),clean)
-  ifneq ($(MAKECMDGOALS),show)
-   ifneq ($(MAKECMDGOALS),debug)
-ifeq (&quot;$(wildcard $(BIN_DIR))&quot;,&quot;&quot;)
-$(shell $(MKDIR) $(BIN_DIR))
-endif
--include $(C_DEPS_EXT) $(CPP_DEPS_EXT)
-   endif
-  endif
-endif
-
-clean :
-    -$(RM) $(BIN_DIR)/*.*
-
-show :
-    @echo PROJECT      = $(PROJECT)
-    @echo TARGET_EXE   = $(TARGET_EXE)
-    @echo MAKECMDGOALS = $(MAKECMDGOALS)
-    @echo VPATH        = $(VPATH)
-    @echo INCLUDES     = $(INCLUDES)
-    @echo DEFINES      = $(DEFINES)
-    @echo DEF          = $(DEF)
-    @echo C_SRCS       = $(C_SRCS)
-    @echo CPP_SRCS     = $(CPP_SRCS)
-    @echo C_DEPS_EXT   = $(C_DEPS_EXT)
-    @echo C_OBJS_EXT   = $(C_OBJS_EXT)
-    @echo CPP_DEPS_EXT = $(CPP_DEPS_EXT)
-    @echo CPP_OBJS_EXT = $(CPP_OBJS_EXT)
-    @echo LIB_DIRS     = $(LIB_DIRS)
-    @echo LIBS         = $(LIBS)
-    @echo DEFINES      = $(DEFINES)
-    @echo QTOOLS       = $(QTOOLS)
+ <!--${Hero_Shared}-->
+ <package name="Hero_Shared" stereotype="0x00">
+  <!--${Hero_Shared::StateMachineSig}-->
+  <attribute name="StateMachineSig" type="enum" visibility="0x04" properties="0x00">
+   <code>{
+    SwitchR_up_SIG=Q_USER_SIG,
+    SwitchR_mid_SIG,
+    SwitchR_down_SIG,
+    SwitchL_up_SIG,
+    SwitchL_mid_SIG,
+    SwitchL_down_SIG,
+    Switch_protected_SIG,
+    Switch_PC_SIG,
+    Switch_RC_SIG,
+    RC_LOST_SIG,
+    SWITCH_SNIPER_SIG,
+    SWITCH_BACK_SIG,
+    SWITCH_STAND_SIG,
+    SWITCH_REVOLVE_SIG,
+    SWITCH_WORLD_SIG,
+    STAIR_OK_SIG,
+    MAX_PUB_SIG,
+    TIMEOUT_SIG,
+    SWITCH_STAIR_SIG,
+    SWITCH_FINAL_SIG,
+};</code>
+  </attribute>
+  <!--${Hero_Shared::CtrlTerminalEnum}-->
+  <attribute name="CtrlTerminalEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ CTRL_STOP = 0, CTRL_REMOTE, CTRL_PC };</code>
+  </attribute>
+  <!--${Hero_Shared::ChassisModeEnum}-->
+  <attribute name="ChassisModeEnum" type="enum" visibility="0x04" properties="0x00">
+   <code> { CHS_FOLLOW = 0, CHS_FOLLOW_BACK, CHS_REVOLVE };</code>
+  </attribute>
+  <!--${Hero_Shared::DecisionAO_ctor}-->
+  <operation name="DecisionAO_ctor" type="void" visibility="0x00" properties="0x00">
+   <code>DecisionAO * const me = &amp;DecisionAO_inst;
+QActive_ctor(&amp;me-&gt;super, Q_STATE_CAST(&amp;DecisionAO_initial));
+QTimeEvt_ctorX(&amp;me-&gt;timeEvt_test, &amp;me-&gt;super, TIMEOUT_SIG, 0U);
+me-&gt;ctrl_terminal = CTRL_STOP;
+me-&gt;chassis_mode = CHS_FOLLOW;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;fric_mode = FRIC_OFF;
+me-&gt;stir_mode = STIR_LOCK;
+me-&gt;joint_mode = JOINT_NORMAL;
+me-&gt;stand_mode = STAND_NORMAL;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;rc_lost_flag = RC_LOST;
+me-&gt;can_enable = CAN_DISABLE;</code>
+  </operation>
+  <!--${Hero_Shared::AO_DecisionAO}-->
+  <attribute name="AO_DecisionAO" type="QActive * const" visibility="0x00" properties="0x00">
+   <code>= &amp;DecisionAO_inst.super;</code>
+  </attribute>
+  <!--${Hero_Shared::pDecisionAO}-->
+  <attribute name="pDecisionAO" type="const DecisionAO *" visibility="0x00" properties="0x00">
+   <code>= &amp;DecisionAO_inst;</code>
+  </attribute>
+ </package>
+ <!--${../}-->
+ <directory name="../">
+  <!--${../::decision_ao.h}-->
+  <file name="decision_ao.h">
+   <text>#ifndef DECISION_AO_H_
+#define DECISION_AO_H_
+
+#include &quot;qpc.h&quot;
+
+$declare ${Hero_Demo::DecisionAO}
+
+$declare ${Hero_Shared}
+
+#endif
 </text>
+  </file>
+  <!--${../::decision_ao.c}-->
+  <file name="decision_ao.c">
+   <text>#include &quot;decision_ao.h&quot;
+#include &quot;general_task_include.h&quot;
+
+$define ${Hero_Shared}
+$define ${Hero_Demo::DecisionAO}</text>
   </file>
  </directory>
 </model>

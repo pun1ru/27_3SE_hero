@@ -76,6 +76,48 @@ typedef struct
 
 extern CtrlChainTimer g_chain_timer;
 /*---------------------------------------------------------------------------state task-----------------------------------------------------------------------------------*/
+//新qm状态机宏定义,chassis,ctrlterminal已生成
+
+#define RC_LOST 1
+#define RC_OK 0
+
+#define CAN_ENABLE 1
+#define CAN_DISABLE 0
+//关节
+#define JOINT_NORMAL 0
+#define JOINT_PRESTAIR 1
+#define JOINT_STAIRUP 2 
+
+#define STAND_NORMAL 0
+#define STAND_HIGH 1
+
+//发射
+#define FRIC_OFF 0
+#define FRIC_ON 1
+#define STIR_LOCK 0
+#define STIR_ANGLE_CONTROL 1
+#define STIR_REVERSE 2
+
+//瞄准
+//吊射
+#define SNIPER_ON 1
+#define SNIPER_OFF 0
+#define MOUSE_FIX_OFF 0
+#define MOUSE_FIX_ON  1
+#define WORLD_ENABLE_OFF 0
+#define WORLD_ENABLE_ON  1
+#define CAM_TARGET_UP   1
+#define CAM_TARGET_MID  2
+#define CAM_TARGET_DOWN 3
+#define AUTO_AIM_OFF 0
+#define AUTO_AIM_ON  1
+
+//电容
+#define CAPACITY 0
+#define NO_CAPACITY 1
+
+
+//老宏定义
 /*define different state*/
 /*control terminal*/
 #define CONTROL_STOP		0
@@ -87,36 +129,12 @@ extern CtrlChainTimer g_chain_timer;
 #define CHASSIS_REVOLVE 	2
 #define CHASSIS_SEPARATE	3
 
-/*pitch mode*/
-#define PITCH_SEPARATE 0
-#define PITCH_LINK 1
-
-/*发射相关*/
-#define FRIC_OFF 0
-#define FRIC_ON 1
-#define STIR_LOCK 0
-#define STIR_ANGLE_CONTROL 1
-#define STIR_REVERSE 2
-#define STIR_MAD_DOG 3
 //3.20
 #define FOLLOW_ON 1
 #define FOLLOW_OFF 0 //这是平行的意思
-#define SNIPER_ON 1//需要的话在这里那个开局保护
-#define SNIPER_OFF 0
 #define LENS_ON 1
 #define LENS_OFF 0
-//5.17 C键算法基地自瞄
-#define NEW_AUTO_AIMING_OFF 0
-#define NEW_AUTO_AIMING_ON  1
-
-//5.28
-#define BULLET_ADAPTION_ON 1
-#define BULLET_ADAPTION_OFF 0
 /*其他状态*/
-#define NORMAL_MODE 0
-#define OUTPOSE_MODE 1
-#define CAPACITY 0
-#define NO_CAPACITY 1
 #define ROBOT_JOINT_MODE_NORMAL 0
 #define ROBOT_JOINT_MODE_PRECLIMB 1
 #define ROBOT_JOINT_MODE_CLIMB 2
@@ -127,13 +145,7 @@ extern CtrlChainTimer g_chain_timer;
 #define ROBOT_STAND_MODE_PRE_DOWN_STAIR 3
 #define ROBOT_JUMP_MODE_OFF 0
 #define ROBOT_JUMP_MODE_ON 1
-#define MOUSE_FIX_OFF 0
-#define MOUSE_FIX_ON  1
-#define WORLD_ENABLE_OFF 0
-#define WORLD_ENABLE_ON  1
-#define CAM_TARGET_UP   1
-#define CAM_TARGET_MID  2
-#define CAM_TARGET_DOWN 3
+
 #pragma pack(1)
 /**
  * @brief 状态机结构体，标识全车变量

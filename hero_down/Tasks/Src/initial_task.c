@@ -97,7 +97,7 @@ void InitTask(void const * argument)
 	PeripheralRecEnable();
 
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 0);//关掉蜂鸣器
-		   	
+	QpInit();	   	
 	vTaskDelete(NULL);   
 	taskEXIT_CRITICAL();   
 }

@@ -5,10 +5,9 @@
 
 #include "arm_matrix.h"
 
-/* 关节状态定义 */
+/* 关节状态定义（jointControl 内部使用，与 state_task.h 的 JOINT_* 宏互补）*/
 #define JOINT_STOP   -1
-#define JOINT_NORMAL  0
-#define JOINT_CLIMB   1
+/* JOINT_NORMAL 0 — 已由 state_task.h 定义 */
 
 #define JOINT_STAND_MODE_NORMAL     0
 #define JOINT_STAND_MODE_PRE_STAIR  1

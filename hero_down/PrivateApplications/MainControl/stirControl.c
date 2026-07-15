@@ -138,7 +138,7 @@ void ShootInputUpdate(void)
 	switch (stir_two_step_phase)
 	{
 	case 0:  /* 空闲 — 等待发射触发 */
-		if (_robotState->stir_mode == STIR_ANGLE_CONTROL
+		if (pDecisionAO->stir_mode == STIR_ANGLE_CONTROL
 			&& fabs(shootControl.ShootTargetInput.stir_all_target_pos_d - shootControl.ShootEstimate.stir_all_angle_d) < 5.0f
 			&& shootControl.ShootEstimate.stir_block_flag == 0
 			&& !in_stall_recovery)
@@ -173,7 +173,7 @@ void ShootInputUpdate(void)
 		break;
 
 	case 2:  /* 二段完成 — 等待 stir_mode=LOCK 复归, 防止连发 */
-		if (_robotState->stir_mode == STIR_LOCK)
+		if (pDecisionAO->stir_mode == STIR_LOCK)
 		{
 			stir_two_step_phase = 0;
 			stir_flag = 0;
@@ -183,10 +183,10 @@ void ShootInputUpdate(void)
 
 	shootControl.ShootTargetInput.stir_target_pos_rad = shootControl.ShootTargetInput.stir_target_pos / 180.0f * PI;
 	shootControl.ShootTargetInput.stir_all_target_pos_rad =shootControl.ShootTargetInput.stir_all_target_pos_d/ 180.0f * PI;
-	shootControl.ShootTargetInput.shoot_flag = (_robotState->stir_mode != STIR_LOCK) ? 1 : 0;
+	shootControl.ShootTargetInput.shoot_flag = (pDecisionAO->stir_mode != STIR_LOCK) ? 1 : 0;
 
 	/* 堵转恢复期间不锁电机, 确保电机可反转和回位 */
-	if(_robotState->ctrl_terminal == CONTROL_STOP)
+	if(pDecisionAO->ctrl_terminal == CONTROL_STOP)
 	{
 		lock_motor(&hfdcan1,GMJ4310MOTOR_ID);
 	}
@@ -200,7 +200,7 @@ void ShootInputUpdate(void)
 	{
 		lock_motor(&hfdcan1,GMJ4310MOTOR_ID);
 	}
-	else if(_robotState->ctrl_terminal != CONTROL_STOP && shootControl.ShootEstimate.stir_block_flag == 0 && _stirMotorRec->state == 0)
+	else if(pDecisionAO->ctrl_terminal != CONTROL_STOP && shootControl.ShootEstimate.stir_block_flag == 0 && _stirMotorRec->state == 0)
 	{
 		start_motor(&hfdcan1, GMJ4310MOTOR_ID);
 	}
@@ -233,8 +233,8 @@ void ShootEstimateUpdate(void)
 
 //	/*拨盘自动预置*/
 	static uint8_t last_fric_state, cur_fric_state, last_robot_state, cur_robot_state;
-	cur_fric_state = _robotState->fric_mode;
-	cur_robot_state = _robotState->ctrl_terminal;
+	cur_fric_state = pDecisionAO->fric_mode;
+	cur_robot_state = pDecisionAO->ctrl_terminal;
 //	if((last_fric_state == 0 && cur_fric_state) || (last_robot_state == 0 && cur_robot_state))
 	if(last_robot_state == 0 && cur_robot_state && _stirMotorRec->frame_counter)
 	{
@@ -245,7 +245,7 @@ void ShootEstimateUpdate(void)
 
 	/*10s无操作自动校准*/
 	static uint16_t calibration_count = 0;
-	if(_stirMotorRec->vel_radps < STIR_CAUTION_SPEED && _robotState->ctrl_terminal != CONTROL_STOP && !shootControl.ShootEstimate.stir_reset_flag)
+	if(_stirMotorRec->vel_radps < STIR_CAUTION_SPEED && pDecisionAO->ctrl_terminal != CONTROL_STOP && !shootControl.ShootEstimate.stir_reset_flag)
 	{
 		calibration_count++;
 		if(calibration_count % 1000 == 0)
@@ -358,7 +358,7 @@ void ShootControlUpdate(void)
 		}
 	}
 	/*一下有保护*/
-	if(CONTROL_STOP == _robotState->ctrl_terminal)
+	if(CONTROL_STOP == pDecisionAO->ctrl_terminal)
 	{
 		shootControl.ShootEstimate.stir_enableflag_desire = DISABLE; // 期望失能
 	}

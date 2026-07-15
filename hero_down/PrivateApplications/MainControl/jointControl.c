@@ -1173,7 +1173,7 @@ void JointInputUpdate(void)
 	g_joint_body_target_cmd.roll_rate_dps = 0.0f;
 	g_joint_body_target_cmd.pitch_rate_dps = 0.0f;
 	g_joint_body_target_cmd.yaw_rate_dps = 0.0f;
-	if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+	if (pDecisionAO->joint_mode == JOINT_PRESTAIR)
 		g_joint_body_target_cmd.heave_m = 0.3900f;
 	else
 		g_joint_body_target_cmd.heave_m = 0.3400f;
@@ -1224,7 +1224,7 @@ void JointEstimateUpdate(void)
 	//更新接触检测
 	JointForceControlSetContact(jointControl.JointEstimate.frame_counter,
 					jointControl.JointEstimate.toq,
-					(_robotState->ctrl_terminal != CONTROL_STOP) ? 1u : 0u);
+					(pDecisionAO->ctrl_terminal != CONTROL_STOP) ? 1u : 0u);
 
 	/* 观测态由 gimbalPose 提供，角速度先置 0（后续可替换为滤波角速度） */
 	g_joint_body_state_obs.pitch_d = gimbalPose.pitch_d;
@@ -1246,19 +1246,19 @@ void JointEstimateUpdate(void)
 	jointControl.JointEstimate.body_height_m = body_height_m_obs;
 	jointControl.JointEstimate.body_height_vel_mps = body_height_vel_mps_obs;
 
-	/* 上台阶检测：仅在 PRE_STAIR 模式下使能，NORMAL / PRE_DOWN_STAIR 模式清除状态 */
-	if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+	/* 上台阶检测：仅在 PRESTAIR 模式下使能，NORMAL / PRE_DOWN_STAIR 模式清除状态 */
+	if (pDecisionAO->joint_mode == JOINT_PRESTAIR)
 	{
 		JointStairUpDetect();
 	}
-	else if (_robotState->stand_mode == ROBOT_STAND_MODE_NORMAL
-	         || _robotState->stand_mode == ROBOT_STAND_MODE_PRE_DOWN_STAIR)
+	else if (pDecisionAO->joint_mode == JOINT_NORMAL
+	         || _robotState->stand_mode == ROBOT_STAND_MODE_PRE_DOWN_STAIR) /* TODO: migrate PRE_DOWN_STAIR to HSM */
 	{
 		JointStairUpDetectReset();
 	}
 	if (JointStairUpIsDetected())
 	{
-		robotState.stand_mode = ROBOT_STAND_MODE_STAIR_UP;
+		DecisionAO_inst.joint_mode = JOINT_STAIRUP;
 	}
 }//代办:检查速度映射
 
@@ -1273,8 +1273,7 @@ void JointControlUpdate(void)
 	static float preclimb_motor_target_angle_rad[JOINT_CTRL_MOTOR_NUM] = {
 		-2.05f, -2.05f, 1.05f, 1.05f,
 	};//-2.25f, -2.25f, 1.05f, 1.05f
-	static uint8_t last_joint_mode = ROBOT_JOINT_MODE_NORMAL;
-	static float climb_pitch_hold_d = 0.0f;
+	static uint8_t last_joint_mode = JOINT_NORMAL;  /* 匹配新HSM宏 */
 	static uint8_t prev_stand_stair = 0;  /* STAIR_UP 斜坡持续标记，函数级 static */
 	extern float g_joint_motor_torque_cmd_nm[JOINT_CTRL_MOTOR_NUM];
 	float mit_pos_cmd_rad[JOINT_CTRL_MOTOR_NUM] = {0};
@@ -1292,24 +1291,17 @@ void JointControlUpdate(void)
 	JointForceControlConvertBodyState(&body_state, &body_state_ctrl);
 	g_joint_body_pitch_ctrl_d = body_state_ctrl.pitch_d;
 
-	if (_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB)
+	if (pDecisionAO->joint_mode == JOINT_STAIRUP)
 	{
-		/* CLIMB上坡模式走默认力控 */
 		JointForceControlSetJointMode(JOINT_NORMAL, 0.0f);
-	}
-	else if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB)
-	{
-		if (last_joint_mode != ROBOT_JOINT_MODE_OUTCLIMB)
-			climb_pitch_hold_d = 0.0f;
-		JointForceControlSetJointMode(JOINT_CLIMB, 0.0f);
 	}
 	else
 	{
 		JointForceControlSetJointMode(JOINT_NORMAL, 0.0f);
 	}
-	JointForceControlSetStandMode(_robotState->stand_mode);
-	JointForceControlSetJumpMode(_robotState->jump_mode);
-	last_joint_mode = _robotState->joint_mode;
+	JointForceControlSetStandMode(pDecisionAO->stand_mode);
+	JointForceControlSetJumpMode(_robotState->jump_mode);  /* jump_mode 不在DecisionAO中 */
+	last_joint_mode = pDecisionAO->joint_mode;
 
 	JointForceControlStep(&body_state_ctrl,
 				      &body_target,
@@ -1332,7 +1324,6 @@ void JointControlUpdate(void)
 	enum
 	{
 		MIT_MODE_CLIMB = 0,
-		MIT_MODE_OUTCLIMB,
 		MIT_MODE_STAIR_UP,
 		MIT_MODE_PRECLIMB,
 		MIT_MODE_REVOLVE,
@@ -1341,7 +1332,6 @@ void JointControlUpdate(void)
 	};//- + - +
 	static const float mit_kp_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
 		[MIT_MODE_CLIMB] = { [LEG_LF] = 30.0f, [LEG_RF] = 30.0f, [LEG_RB] = 20.0f, [LEG_LB] = 20.0f },
-		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 40.0f, [LEG_RF] = 40.0f, [LEG_RB] = 40.0f, [LEG_LB] = 40.0f },
 		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 40.0f, [LEG_RF] = 40.0f, [LEG_RB] = 40.0f, [LEG_LB] = 40.0f },
 		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 60.0f, [LEG_RF] = 60.0f, [LEG_RB] = 60.0f, [LEG_LB] = 60.0f },
 		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 30.0f, [LEG_RF] = 30.0f, [LEG_RB] = 30.0f, [LEG_LB] = 30.0f }, // TODO: 陀螺模式位控Kp
@@ -1349,7 +1339,6 @@ void JointControlUpdate(void)
 	};
 	static const float mit_kd_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
 		[MIT_MODE_CLIMB] = { [LEG_LF] = 1.0f, [LEG_RF] = 1.0f, [LEG_RB] = 1.0f, [LEG_LB] = 1.0f },
-		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
 		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
 		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f },
 		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 3.0f, [LEG_LB] = 3.0f }, // TODO: 陀螺模式位控Kd
@@ -1357,7 +1346,6 @@ void JointControlUpdate(void)
 	};
 	static const float mit_tff_table[MIT_MODE_COUNT][JOINT_CTRL_MOTOR_NUM] = {
 		[MIT_MODE_CLIMB] = { [LEG_LF] = -3.0f, [LEG_RF] = 3.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
-		[MIT_MODE_OUTCLIMB] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
 		[MIT_MODE_STAIR_UP] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
 		[MIT_MODE_PRECLIMB] = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f },
 		[MIT_MODE_REVOLVE]  = { [LEG_LF] = 0.0f, [LEG_RF] = 0.0f, [LEG_RB] = 0.0f, [LEG_LB] = 0.0f }, // TODO: 陀螺模式前馈Tff
@@ -1368,16 +1356,7 @@ void JointControlUpdate(void)
 	uint8_t  mit_mode_idx      = MIT_MODE_FORCE_LIMIT;
 	float    motor_target_angle_rad[JOINT_CTRL_MOTOR_NUM] = {0};
 
-	if (_robotState->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB)
-	{
-		mit_mode_idx = MIT_MODE_OUTCLIMB;
-		motor_target_angle_rad[LEG_LF] = -2.65f;
-		motor_target_angle_rad[LEG_RF] = -2.65f;
-		motor_target_angle_rad[LEG_RB] = -0.35f;
-		motor_target_angle_rad[LEG_LB] = -0.35f;
-		mit_angle_active = 1u;
-	}
-	else if (_robotState->stand_mode == ROBOT_STAND_MODE_PRE_STAIR)
+	if (pDecisionAO->joint_mode == JOINT_PRESTAIR)  /* 原 ROBOT_STAND_MODE_PRE_STAIR → 新HSM PreStair */
 	{
 		/* PRE_STAIR: 前腿MIT位控收腿到-2.50rad，后腿继续力控 */
 		float front_angles_rad[JOINT_CTRL_MOTOR_NUM];
@@ -1397,7 +1376,7 @@ void JointControlUpdate(void)
 		}
 		/* 不设 mit_angle_active，避免统一应用覆盖后腿力控Tff */
 	}
-	else if (_robotState->stand_mode == ROBOT_STAND_MODE_STAIR_UP)
+	else if (pDecisionAO->joint_mode == JOINT_STAIRUP)  /* 原 ROBOT_STAND_MODE_STAIR_UP → 新HSM StairUp */
 	{
 		mit_mode_idx = MIT_MODE_STAIR_UP;
 		/* 目标角度缓慢变化，每周期收敛0.1rad */
@@ -1425,7 +1404,7 @@ void JointControlUpdate(void)
 		mit_angle_active = 1u;
 		prev_stand_stair = 1u;
 	}
-	else if (_robotState->joint_mode == ROBOT_JOINT_MODE_PRECLIMB)
+	else if (pDecisionAO->joint_mode == JOINT_PRESTAIR)  /* 原 ROBOT_JOINT_MODE_PRECLIMB → 新HSM PreStair */
 	{
 		mit_mode_idx = MIT_MODE_PRECLIMB;
 		const float pitch_min_d = 0.0f;
@@ -1449,7 +1428,7 @@ void JointControlUpdate(void)
 	}
 
 	/* 退出 STAIR_UP 时清除持续标记，使下次重新斜坡 */
-	if (_robotState->stand_mode != ROBOT_STAND_MODE_STAIR_UP)
+	if (pDecisionAO->joint_mode != JOINT_STAIRUP)  /* 原 ROBOT_STAND_MODE_STAIR_UP → 新HSM */
 		prev_stand_stair = 0u;
 
 	uint16_t rev_exit_hold_cnt = 0;
@@ -1458,7 +1437,7 @@ void JointControlUpdate(void)
 		static float    rev_exit_hold_angle_rad[JOINT_CTRL_MOTOR_NUM] = {0};
 		static uint8_t  last_revolve = 0;
 
-		if (_robotState->chassis_mode != CHASSIS_REVOLVE && last_revolve)
+		if (pDecisionAO->chassis_mode != CHASSIS_REVOLVE && last_revolve)
 		{
 			rev_exit_hold_angle_rad[LEG_LF] = -1.702f;
 			rev_exit_hold_angle_rad[LEG_RF] = -1.702f;
@@ -1466,7 +1445,7 @@ void JointControlUpdate(void)
 			rev_exit_hold_angle_rad[LEG_LB] =  1.319f;
 			rev_exit_hold_cnt = 600;
 		}
-		last_revolve = (_robotState->chassis_mode == CHASSIS_REVOLVE) ? 1u : 0u;
+		last_revolve = (pDecisionAO->chassis_mode == CHASSIS_REVOLVE) ? 1u : 0u;
 
 		if (rev_exit_hold_cnt > 0)
 		{
@@ -1500,7 +1479,7 @@ void JointControlUpdate(void)
 		uint8_t limit_active = 0u;
 
 		JointGetMotorAngleLimitsRad(motor_angle_min_rad, motor_angle_max_rad);
-		if(_robotState->stand_mode==ROBOT_STAND_MODE_NORMAL)
+		if(pDecisionAO->joint_mode == JOINT_NORMAL)  /* 原 ROBOT_STAND_MODE_NORMAL → 新HSM */
 		{
 			motor_angle_max_rad[LEG_LF]-=0.20f;
 			motor_angle_max_rad[LEG_RF]-=0.20f;
@@ -1544,7 +1523,7 @@ void JointControlUpdate(void)
 
 	/* Y方向急停时前腿位控保持，防止惯性压弯前腿角度突变 */
 	/* PRE_DOWN_STAIR 模式下跳过急停位控 */
-	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_PRE_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_STAIR_UP&& rev_exit_hold_cnt == 0)
+	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR /* TODO: add HSM PreDownStair */ && pDecisionAO->joint_mode != JOINT_PRESTAIR && pDecisionAO->joint_mode != JOINT_STAIRUP && rev_exit_hold_cnt == 0)
 	{
 		static float last_speed_y_mps = 0.0f;
 		static uint16_t decel_hold_cnt = 0;
@@ -1590,7 +1569,7 @@ void JointControlUpdate(void)
 
 	/* X方向移动时前腿位控保持，防止横向惯性压弯前腿角度突变 */
 	/* PRE_DOWN_STAIR 模式下跳过 */
-	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR&&_robotState->chassis_mode != CHASSIS_REVOLVE&&_robotState->stand_mode !=ROBOT_STAND_MODE_PRE_STAIR&&_robotState->stand_mode !=ROBOT_STAND_MODE_STAIR_UP&& rev_exit_hold_cnt == 0)
+	if (_robotState->stand_mode != ROBOT_STAND_MODE_PRE_DOWN_STAIR /* TODO: add HSM PreDownStair */ && pDecisionAO->chassis_mode != CHASSIS_REVOLVE && pDecisionAO->joint_mode != JOINT_PRESTAIR && pDecisionAO->joint_mode != JOINT_STAIRUP && rev_exit_hold_cnt == 0)
 	{
 		static float last_speed_x_mps = 0.0f;
 		static float x_hold_angle_rad[2] = {0.0f, 0.0f}; /* LF, RF */

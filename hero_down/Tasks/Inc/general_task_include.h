@@ -43,6 +43,10 @@
 #include "chassisControl.h"
 #include "stirControl.h"
 
+/* QP 状态机框架 */
+#include "qpc_init.h"      /* QpInit(), QF_onStartup 等 */
+#include "decision_ao.h"   /* DecisionAO 类型, 信号枚举, AO_DecisionAO */
+
 extern TaskHandle_t estimateTaskHandle;   /* 新增: EstimateTask 句柄 */
 
 /*该头文件只extern共享各任务共需的全局变量*/

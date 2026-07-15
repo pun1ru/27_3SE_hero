@@ -487,7 +487,7 @@ void UpperPCCommTask(void* argument)
             (ext_game_robot_status.robot_id < 50) ? RED_TEAM_FRAME : BLUE_TEAM_FRAME;
 
         upperComputerComm.Send.task_mode =
-            (_robotState->sniper == SNIPER_OFF) ? 0 : 2;
+            (pDecisionAO->sniper == SNIPER_OFF) ? 0 : 2;
 
         upperComputerComm.Send.bullet_speed  = ext_shoot_data.initial_speed;
         upperComputerComm.Send.gimbal_pitch_d = _gimbalControl->GimbalEstimate.pitch_angle_d;

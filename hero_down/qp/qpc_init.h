@@ -38,6 +38,12 @@ void QF_onCleanup(void);
  */
 void Q_onError(char const *module, int_t id);
 
+/**
+ * @brief  QP/C 框架初始化 — 在 InitTask 末尾调用
+ * @note   内部创建事件池、订阅系统、构造并启动所有 AO
+ */
+void QpInit(void);
+
 /*--- 全局 QP 任务句柄（AO 对应的 FreeRTOS Task） ---*/
 
 #endif // QPC_INIT_H_

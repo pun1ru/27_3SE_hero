@@ -1536,21 +1536,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>qp/qm</GroupName>
-          <Files>
-            <File>
-              <FileName>decision.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\qp\qm\decision.c</FilePath>
-            </File>
-            <File>
-              <FileName>decision.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\qp\qm\decision.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>qp</GroupName>
           <Files>
             <File>
@@ -1567,6 +1552,16 @@
               <FileName>qpc_init.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\qp\qpc_init.c</FilePath>
+            </File>
+            <File>
+              <FileName>decision_ao.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\qp\decision_ao.c</FilePath>
+            </File>
+            <File>
+              <FileName>decision_ao.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\qp\decision_ao.h</FilePath>
             </File>
           </Files>
         </Group>

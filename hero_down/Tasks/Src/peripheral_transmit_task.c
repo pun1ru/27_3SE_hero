@@ -57,7 +57,8 @@ void MotorControlCANSend(void)
     };
 
     /* ====== 停止态：锁电机 + 清错误 + 零值 ====== */
-    if (_robotState->ctrl_terminal == CONTROL_STOP)
+    if (pDecisionAO->ctrl_terminal == CONTROL_STOP
+        || pDecisionAO->can_enable == CAN_DISABLE)
     {
         /* T1: Yaw 零值 — 每 slot */
         DM_MITControl_Send(&hfdcan1, CAN1_YAW, 0,0,0,0,0);

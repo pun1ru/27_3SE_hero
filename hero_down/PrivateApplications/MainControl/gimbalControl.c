@@ -6,6 +6,7 @@
 
 #include "gimbalControl.h"
 #include "general_task_include.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
 /* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
  #define YAW_DUAL_PID
@@ -85,25 +86,25 @@ void GimbalInit(void)
  */
 void GimbalInputUpdate(void)
 {
-	switch(_robotState->ctrl_terminal)
+	switch(pDecisionAO->ctrl_terminal)
 	{
 		case CONTROL_STOP:
 			gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
 		break;
 
 		case CONTROL_FROM_REMOTE:
-			if((_robotState->sniper==SNIPER_ON)){
-				if(_robotState->world_enable == WORLD_ENABLE_ON)
+			if((pDecisionAO->sniper==SNIPER_ON)){
+				if(pDecisionAO->world_enable == WORLD_ENABLE_ON)
 				{
 					gimbalControl.GimbalTargetInput.yaw_angle_d = gimbal_yaw_target_rx_d;
 				}
 				else
 				{
-					gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 0.1 - _normRemoteCmd->RelativeCH.ch2 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
+					gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 0.1 - _normRemoteCmd->RelativeCH.ch2 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
 				}
 			}
-			if(_robotState->sniper==SNIPER_OFF){
-				gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 1.0 - _normRemoteCmd->RelativeCH.ch2 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
+			if(pDecisionAO->sniper==SNIPER_OFF){
+				gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 1.0 - _normRemoteCmd->RelativeCH.ch2 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
 			}
 			#ifndef SHOOT_OFF
 			shootControl.ShootEstimate.stir_enableflag_desire = ENABLE;
@@ -116,11 +117,11 @@ void GimbalInputUpdate(void)
 		case CONTROL_FROM_PC:
 		{
 			static uint8_t last_aim_mode_state = 0;
-			if(_robotState->aim_mode && _robotState->sniper == SNIPER_ON)
+			if(_robotState->aim_mode && pDecisionAO->sniper == SNIPER_ON)
 			{
 				gimbalControl.GimbalTargetInput.yaw_angle_d = gimbal_yaw_target_rx_d;
 				c_key_aim_yaw_lock = 1;
-				robotState.aim_mode = 0;
+				// robotState.aim_mode = 0;  /* TODO: aim_mode needs to be migrated to DecisionAO separately */
 				last_aim_mode_state = 1;
 			}
 			else
@@ -129,7 +130,7 @@ void GimbalInputUpdate(void)
 				last_aim_mode_state = 0;
 				float temp_yaw = 0;
 				float smooth = 0.02f;
-				if(_robotState->sniper==SNIPER_ON){
+				if(pDecisionAO->sniper==SNIPER_ON){
 					smooth = 0.015f;
 
 					/* AD键yaw微调 */
@@ -152,16 +153,16 @@ void GimbalInputUpdate(void)
 					}
 				}
 
-				if(_robotState->follow == FOLLOW_OFF){
-					if(!(_robotState->sniper == SNIPER_ON && _robotState->mouse_fix == MOUSE_FIX_ON)){
+				if(pDecisionAO->sniper == SNIPER_OFF){
+					if(!(pDecisionAO->sniper == SNIPER_ON && pDecisionAO->mouse_fix == MOUSE_FIX_ON)){
 						temp_yaw += SmoothFilterUpdate(&MouseFilterX, _normRemoteCmd->PCMouse.mouse_speed_x) * smooth;
 					}
 					micro_yaw = 0;
 				}
 
-				if(_robotState->follow != FOLLOW_ON)
+				if(pDecisionAO->sniper != SNIPER_ON)
 				{
-					if (!gimbal_yaw_rx_valid && _robotState->sniper == SNIPER_OFF)
+					if (!gimbal_yaw_rx_valid && pDecisionAO->sniper == SNIPER_OFF)
 					{
 						gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
 					}
@@ -204,36 +205,69 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 	gimbalControl.GimbalEstimate.roll_angle_d = roll_angle;
 	gimbalControl.GimbalEstimate.roll_angular_velocity_dps = roll_angle_w;
 
+	/* ===== B2B CAN 云台姿态超时检测（替代原RS485的超时机制）===== */
+	B2B_PoseAliveTick();  /* 1kHz递减心跳，归零自动清零 gimbal_yaw_rx_valid */
+
+	/* ===== DM yaw电机 CAN 超时检测（SNIPER_ON 模式保护）===== */
+	{
+		static uint32_t dm_yaw_last_frame = 0;
+		static uint16_t dm_yaw_stale_cnt  = 0;
+		if (DMyawMotorRec.frame_counter != dm_yaw_last_frame)
+		{
+			dm_yaw_last_frame = DMyawMotorRec.frame_counter;
+			dm_yaw_stale_cnt  = 0;
+		}
+		else
+		{
+			dm_yaw_stale_cnt++;
+			/* DM电机CAN超时 ~50ms（50次@1kHz），强制退回开环保护 */
+			if (dm_yaw_stale_cnt > 50U && pDecisionAO->sniper == SNIPER_ON)
+			{
+				/* SNIPER_ON下DM丢帧：暂用0值 + 标记无效，让ControlUpdate走开环保护 */
+				gimbal_yaw_rx_valid = 0;
+			}
+		}
+	}
+
 	/* yaw编码器角度(DM电机): pos_d(rad) -> 减offset -> 转degree */
 	float yaw_enc_deg = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
 
-	if (_robotState->sniper == SNIPER_OFF)
+	if (pDecisionAO->sniper == SNIPER_OFF)
 	{
-		gimbalControl.GimbalEstimate.yaw_angle_d = gimbal_yaw_rx_d;
-		gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;
+		/* NaN/Inf 保护：若B2B数据异常则保留上一次有效值 */
+		if (isfinite(gimbal_yaw_rx_d))
+			gimbalControl.GimbalEstimate.yaw_angle_d = gimbal_yaw_rx_d;
+		if (isfinite(gimbal_yaw_dps_rx))
+			gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;
 	}
 	else
 	{
 		/* 编码器角度滤波 + 达妙回传角速度(rad/s→dps) */
 		float yaw_enc_rad = DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad;
-		gimbalControl.GimbalEstimate.yaw_angle_d = AngleLimit(
-			SmoothFilterUpdate(&yawEncFilter, yaw_enc_rad) * 57.29578f, -180.0f, 180.0f);
-		gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;
+		if (isfinite(yaw_enc_rad))
+		{
+			gimbalControl.GimbalEstimate.yaw_angle_d = AngleLimit(
+				SmoothFilterUpdate(&yawEncFilter, yaw_enc_rad) * 57.29578f, -180.0f, 180.0f);
+		}
+		if (isfinite(gimbal_yaw_dps_rx))
+			gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;
 	}
-	gimbalControl.GimbalEstimate.pitch_angle_d = gimbal_pitch_rx_d;
-	gimbalControl.GimbalEstimate.pitch_angular_velocity_dps = gimbal_pitch_dps_rx;
+	if (isfinite(gimbal_pitch_rx_d))
+		gimbalControl.GimbalEstimate.pitch_angle_d = gimbal_pitch_rx_d;
+	if (isfinite(gimbal_pitch_dps_rx))
+		gimbalControl.GimbalEstimate.pitch_angular_velocity_dps = gimbal_pitch_dps_rx;
 
 	if (shit_delay_count < 200)
 		shit_delay_count++;
 
-	if (lastRobotState.lens != _robotState->sniper)
+	if (lastRobotState.lens != pDecisionAO->sniper)
 	{
 		shit_delay_count = 0;
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
 		float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
 		TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
 		ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
-		lastRobotState.lens = _robotState->sniper;
+		lastRobotState.lens = pDecisionAO->sniper;
 	}
 }
 
@@ -296,9 +330,17 @@ void GimbalControlUpdate(void)
 		//x1:初始位置顺时针是正
 		//x2(速度方向):逆时针是负,顺时针是正,大概十几,几十
 		//假设向顺时针方向旋转,pos_error是正,pos_output是正值对的,speed_output也是正,实际应该给负值
-	if(CONTROL_STOP != _robotState->ctrl_terminal){
+	if(CONTROL_STOP != pDecisionAO->ctrl_terminal){
 		/* ===== yaw轴 MIT 力矩/速度指令输出 ===== */
-		if(_robotState->sniper == SNIPER_ON){
+		if (!gimbal_yaw_rx_valid)
+		{
+			/* B2B/DM CAN超时 → 统一开环MIT速度控制，鼠标映射yaw转速 */
+			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+				DMyawMotorRec.pos_d, (float)_normRemoteCmd->PCMouse.mouse_speed_x * 0.03f,
+				0.5f, 0.3f, 0.0f);
+		}
+		else if (pDecisionAO->sniper == SNIPER_ON)
+		{
 			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
 				0.0f, 0.0f,
 				0.0f, 0.0f,
@@ -306,19 +348,10 @@ void GimbalControlUpdate(void)
 		}
 		else
 		{
-			/* 普通模式 */
-			if (!gimbal_yaw_rx_valid){
-				/* RS485丢失 → 开环MIT速度控制，鼠标映射yaw转速 */
-				MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
-					DMyawMotorRec.pos_d,(float)_normRemoteCmd->PCMouse.mouse_speed_x * 0.03f,
-					0.5f, 0.3f, 0.0f);
-			}
-			else{
-				/* RS485正常 → 双环PID输出转力矩 */
-				MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
-					0.0f, 0.0f, 0.0f, 0.0f,
-					AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
-			}
+			/* 普通模式 + CAN正常 → 双环PID输出转力矩 */
+			MIT_SetParam(&gimbalControl.GimbalMotorControl.mit,
+				0.0f, 0.0f, 0.0f, 0.0f,
+				AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f));
 		}
 	}
 	else{
@@ -328,7 +361,7 @@ void GimbalControlUpdate(void)
 //------------------------------------------------------------------------------------------------------------------------------------------------
 	/*共同保护*/
 	static uint8_t last_ctrl_terminal = CONTROL_STOP;
-	if(last_ctrl_terminal == CONTROL_STOP && _robotState->ctrl_terminal != CONTROL_STOP)
+	if(last_ctrl_terminal == CONTROL_STOP && pDecisionAO->ctrl_terminal != CONTROL_STOP)
 	{
 		/* 退保护边沿：对齐目标和跟踪器状态，避免上电瞬间冲击 */
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
@@ -342,9 +375,9 @@ void GimbalControlUpdate(void)
 		MIT_SetParam(&gimbalControl.GimbalMotorControl.mit, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
 		shit_delay_count = 0;
 	}
-	last_ctrl_terminal = _robotState->ctrl_terminal;
+	last_ctrl_terminal = pDecisionAO->ctrl_terminal;
 
-	if((CONTROL_STOP == _robotState->ctrl_terminal||shit_delay_count<30) && !c_key_aim_yaw_lock)
+	if((CONTROL_STOP == pDecisionAO->ctrl_terminal||shit_delay_count<30) && !c_key_aim_yaw_lock)
 	{
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
 #ifdef YAW_DUAL_PID

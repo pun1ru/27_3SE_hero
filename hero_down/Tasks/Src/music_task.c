@@ -134,7 +134,7 @@ void Error_check()
 	circuitMonitror.CircuitCounterPtr.superCapacity_frame_counter = _superCapacity->frame_counter;
 }
 /*用来看爆栈*/
-void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
 	
 	xTaskHandle xTask1=xTask;
