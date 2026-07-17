@@ -10,7 +10,7 @@
 /**
  * @brief   初始化系统辨识结构体
  */
-void SysIDInit(SysIDTest* sysid)
+void SysIDInit(volatile SysIDTest* sysid)
 {
     sysid->step_torque_nm     = 0.0f;
     sysid->step_duration_ms   = 0;
@@ -29,7 +29,7 @@ void SysIDInit(SysIDTest* sysid)
 /**
  * @brief   启动阶跃力矩测试
  */
-void SysIDStepStart(SysIDTest* sysid, float torque_nm, uint32_t duration_ms)
+void SysIDStepStart(volatile SysIDTest* sysid, float torque_nm, uint32_t duration_ms)
 {
     sysid->step_torque_nm   = torque_nm;
     sysid->step_duration_ms = duration_ms;
@@ -42,7 +42,7 @@ void SysIDStepStart(SysIDTest* sysid, float torque_nm, uint32_t duration_ms)
 /**
  * @brief   阶跃状态更新
  */
-void SysIDStepUpdate(SysIDTest* sysid, uint32_t dt_ms)
+void SysIDStepUpdate(volatile SysIDTest* sysid, uint32_t dt_ms)
 {
     if(!sysid->active)
     {
@@ -63,7 +63,7 @@ void SysIDStepUpdate(SysIDTest* sysid, uint32_t dt_ms)
 /**
  * @brief   查询阶跃是否进行中
  */
-uint8_t SysIDStepActive(const SysIDTest* sysid)
+uint8_t SysIDStepActive(const volatile SysIDTest* sysid)
 {
     return sysid->active;
 }
@@ -71,7 +71,7 @@ uint8_t SysIDStepActive(const SysIDTest* sysid)
 /**
  * @brief   查询阶跃是否已完成
  */
-uint8_t SysIDStepDone(const SysIDTest* sysid)
+uint8_t SysIDStepDone(const volatile SysIDTest* sysid)
 {
     return sysid->done;
 }

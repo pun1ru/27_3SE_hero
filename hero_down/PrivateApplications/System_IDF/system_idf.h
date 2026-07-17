@@ -4,9 +4,8 @@
 #include "general_task_include.h"
 
 /* ── 系统辨识测试总开关（注释即关闭）── */
-#ifndef TEST_YAW
-#define TEST_YAW
-#endif
+/* ── 系统辨识测试总开关（注释即关闭）── */
+//#define TEST_YAW
 
 /**
  * @brief 系统辨识测试结构体
@@ -38,7 +37,7 @@ typedef struct
  * @param   sysid  SysIDTest 指针
  * @retval  void
  */
-void SysIDInit(SysIDTest* sysid);
+void SysIDInit(volatile SysIDTest* sysid);
 
 /**
  * @brief   启动阶跃力矩测试
@@ -49,7 +48,7 @@ void SysIDInit(SysIDTest* sysid);
  * @note    调用后每个控制周期调用 SysIDStepUpdate() 计时，
  *          duration_ms 后自动结束阶跃
  */
-void SysIDStepStart(SysIDTest* sysid, float torque_nm, uint32_t duration_ms);
+void SysIDStepStart(volatile SysIDTest* sysid, float torque_nm, uint32_t duration_ms);
 
 /**
  * @brief   阶跃状态更新（每个控制周期调用一次）
@@ -59,20 +58,20 @@ void SysIDStepStart(SysIDTest* sysid, float torque_nm, uint32_t duration_ms);
  * @note    阶跃激活期间 out_torque_nm = step_torque_nm，
  *          到期后清零并置 active=0, done=1
  */
-void SysIDStepUpdate(SysIDTest* sysid, uint32_t dt_ms);
+void SysIDStepUpdate(volatile SysIDTest* sysid, uint32_t dt_ms);
 
 /**
  * @brief   查询阶跃是否进行中
  * @param   sysid  SysIDTest 指针
  * @retval  1=进行中, 0=未激活
  */
-uint8_t SysIDStepActive(const SysIDTest* sysid);
+uint8_t SysIDStepActive(const volatile SysIDTest* sysid);
 
 /**
  * @brief   查询阶跃是否已完成
  * @param   sysid  SysIDTest 指针
  * @retval  1=已完成, 0=未完成
  */
-uint8_t SysIDStepDone(const SysIDTest* sysid);
+uint8_t SysIDStepDone(const volatile SysIDTest* sysid);
 
 #endif

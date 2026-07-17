@@ -254,13 +254,13 @@ static void StateUpdate(RobotState* robot_state, const NormRemoteCmd* norm_remot
 {
 	xvni_42_heart_leng();
 	
-	/* 下板血量保护：485双板通信收到HP归零时进入保护态 */
-	if(servant485_hp_zero_flag){
-		StateInit(robot_state);
-		StateInit(&lastRobotState);
-		servant485_hp_zero_flag = 0;
-		return;
-	}
+		/* 下板血量保护：485双板通信收到HP归零时进入保护态（已禁用） */
+		//if(servant485_hp_zero_flag){
+		//	StateInit(robot_state);
+		//	StateInit(&lastRobotState);
+		//	servant485_hp_zero_flag = 0;
+		//	return;
+		//}
 	
 	switch(norm_remote_cmd->remote_source)
 	{

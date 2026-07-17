@@ -11,6 +11,7 @@
 /*有两种方案可以同时使用：一个是用拓展版，或者关闭激光*/
 #define UPPER_PC_TRANSMIT_ENABLE
 #define DEBUG_MSG_ENABLE
+#define DEBUG_FRAME_CTRL      /* ADRC调试帧：TD/ESO/LESF + yaw kalman + raw enc */
 
 /*比赛模式*/
 #define MATCH_MODE

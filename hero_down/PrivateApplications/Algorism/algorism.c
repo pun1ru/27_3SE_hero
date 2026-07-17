@@ -22,6 +22,63 @@ float SmoothFilterUpdate(SmoothFilter* filter, float input)
                               (1 - filter->alpha) * input);
 }
 
+/**
+ * \brief 标量卡尔曼滤波器初始化
+ * \param[in] Q  过程噪声协方差（模型不信任度，建议 0.001~0.1，越小越平滑）
+ * \param[in] R  测量噪声协方差（传感器噪声方差，±0.02°噪声 → R≈0.0004）
+ * \param[in] dt 采样周期（秒），IMU周期=2ms → dt=0.002
+ */
+void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt)
+{
+    kf->x = 0.0f;
+    kf->P = 1.0f;
+    kf->Q = Q;
+    kf->R = R;
+    kf->dt = dt;
+    kf->init = 0;
+}
+
+/**
+ * \brief 标量卡尔曼滤波器更新（1状态 + 1控制 + 1测量）
+ * \param[in] z 测量值（编码器角度，deg）
+ * \param[in] u 控制输入（角速度，deg/s）
+ * \return 滤波后的角度估计值（deg）
+ * \note  模型: x_k = x_{k-1} + u * dt + w(N(0,Q))
+ *        测量: z_k = x_k + v(N(0,R))
+ *        首次调用时自动用测量值初始化状态（避免从0收敛）
+ */
+float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u)
+{
+    /* 首次测量：直接用测量值初始化状态 */
+    if(!kf->init)
+    {
+        kf->x = z;
+        kf->init = 1;
+        return kf->x;
+    }
+
+    /* NaN/Inf 保护：测量异常时仅预测不更新 */
+    if(!isfinite(z))
+    {
+        kf->x += u * kf->dt;
+        return kf->x;
+    }
+
+    /* 第1步：预测 — 用角速度外推 */
+    /* x = x + u * dt,  P = P + Q */
+    kf->x += u * kf->dt;
+    kf->P += kf->Q;
+
+    /* 第2步：更新 — 卡尔曼增益融合测量值 */
+    /* K = P / (P + R),  x = x + K * (z - x),  P = (1 - K) * P */
+    float K = kf->P / (kf->P + kf->R);
+    kf->x += K * (z - kf->x);
+    kf->P = (1.0f - K) * kf->P;
+
+    return kf->x;
+}
+
+
 void AverageFilterInitialize(AverageFilter*filter)
 {
 	filter->last[0]=0;

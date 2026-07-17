@@ -222,13 +222,15 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     return crc;
 }
 /* ---- Debug 帧类型选择（只定义一个） ---- */
-//#define DEBUG_FRAME_CTRL     /* 云台控制调试帧 0xAABB 26B */
-#define DEBUG_FRAME_SYSID      /* 系统辨识调试帧 0xAABB 30B */
+#define DEBUG_FRAME_CTRL     /* ADRC调试帧 0xAABB 34B */
+//#define DEBUG_FRAME_SYSID      /* 系统辨识调试帧 0xAABB 30B */
 static void DebugTransmit(void)
 {
     /* ---- 公用外部引用 ---- */
     extern DMJ4310MotorRec DMyawMotorRec;
     extern volatile float gimbal_yaw_dps_rx;
+    extern volatile float gimbal_yaw_rx_d;
+    extern float yaw_dm_forward_offset_rad;
 #if 0
     /* ===== 原始帧格式（保留） ===== */
     static uint16_t debug_seq = 0;
@@ -254,73 +256,94 @@ static void DebugTransmit(void)
     debug_data[37] = crc8_maxim(debug_data, 37);
     HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
 #elif defined(DEBUG_FRAME_CTRL)
-    /* ===== 云台控制调试帧 (26B) =====
+	    /* ===== ADRC调试帧 (42B) =====
      * [0-1]   0xAA 0xBB  帧头
-	     * [2-5]   float       yaw_enc_deg     yaw编码器角度 [-180, 180]
-	     * [6-9]   float       yaw_target      目标yaw角度
-	     * [10-13] float       yaw_rx_raw      B2B接收yaw原始值
-	     * [14-17] float       b2b_cnt         B2B接收计数
-	     * [18-21] float       pos_pid_out     yaw位置PID输出
-	     * [22-25] float       yaw_p_int_f     yaw编码器原始值 (p_int转float)
+     * [2-5]   float       td_x1_deg       TD跟踪位置 (deg)
+     * [6-9]   float       adrc_u          ADRC最终控制量u
+     * [10-13] float       eso_z3          ESO扰动估计z3
+     * [14-17] float       eso_z2          ESO速度估计z2 (deg/s)
+     * [18-21] float       esf_e1_deg      位置误差e1 (deg)
+     * [22-25] float       eso_z1_deg      ESO位置估计z1 (deg)
+     * [26-29] float       yaw_actual_deg  估计yaw角度 (deg, GimbalEstimate)
+	     * [30-33] float       yaw_actual_dps  实际yaw角速度 (deg/s, 上板IMU)
+	     * [34-37] float       yaw_imu_raw_d   上板传下IMU原始yaw角度 (deg)
+	     * [38-41] float       yaw_enc_raw_d   yaw编码器原始角度 (deg, 未滤波)
 	     */
-	    debug_data[0] = 0xAA;
-	    debug_data[1] = 0xBB;
-	    extern float yaw_dm_forward_offset_rad;
-	    extern uint32_t b2b_pose_rx_count;
-	    extern volatile float gimbal_yaw_rx_d;
-	    float yaw_enc_deg = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
-	    float yaw_target   = gimbalControl.GimbalTargetInput.yaw_angle_d;
-	    float yaw_rx_raw   = gimbal_yaw_rx_d;
-	    float b2b_cnt      = (float)b2b_pose_rx_count;
-	    float pos_pid_out  = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
-	    float yaw_p_int_f = (float)DMyawMotorRec.p_int;
-	    memcpy(&debug_data[2],  (void*)&yaw_enc_deg,  4);
-	    memcpy(&debug_data[6],  (void*)&yaw_target,   4);
-	    memcpy(&debug_data[10], (void*)&yaw_rx_raw,   4);
-	    memcpy(&debug_data[14], (void*)&b2b_cnt,      4);
-	    memcpy(&debug_data[18], (void*)&pos_pid_out,  4);
-	    memcpy(&debug_data[22], (void*)&yaw_p_int_f,  4);
-	    HAL_UART_Transmit_DMA(&huart7, debug_data, 26);
+    extern const GimbalControl* _gimbalControl;
+    const ADRC* adrc = &_gimbalControl->GimbalMotorControl.yaw_ADRC;
+    float td_x1_d    = adrc->td.x1 * 57.29578f;
+    float adrc_u     = adrc->u;
+    float eso_z3     = adrc->eso.z3;
+    float eso_z2     = adrc->eso.z2 * 57.29578f;   /* rad/s→deg/s */
+    float esf_e1_d   = adrc->esf.e_1 * 57.29578f;
+    float eso_z1_d   = adrc->eso.z1 * 57.29578f;
+    float yaw_actual = _gimbalControl->GimbalEstimate.yaw_angle_d;
+    float yaw_dps    = gimbal_yaw_dps_rx;         /* IMU原始角速度, 不用estimate */
+    float yaw_imu_d  = gimbal_yaw_rx_d;          /* 上板传下来的IMU原始yaw角度 */
+    float yaw_enc_raw_d = (DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f; /* 编码器原始角度(deg) */
+
+    debug_data[0] = 0xAA;
+    debug_data[1] = 0xBB;
+    memcpy(&debug_data[2],  (void*)&td_x1_d,      4);
+    memcpy(&debug_data[6],  (void*)&adrc_u,       4);
+    memcpy(&debug_data[10], (void*)&eso_z3,       4);
+    memcpy(&debug_data[14], (void*)&eso_z2,       4);
+    memcpy(&debug_data[18], (void*)&esf_e1_d,     4);
+    memcpy(&debug_data[22], (void*)&eso_z1_d,     4);
+    memcpy(&debug_data[26], (void*)&yaw_actual,   4);
+    memcpy(&debug_data[30], (void*)&yaw_dps,      4);
+    memcpy(&debug_data[34], (void*)&yaw_imu_d,    4);
+    memcpy(&debug_data[38], (void*)&yaw_enc_raw_d,4);
+    HAL_UART_Transmit_DMA(&huart7, debug_data, 42);
 #elif defined(DEBUG_FRAME_SYSID)
     /* ===== 系统辨识调试帧 (30B) =====
      * [0-1]   0xAA 0xBB  帧头
      * [2-5]   float       yaw_angle_raw       YAW实际角度 (rad, DM电机回传raw)
      * [6-9]   float       yaw_torque_raw      YAW电机力矩 (Nm, raw)
      * [10-13] float       yaw_vel_motor       YAW角速度电机回传 (rad/s, raw)
-     * [14-17] float       yaw_angle_imu       YAW角度上板IMU (rad, B2B接收deg→rad)
-     * [18-21] float       yaw_vel_imu         YAW角速度上板IMU (rad/s, B2B接收deg/s→rad/s)
+     * [14-17] float       yaw_angle_imu       YAW角度上板IMU (rad)
+     * [18-21] float       yaw_vel_imu         YAW角速度上板IMU (rad/s)
      * [22-25] float       target_torque       目标力矩 (Nm, 阶跃注入值)
      * [26-29] float       target_velocity     目标速度 (rad/s)
      */
     extern volatile float gimbal_yaw_rx_d;
     static uint8_t sysid_data[30];
 
-    float yaw_angle_raw  = DMyawMotorRec.pos_d;                          /* rad, 电机原始角度 */
-    float yaw_torque_raw = DMyawMotorRec.toq;                            /* Nm, 电机原始力矩 */
-    float yaw_vel_motor  = DMyawMotorRec.vel_radps;                      /* rad/s, 电机原始角速度 */
-    float yaw_angle_imu  = gimbal_yaw_rx_d * 0.0174533f;                 /* deg→rad, 上板B2B角度 */
-    float yaw_vel_imu    = gimbal_yaw_dps_rx * 0.0174533f;               /* deg/s→rad/s, 上板B2B角速度 */
+    float yaw_angle_raw  = DMyawMotorRec.pos_d;                          /* rad */
+    float yaw_torque_raw = DMyawMotorRec.toq;                            /* Nm */
+    float yaw_vel_motor  = DMyawMotorRec.vel_radps;                      /* rad/s */
+    float yaw_angle_imu  = gimbal_yaw_rx_d * 0.0174533f;                 /* deg→rad */
+    float yaw_vel_imu    = gimbal_yaw_dps_rx * 0.0174533f;               /* deg/s→rad/s */
 
+    /* 降采样: 1kHz→500Hz, 隔帧发送 */
+    static uint8_t subsample = 0;
+    subsample = !subsample;
+    if(subsample)
+    {
+        sysid_data[0] = 0xAA;
+        sysid_data[1] = 0xBB;
+        memcpy(&sysid_data[2],  (void*)&yaw_angle_raw,  4);
+        memcpy(&sysid_data[6],  (void*)&yaw_torque_raw, 4);
+        memcpy(&sysid_data[10], (void*)&yaw_vel_motor,  4);
+        memcpy(&sysid_data[14], (void*)&yaw_angle_imu,  4);
+        memcpy(&sysid_data[18], (void*)&yaw_vel_imu,    4);
 #ifdef TEST_YAW
-    extern SysIDTest g_sysid_yaw;
-    float target_torque   = g_sysid_yaw.out_torque_nm;
-    float target_velocity = g_sysid_yaw.out_velocity_radps;
+        {
+            extern volatile SysIDTest g_sysid_yaw;
+            float tt = g_sysid_yaw.out_torque_nm;
+            float tv = g_sysid_yaw.out_velocity_radps;
+            memcpy(&sysid_data[22], (void*)&tt, 4);
+            memcpy(&sysid_data[26], (void*)&tv, 4);
+        }
 #else
-    float target_torque   = 0.0f;
-    float target_velocity = 0.0f;
+        {
+            float tt = 0.0f, tv = 0.0f;
+            memcpy(&sysid_data[22], (void*)&tt, 4);
+            memcpy(&sysid_data[26], (void*)&tv, 4);
+        }
 #endif
-
-    sysid_data[0] = 0xAA;
-    sysid_data[1] = 0xBB;
-    memcpy(&sysid_data[2],  (void*)&yaw_angle_raw,  4);
-    memcpy(&sysid_data[6],  (void*)&yaw_torque_raw, 4);
-    memcpy(&sysid_data[10], (void*)&yaw_vel_motor,  4);
-    memcpy(&sysid_data[14], (void*)&yaw_angle_imu,  4);
-    memcpy(&sysid_data[18], (void*)&yaw_vel_imu,    4);
-    memcpy(&sysid_data[22], (void*)&target_torque,  4);
-    memcpy(&sysid_data[26], (void*)&target_velocity, 4);
-
-    HAL_UART_Transmit_DMA(&huart7, sysid_data, 30);
+        HAL_UART_Transmit_DMA(&huart7, sysid_data, 30);
+    }
 #endif
 }
 void DebugTask(void* argument)

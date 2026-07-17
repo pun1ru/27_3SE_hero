@@ -1,4 +1,4 @@
-#include "math.h"
+﻿#include "math.h"
 #include "bsp_dwt.h"
 #include "adrc.h"
 #include "algorism.h"
@@ -204,7 +204,7 @@ void ESOUpdate(ESO* eso, float feedback, float control_val)
 		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 10*eso->h) + eso->b * control_val);
 	else
 		eso->z2 += eso->h * (eso->z3 - eso->beta_02 * Fal(e, 0.5, 10*eso->h));//改成10被步长
-    eso->z3 -= eso->h * (eso->beta_03 * Fal(e, 0.25, eso->h));	
+    eso->z3 -= eso->h * (eso->beta_03 * Fal(e, 0.25, 1*eso->h));	
    	eso->z3 = AbsLimiter(eso->z3, eso->z3_limit);
 	
 	if(eso->min != eso->max)

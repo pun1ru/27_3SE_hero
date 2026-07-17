@@ -27,6 +27,19 @@ void PIDInitialize(PIDStruct *const pid, float kp, float ki, float kd, float sum
 }
 
 /**
+* \brief PID状态复位 — 清零误差及输出，保留参数不变
+* \param[in] pid PID struct to be reset
+*/
+void PIDReset(PIDStruct *const pid)
+{
+	pid->cur_error = 0;
+	pid->last_error = 0;
+	pid->last_last_error = 0;
+	pid->sum_error = 0;
+	pid->output = 0;
+}
+
+/**
 * \brief 仅更新PID参数，不清除历史误差和输出缓冲区
 * \param[in] pid PID struct to be updated
 * \param[in] kp Proportional coefficient

@@ -323,3 +323,6 @@ void ModuleNameInitialize(ModuleName* module);
 - **ADRC 模块** 的 `hero_down` 版本有额外的安全检查（`isfinite`），比 `hero_up` 更成熟
 - **调试信息** 通过 `peripheral_transmit_task.c` 向 DT7 上位机发送
 - **hero_down 和 hero_up 的 `PrivateApplications/` 和 `PrivateDrivers/` 代码应保持一致**，修改算法模块时应同步两个代码树的对应文件
+- **禁止用 PowerShell 编辑含中文的源文件**：PowerShell 5.1 的 `Get-Content` 默认按系统编码（中文 Windows = GBK）读取 UTF-8 文件，`Set-Content -Encoding UTF8` 写回会导致中文乱码。替代方案：Git Bash 的 `sed`/`awk`、Python、或 IDE 的 Edit/Write 工具
+- **新增代码前必须逐行检查周围代码的风格**：缩进字符（Tab 还是空格，几级）、注释格式（Doxygen 风格、中文注释风格）、大括号位置、`if(` vs `if (` 等。直接复制粘贴周围函数的骨架再填内容
+- **`git checkout --` 前必须确认**：该命令不可逆地丢弃工作区未提交修改。执行前必须告知用户哪些文件会被覆盖，征得同意

@@ -21,6 +21,21 @@ typedef struct
 	float last[3];
 }AverageFilter;
 
+/**
+ * \brief 标量卡尔曼滤波器（1状态 + 1控制 + 1测量）
+ * \note  模型: x_k = x_{k-1} + u * dt + w,  z_k = x_k + v
+ *        适用于编码器角度融合角速度的场景，静止时靠模型平滑噪声，运动时靠测量消除漂移
+ */
+typedef struct
+{
+    float x;        /**< 状态估计值（角度 deg） */
+    float P;        /**< 误差协方差 */
+    float Q;        /**< 过程噪声协方差（模型不信任度，越大越信测量） */
+    float R;        /**< 测量噪声协方差（传感器噪声方差，静止时方差≈0.0004） */
+    float dt;       /**< 采样周期（秒） */
+    uint8_t init;   /**< 首次初始化标志 */
+}ScalarKalmanFilter;
+
 typedef struct
 {
 	float x[30];
@@ -36,6 +51,9 @@ void SmoothFilterInitialize(SmoothFilter* filter, float alpha);
 float SmoothFilterUpdate(SmoothFilter* filter, float input);
 void AverageFilterInitialize(AverageFilter*filter);
 float AverageFilterUpdate(AverageFilter*filter, float input);
+void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt);
+float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u);
+
 
 
 float AngleLimit(float angle, float limit_min, float limit_max);

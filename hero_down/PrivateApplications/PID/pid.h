@@ -30,6 +30,7 @@ typedef struct {
 
 void PIDRefreshBuffer(PIDStruct* const pid);
 void PIDInitialize(PIDStruct *const pid, float kp, float ki, float kd, float sum_error_max, float output_max);
+void PIDReset(PIDStruct *const pid);
 void PIDSetParam(PIDStruct *const pid, float kp, float ki, float kd, float sum_error_max, float output_max);
 void PIDSetGains(PIDStruct *const pid, float kp, float ki, float kd);
 float PIDUpdate(PIDStruct *const pid, const float error);
