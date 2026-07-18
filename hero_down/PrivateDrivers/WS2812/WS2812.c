@@ -10,8 +10,8 @@
  */
 #include "ws2812.h"
 
-#define WS2812_LowLevel    0xC0     // 0��
-#define WS2812_HighLevel   0xF0     // 1��
+#define WS2812_LowLevel    0xC0     // 0码
+#define WS2812_HighLevel   0xF0     // 1码
 
 void WS2812_SPI_Ctrl(uint8_t r, uint8_t g, uint8_t b)
 {

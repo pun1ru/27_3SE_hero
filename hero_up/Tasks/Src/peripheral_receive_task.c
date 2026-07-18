@@ -420,7 +420,6 @@ void IMUTask(void* argument)
 	current_tick_count = last_tick_count = xTaskGetTickCount();	
 	while(1)
 	{
-
 		/* 温控始终运行 */
 		OnboardIMUTemperatureControl(imuRecData.temperature);
 		
@@ -451,21 +450,21 @@ void IMUTask(void* argument)
 			t1 = DWT->CYCCNT;
 			madgwick_cyc_cnt = t1 - t0;
 
-				/* ---- Yaw 零漂：锁定初始角度后计算漂移量 ---- */
-				if(drift_lock_cnt < 2000)
+			/* ---- Yaw 零漂：锁定初始角度后计算漂移量 ---- */
+			if(drift_lock_cnt < 2000)
+			{
+				drift_lock_cnt++;
+				if(drift_lock_cnt == 2000)
 				{
-					drift_lock_cnt++;
-					if(drift_lock_cnt == 2000)
-					{
-						yaw_init_madgwick = madgwickAHRS.Yaw;
-						yaw_init_ekf      = imuUseEKFSolver.Yaw_d;
-					}
+					yaw_init_madgwick = madgwickAHRS.Yaw;
+					yaw_init_ekf      = imuUseEKFSolver.Yaw_d;
 				}
-				else
-				{
-					yaw_drift_madgwick = madgwickAHRS.Yaw - yaw_init_madgwick;
-					yaw_drift_ekf      = imuUseEKFSolver.Yaw_d - yaw_init_ekf;
-				}
+			}
+			else
+			{
+				yaw_drift_madgwick = madgwickAHRS.Yaw - yaw_init_madgwick;
+				yaw_drift_ekf      = imuUseEKFSolver.Yaw_d - yaw_init_ekf;
+			}
 		}
 		#endif
 		PoseUpdateFromIMU(&gimbalPose, &imuUseEKFSolver);

@@ -16,18 +16,18 @@ void MusicTask(void* argument)
 	current_tick_count = last_tick_count = xTaskGetTickCount();	
 	while(1)
 	{		
-		/*��ѯ����ͨѶ���*/
+		/*轮询通讯状态检测*/
 		 Error_check();
 		 
 		 short music_receive,a;
-		 /*��������Ч*/
+			 /*蜂鸣器播放有效*/
 		 if (xQueueReceive(g_musicQueue, &music_receive, 0) == pdPASS){
 				switch(music_receive){
 				 case 1:
 					 //StartupNotice(my_most_precious_treasure, sizeof(my_most_precious_treasure)/sizeof(float), 150, -8);//
 				 break;
 				 case 2:
-					 //StartupNotice(battlefiled, sizeof(battlefiled)/sizeof(float), 150, -8);//CAN��������
+					 //StartupNotice(battlefiled, sizeof(battlefiled)/sizeof(float), 150, -8);//CAN错误报警
 				 break;
 				 case 3:
 					 StartupNotice(alone_earth, sizeof(alone_earth)/sizeof(float), 180, -8);
@@ -38,7 +38,7 @@ void MusicTask(void* argument)
 			 }
 		 }
 		//xPortGetFreeHeapSize();
-		/*��������ʵ����������*/
+		/*任务循环计数更新*/
 		task_counter++;
 		current_tick_count = xTaskGetTickCount();
 		this_tick_count = current_tick_count - last_tick_count;
@@ -62,10 +62,10 @@ extern const DMJ4310MotorRec* _caterpillarMotorRec;
 void Error_check()
 {
 	// =================================================================
-	//                       ��һ���֣����������
+	//                       第一部分：检查数据更新
 	// =================================================================
 	
-	// 1. ���4�����̵�� (Chassis Motors) �� CAN fdcan2
+	// 1. 检查4个底盘电机 (Chassis Motors) 用 CAN fdcan2
 	for (int i = 0; i < 4; i++)
 	{
 		if(circuitMonitror.CircuitCounterPtr.chassisMotor_frame_counter[i] == _chassisMotorRec[i].frame_counter)
@@ -74,13 +74,13 @@ void Error_check()
 			circuitMonitror.ifCircuitError.chassisMotorError[i] = 0;
 	}
 	
-	// 2. �����̨Yaw DM��� �� CAN fdcan1
+	// 2. 检查云台Yaw DM电机 用 CAN fdcan1
 	if(circuitMonitror.CircuitCounterPtr.yawMotor_frame_counter == _DMyawMotorRec->frame_counter)
 		circuitMonitror.ifCircuitError.yawMotorError = 1;
 	else
 		circuitMonitror.ifCircuitError.yawMotorError = 0;
 
-	// 3. ���4���ؽڵ�� (Joint Motors) �� CAN fdcan1
+	// 3. 检查4个关节电机 (Joint Motors) 用 CAN fdcan1
 	for (int i = 0; i < 4; i++)
 	{
 		if(circuitMonitror.CircuitCounterPtr.jointMotor_frame_counter[i] == _jointMotorEec[i].frame_counter)
@@ -89,7 +89,7 @@ void Error_check()
 			circuitMonitror.ifCircuitError.jointMotorError[i] = 0;
 	}
 
-	// 4. ���2���Ĵ���� (Caterpillar Motors) �� CAN fdcan2
+	// 4. 检查2个履带电机 (Caterpillar Motors) 用 CAN fdcan2
 	for (int i = 0; i < 2; i++)
 	{
 		if(circuitMonitror.CircuitCounterPtr.caterpillarMotor_frame_counter[i] == _caterpillarMotorRec[i].frame_counter)
@@ -98,13 +98,13 @@ void Error_check()
 			circuitMonitror.ifCircuitError.caterpillarMotorError[i] = 0;
 	}
 
-	// 5. ��鲦����� (Stir Motor) �� CAN fdcan1
+	// 5. 检查拨弹电机 (Stir Motor) 用 CAN fdcan1
 	if(circuitMonitror.CircuitCounterPtr.stirMotor_frame_counter == _stirMotorRec->frame_counter)
 		circuitMonitror.ifCircuitError.stirMotorError = 1;
 	else
 		circuitMonitror.ifCircuitError.stirMotorError = 0;
 
-	// 6. ��鳬������ (Super Capacitor) �� CAN fdcan2/fdcan3
+	// 6. 检查超级电容 (Super Capacitor) 用 CAN fdcan2/fdcan3
 	if(circuitMonitror.CircuitCounterPtr.superCapacity_frame_counter == _superCapacity->frame_counter)
 		circuitMonitror.ifCircuitError.superCapacityError = 1;
 	else
@@ -112,7 +112,7 @@ void Error_check()
 
 
 	// =================================================================
-	//       �ڶ����֣��������С��ϴ�֡����ֵ����Ϊ��һ�ּ����׼��
+	//      第二部分：保存当前帧计数值作为下一轮比较基准
 	// =================================================================
 
 	circuitMonitror.CircuitCounterPtr.chassisMotor_frame_counter[0] = _chassisMotorRec[0].frame_counter;
@@ -133,7 +133,7 @@ void Error_check()
 	circuitMonitror.CircuitCounterPtr.stirMotor_frame_counter = _stirMotorRec->frame_counter;
 	circuitMonitror.CircuitCounterPtr.superCapacity_frame_counter = _superCapacity->frame_counter;
 }
-/*��������ջ*/
+/*栈溢出回调*/
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
 	

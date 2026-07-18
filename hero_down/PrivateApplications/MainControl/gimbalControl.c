@@ -10,7 +10,7 @@
 #include "../../PrivateApplications/System_IDF/system_idf.h"
 
 /* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
- 	//#define YAW_DUAL_PID
+#define YAW_DUAL_PID
 
 /* TEST_YAW: 系统辨识阶跃测试 → 定义在 system_idf.h */
 /* 系统辨识：全局实例（供debug帧读取） */
@@ -78,14 +78,14 @@ void GimbalInit(void)
 	/* yaw反馈平滑滤波初始化 *///编码器速度噪声大不好看
 	SmoothFilterInitialize(&yawEncFilter, 0.0f);
 	/* yaw编码器标量卡尔曼：0.000000290031468834307204f, 0.0000188825f */
-	ScalarKalmanFilterInit(&yawEncKalmanFilter, 0.000000001f, 0.0000188825f, 0.002f);
+	ScalarKalmanFilterInit(&yawEncKalmanFilter, 0.0000001f, 0.0000188825f, 0.002f);
 
 
 #ifdef YAW_DUAL_PID
 		/* yaw轴 LTD + 双环PID 初始化 */
 		LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.002, -180, 180);
-		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.2, 0,    4000, 800);
-		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0, 0.009, 0, 10);
+		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.15, 0,    4000, 800);
+		PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0, 0.01, 0, 10);
 #endif
 }
 /*---------------------------------------------------------------------------输入决策更新-------------------------------------------------------------------------------------*/
@@ -304,33 +304,30 @@ void GimbalControlUpdate(void)
 #ifdef YAW_DUAL_PID
 		/* ===== LTD + 双环PID 控制（原始版本：位置环输出作速度给定 + LTD前馈） ===== */
 		float yaw_pos_err_d = AngleLimit(gimbalControl.GimbalMotorControl.yaw_LTD.x1 - gimbalControl.GimbalEstimate.yaw_angle_d, -180.0f, 180.0f);
-		float pre_yaw_Tff;
-		if(fabs(yaw_pos_err_d) < 0.5f)
-		{
-			/* 小误差：强位置保持，不加前馈 */
-			gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.02f;
-			gimbalControl.GimbalMotorControl.yaw_pos_pid.kp = 5.0f;
-			pre_yaw_Tff = 0.0f;
-		}
-		else
-		{
-			/* 大误差：清积分防超调 + LTD速度前馈加速追赶 */
-			gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.0f;
-			gimbalControl.GimbalMotorControl.yaw_pos_pid.sum_error = 0.0f;
-			pre_yaw_Tff = gimbalControl.GimbalMotorControl.yaw_LTD.x2 * 0.02f;
-		}
+		float pre_yaw_Tff=0;
+		// if(fabs(yaw_pos_err_d) < 0.5f)
+		// {
+		// 	/* 小误差：强位置保持，不加前馈 */
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.1f;
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.kp = 8.0f;
+		// 	pre_yaw_Tff = 0.0f;
+		// }
+		// else
+		// {
+		// 	/* 大误差：清积分防超调 + LTD速度前馈加速追赶 */
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.0f;
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.sum_error = 0.0f;
+		// 	pre_yaw_Tff = gimbalControl.GimbalMotorControl.yaw_LTD.x2 * 0.02f;
+		// }
 		LTDUpdate(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalTargetInput.yaw_angle_d);
 		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_pos_pid, yaw_pos_err_d);
-		/* 速度环：位置环输出低通滤波后作速度给定 + LTD前馈 */
-		static float yaw_pos_out_lpf = 0.0f;
-		const float yaw_pos_lpf_alpha = 0.3f;
-		float yaw_pos_out_raw = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
-		yaw_pos_out_lpf = yaw_pos_lpf_alpha * yaw_pos_out_raw + (1.0f - yaw_pos_lpf_alpha) * yaw_pos_out_lpf;
 		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_speed_pid,
-			  yaw_pos_out_lpf - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
+			  gimbalControl.GimbalMotorControl.yaw_pos_pid.output - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
 		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_speed_pid.output + pre_yaw_Tff);
-		gimbalControl.GimbalMotorControl.w_d = yaw_pos_out_lpf;
-		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = yaw_pos_out_lpf;
+
+		
+		gimbalControl.GimbalMotorControl.w_d = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
 			#else
 							/* ===== LADRC 角度环控制 ===== */
 							LADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,

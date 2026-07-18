@@ -70,7 +70,7 @@ void InitTask(void const * argument)
 	// __HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1,HEAT_MAX);
 	/**Laser**/
 	//LASER_ON();
-	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);//�s�开GPIO
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);// 设置GPIO
 	
 	// 启动，WS2812变红
 	WS2812_SPI_Ctrl(50, 0, 0); //66CCFF
