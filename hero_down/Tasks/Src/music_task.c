@@ -56,7 +56,6 @@ static void StartupNotice(const float* puzi, int arr_size, int wait_time, float 
 	}
 	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
-extern const DMJ4310MotorRec* _DMyawMotorRec;
 extern const DMJ4310MotorRec* _jointMotorEec;
 extern const DMJ4310MotorRec* _caterpillarMotorRec;
 void Error_check()
@@ -75,7 +74,6 @@ void Error_check()
 	}
 	
 	// 2. 检查云台Yaw DM电机 用 CAN fdcan1
-	if(circuitMonitror.CircuitCounterPtr.yawMotor_frame_counter == _DMyawMotorRec->frame_counter)
 		circuitMonitror.ifCircuitError.yawMotorError = 1;
 	else
 		circuitMonitror.ifCircuitError.yawMotorError = 0;
@@ -120,7 +118,6 @@ void Error_check()
 	circuitMonitror.CircuitCounterPtr.chassisMotor_frame_counter[2] = _chassisMotorRec[2].frame_counter;
 	circuitMonitror.CircuitCounterPtr.chassisMotor_frame_counter[3] = _chassisMotorRec[3].frame_counter;
 	
-	circuitMonitror.CircuitCounterPtr.yawMotor_frame_counter = _DMyawMotorRec->frame_counter;
 	
 	circuitMonitror.CircuitCounterPtr.jointMotor_frame_counter[0] = _jointMotorEec[0].frame_counter;
 	circuitMonitror.CircuitCounterPtr.jointMotor_frame_counter[1] = _jointMotorEec[1].frame_counter;

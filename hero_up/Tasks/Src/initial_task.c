@@ -65,13 +65,6 @@ void InitTask(void const * argument)
 {
 	taskENTER_CRITICAL();
 	
-	/** PWM for IMU heating **/
-	// HAL_TIM_PWM_Start(&htim10,TIM_CHANNEL_1);               	
-	// __HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1,HEAT_MAX);
-	/**Laser**/
-	//LASER_ON();
-	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);// 设置GPIO
-	
 	// 启动，WS2812变红
 	WS2812_SPI_Ctrl(50, 0, 0); //66CCFF
 	
@@ -86,7 +79,6 @@ void InitTask(void const * argument)
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2,500);//蜂鸣器！我的心跳！
 	
 	xTaskCreate(MonitorTask,        "MonitorTask_",       128,  NULL,  7,  &monitorTaskHandle      );
-	// xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    	256,  NULL,  7,  &remoteRecTaskHandle    ); /* B2B CAN替代 */
 	xTaskCreate(StateMachineTask,   "StateMachineTask_",  2048, NULL,  7,  &stateMachineTaskHandle );	
 	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	    512,  NULL,  5,  &decisionTaskHandle     );
 	xTaskCreate(EstimateTask,       "EstimateTask_",      512,  NULL,  5,  &estimateTaskHandle     );

@@ -255,10 +255,10 @@ static void StateUpdate(RobotState* robot_state, const NormRemoteCmd* norm_remot
 	xvni_42_heart_leng();
 	
 		/* 下板血量保护：485双板通信收到HP归零时进入保护态（已禁用） */
-		//if(servant485_hp_zero_flag){
+		//if(g_b2b_hp_zero_flag){
 		//	StateInit(robot_state);
 		//	StateInit(&lastRobotState);
-		//	servant485_hp_zero_flag = 0;
+		//	g_b2b_hp_zero_flag = 0;
 		//	return;
 		//}
 	
@@ -309,7 +309,6 @@ void xvni_42_heart_da(){
 }
 
 extern GimbalControl gimbalControl;
-extern ChassisControl chassisControl;
 extern UpperComputerComm upperComputerComm;
 extern WorldGimbal worldGimbal;
 int crawler_rotate_flag = 0;
@@ -345,104 +344,23 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 		switch(norm_remote_cmd->Switch.switch_R1)
 		{
 			case NORM_RC_SW_UP:
-				// preclimb_auto_climb = 0u;
-				// /* 双拨上保护（冗余保护） */
-				// if(normRemoteCmdLast.Switch.switch_L1 == NORM_RC_SW_UP)
-				// {
-				// 	StateInit(robot_state);
-				// 	StateInit(&lastRobotState);
-				// }
-				// /* 右上左中保留PC比赛逻辑入口，ch4>0.1切换到陀螺旋转 */
-				// if(normRemoteCmdLast.Switch.switch_L1 == NORM_RC_SW_MID)
-				// {
-				// 	robot_state->ctrl_terminal = CONTROL_FROM_PC;
-				// 	if (norm_remote_cmd->RelativeCH.ch4 > 0.1f)
-				// 		robot_state->chassis_mode = CHASSIS_REVOLVE;
-				// 	else if (norm_remote_cmd->RelativeCH.ch4 < -0.1f)
-				// 		robot_state->chassis_mode = CHASSIS_FOLLOW;
-				// }
-			break;
+
+				break;
 
 			case NORM_RC_SW_MID:
-				// preclimb_auto_climb = 0u;
-				// robot_state->ctrl_terminal = CONTROL_FROM_REMOTE;
-				// robot_state->joint_mode = ROBOT_JOINT_MODE_NORMAL;
-				// if (norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_MID)
-				// 	robot_state->stand_mode = JointStairUpIsDetected() ? ROBOT_STAND_MODE_STAIR_UP : ROBOT_STAND_MODE_PRE_STAIR;
-				// else if (norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_DOWN)
-				// 	robot_state->stand_mode = ROBOT_STAND_MODE_STAIR_UP;
-
-				// if ((robot_state->stand_mode == ROBOT_STAND_MODE_PRE_STAIR ||
-				//      robot_state->stand_mode == ROBOT_STAND_MODE_STAIR_UP) &&
-				//     norm_remote_cmd->RelativeCH.ch1 > 0.1f)
-				// 	crawler_rotate_flag = 1;
-				// else if ((robot_state->stand_mode == ROBOT_STAND_MODE_PRE_STAIR ||
-				//           robot_state->stand_mode == ROBOT_STAND_MODE_STAIR_UP) &&
-				//          norm_remote_cmd->RelativeCH.ch1 < -0.1f)
-				// 	crawler_rotate_flag = -1;
-				// else
-				// 	crawler_rotate_flag = 0;
-			  break;
-         //右下左中进入爬坡模式
-		 //右中左中升高
-		 //右中左下上台阶,右下左下进入跳跃模式
+			
+				break;
+       
 			case NORM_RC_SW_DOWN:
-				// robot_state->stand_mode = ROBOT_STAND_MODE_NORMAL;
-				// robot_state->ctrl_terminal = CONTROL_FROM_REMOTE;
-				// if (norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_UP)
-				// {
-				// 	const float preclimb_switch_angle_rad = -2.50f;
-				// 	const float preclimb_restore_pitch_d = 16.0f;
-				// 	float pitch_abs_d = g_joint_body_pitch_ctrl_d;
-
-				// 	if (preclimb_auto_climb)
-				// 	{
-				// 		robot_state->joint_mode = ROBOT_JOINT_MODE_CLIMB;
-				// 		if (pitch_abs_d < preclimb_restore_pitch_d)
-				// 		{
-				// 			preclimb_auto_climb = 0u;
-				// 			robot_state->joint_mode = ROBOT_JOINT_MODE_PRECLIMB;
-				// 		}
-				// 	}
-				// 	else
-				// 	{
-				// 		robot_state->joint_mode = ROBOT_JOINT_MODE_PRECLIMB;
-				// 		if (jointControl.JointEstimate.motor_angles_rad[LEG_LF] < preclimb_switch_angle_rad &&
-				// 		    jointControl.JointEstimate.motor_angles_rad[LEG_RF] < preclimb_switch_angle_rad &&
-				// 		    pitch_abs_d>16.0
-				// 		)
-				// 		{
-				// 			preclimb_auto_climb = 1u;
-				// 			robot_state->joint_mode = ROBOT_JOINT_MODE_CLIMB;
-				// 		}
-				// 	}
-				// }
-				// else if (norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_DOWN)
-				// {
-				// 	preclimb_auto_climb = 0u;
-				// 	robot_state->joint_mode = ROBOT_JOINT_MODE_OUTCLIMB;
-				// }
-				// else if (norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_MID)
-				// {
-				// 	preclimb_auto_climb = 0u;
-				// 	robot_state->joint_mode = ROBOT_JOINT_MODE_CLIMB;
-				// }
-			if (_normRemoteCmd->RelativeCH.ch1> 0.1f&&(robot_state->joint_mode == ROBOT_JOINT_MODE_CLIMB||robot_state->joint_mode == ROBOT_JOINT_MODE_OUTCLIMB))
-			{
-//			if(norm_remote_cmd->RelativeCH.ch4>0.1)
-				crawler_rotate_flag = 1;
-			}
-			else
-				crawler_rotate_flag = 0;
-			break;
+			
+				break;
 
 			default:
-			break;
+				break;
 		}
 	}
 	else
 	{
-	robot_state->jump_mode = ROBOT_JUMP_MODE_OFF;
 	switch(norm_remote_cmd->Switch.switch_R1)
 	  {
 		case NORM_RC_SW_UP:
@@ -466,7 +384,6 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 // X: 开关吊射模式 (sniper)，PC模式下自动同步世界系开关
 			if(norm_remote_cmd->PCKeyBoard.level_key_X && !norm_remote_cmd_last->PCKeyBoard.level_key_X)
 			{
-				gimbalControl.GimbalTargetInput.yaw_recoil_compensation_d = 0;
 				robot_state->sniper ^= 1;
 				/* PC sniper_on 默认走世界系控制 */
 				if (robot_state->sniper == SNIPER_ON) {
@@ -507,7 +424,6 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 							WorldGimbalSetWorldAngles(&worldGimbal,
 								worldGimbal.WorldGimbalEstimate.world_yaw_deg, 40.0f);
 						} else {
-							gimbalControl.GimbalTargetInput.small_pitch_angle_d = 40.0f;
 							gimbalControl.GimbalTargetInput.pitch_angle_d = 40.0f;
 						}
 					}

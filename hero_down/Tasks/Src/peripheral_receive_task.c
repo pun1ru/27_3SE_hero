@@ -123,8 +123,6 @@ static void DT7ToNormCmd(NormRemoteCmd* norm_remote_cmd, const DT7CmdData* dt7_c
  * ================================================================== */
 
 /* ---- fdcan1: yaw + joint×4 + stir ---- */
-DMJ4310MotorRec DMyawMotorRec;
-const DMJ4310MotorRec* _DMyawMotorRec = &DMyawMotorRec;
 
 DMJ4310MotorRec jointMotorEec[4];
 const DMJ4310MotorRec* _jointMotorEec = jointMotorEec;
@@ -136,8 +134,6 @@ const DMJ4310MotorRec* _stirMotorRec = &stirMotorRec;
 DJIGMotorRec chassisMotorRec[CHASSIS_MOTOR_NUM];
 const DJIGMotorRec* _chassisMotorRec = chassisMotorRec;
 
-DJIGMotorRec yawMotorRec;
-const DJIGMotorRec* _yawMotorRec = &yawMotorRec;
 
 DJIGMotorRec fricMotorRec[FRIC_MOTOR_NUM];
 const DJIGMotorRec* _fricMotorRec = fricMotorRec;
@@ -169,17 +165,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
             switch (RxHeader.Identifier)
             {
             case 0x017:
-                DMyawMotorRec.frame_counter++;
-                DMyawMotorRec.id    = (aData[0]) & 0x0F;
-                DMyawMotorRec.state = (aData[0]) >> 4;
-                DMyawMotorRec.p_int = (aData[1] << 8) | aData[2];
-                DMyawMotorRec.v_int = (aData[3] << 4) | (aData[4] >> 4);
-                DMyawMotorRec.t_int = ((aData[4] & 0xF) << 8) | aData[5];
-                DMyawMotorRec.pos_d    = -uint_to_float(DMyawMotorRec.p_int, -(DM_YAW_MAX_ENCODE_D), +(DM_YAW_MAX_ENCODE_D), 16);
-                DMyawMotorRec.vel_radps = uint_to_float(DMyawMotorRec.v_int, -45.0, 45.0, 12);
-                DMyawMotorRec.toq      = uint_to_float(DMyawMotorRec.t_int, -12.0, 12.0, 12);
-                DMyawMotorRec.Tmos     = (float)(aData[6]);
-                DMyawMotorRec.Tcoil    = (float)(aData[7]);
                 break;
 
             case 0x011: case 0x012: case 0x013: case 0x014:

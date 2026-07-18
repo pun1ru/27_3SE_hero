@@ -164,7 +164,7 @@ void PeripheralRecEnable(void);
 void RemoteRecRestart(void);
 
 /* 485双板通信：下板传输的裁判系统血量数据 */
-extern volatile uint16_t servant485_current_hp;
-extern volatile uint8_t servant485_hp_zero_flag;
+extern volatile uint16_t g_b2b_current_hp;
+extern volatile uint8_t g_b2b_hp_zero_flag;
 
 #endif

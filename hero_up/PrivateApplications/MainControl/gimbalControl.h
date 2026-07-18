@@ -18,22 +18,31 @@ typedef struct
     struct
     {
         float pitch_angle_d;
-        float small_pitch_angle_d;
         float yaw_angle_d;
         float pitch_angular_velocity_dps;
         float yaw_angular_velocity_dps;
-        float yaw_recoil_compensation_d;
     }GimbalTargetInput;
     /*云台控制相关*/
     struct
     {
+        /* ---- pitch ---- */
         PIDStruct pitch_calibration_pid;
         ADRC pitch_angle_adrc;
         PIDStruct pitch_speed_pid;
         LTD pitch_LTD;
         LTDPID pitch_LTD_pid;
         int16_t pitch_target_output;
-        int16_t small_pitch_target_output;
+
+        /* ---- yaw (从下板搬迁) ---- */
+        ADRC yaw_ADRC;
+        LTD yaw_LTD;
+        PIDStruct yaw_pos_pid;
+        PIDStruct yaw_speed_pid;
+        float yaw_target_output;
+        float w_d;
+        float pre_yaw_Tff;
+
+        /* ---- 狙击/编码器 ---- */
         uint32_t sniper_pos;
         uint16_t sniper_max_speed;
         uint8_t spin_dir;
@@ -44,7 +53,6 @@ typedef struct
         float pitch_angle_d;
         float pitch_angle_before;
         float pitch_angular_velocity_dps;
-        float small_pitch_actual_angle;
         float yaw_angle_d;
         float yaw_angular_velocity_dps;
         float roll_angle_d;

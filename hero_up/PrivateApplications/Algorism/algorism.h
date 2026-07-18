@@ -21,6 +21,21 @@ typedef struct
 	float last[3];
 }AverageFilter;
 
+/**
+ * \brief 标量卡尔曼滤波器（1状态 + 1控制 + 1测量）
+ * \note  模型: x_k = x_{k-1} + u * dt + w,  z_k = x_k + v
+ *         适用于编码器角度融合角速度的场景
+ */
+typedef struct
+{
+    float x;        /**< 状态估计值（角度 deg） */
+    float P;        /**< 误差协方差 */
+    float Q;        /**< 过程噪声协方差 */
+    float R;        /**< 测量噪声协方差 */
+    float dt;       /**< 采样周期（秒） */
+    uint8_t init;   /**< 首次初始化标志 */
+}ScalarKalmanFilter;
+
 typedef struct
 {
 	float x[30];
@@ -43,6 +58,11 @@ float AbsLimiter(float val, float max);
 float DoubleEdgeLimiter(float val, float min, float max);
 float InvSqrt(float x);
 int Sign(float x);
+
+/* 标量卡尔曼滤波器 */
+void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt);
+float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u);
+float ScalarKalmanUpdateAdaptive(ScalarKalmanFilter* kf, float z, float u, float chi_thresh);
 
 void leastSquareLinearFit(leastSquareLinear* data);
 #endif

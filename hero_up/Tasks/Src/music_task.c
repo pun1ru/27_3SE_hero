@@ -1,4 +1,5 @@
 #include "music_mardio.h"
+#include "general_define.h"
 static void StartupNotice(const float* puzi,int wait_time,float pintiao);
 extern QueueHandle_t g_musicQueue;
 void Error_check();
@@ -61,7 +62,6 @@ static void StartupNotice(const float* puzi,int wait_time,float pintiao)
 		play_music(from_notes_to_pr(puzi[i]+pintiao), wait_time, BUZZER_TIM);
 		//HAL_IWDG_Refresh(&hiwdg1);
 	}
-//	HAL_Delay(10);
 	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
 void Error_check()
@@ -128,6 +128,5 @@ void CanFix(){
 	}
  }
 void Error_fuck(){
-//	 if(circuitMonitror.ifCircuitError.smallpitchMotorError||circuitMonitror.ifCircuitError.yawMotorError)
 //		 CanFix();
 }

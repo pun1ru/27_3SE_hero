@@ -13,30 +13,15 @@ typedef struct
 	/*云台目标输入*/
 	struct
 	{
-		float yaw_angle_d;		//期望的yaw目标角
+		float yaw_angle_d;		//期望的yaw目标角（DecisionTask设置，B2B 0x220发送）
 		float yaw_angular_velocity_dps; //yaw期望角速度
-		float yaw_recoil_compensation_d;
 	}GimbalTargetInput;
-	/*云台控制相关*/
+	/*云台控制相关（yaw控制已搬迁至上板）*/
 	struct
 	{
-		/*控制器*/
-        ADRC yaw_ADRC;
-		LTD yaw_LTD;
-		PIDStruct yaw_pos_pid;
-		PIDStruct yaw_speed_pid;
-
-		/*PID输出*/
-		float yaw_PID_output;
-		/*电机实际输出值*/
-		float yaw_target_output;
-		float w_d;
 		uint32_t sniper_pos;
 		uint16_t sniper_max_speed;
 		uint8_t spin_dir;
-		MIT_Ctrl_t mit;
-		float pre_yaw_Tff;
-
 	}GimbalMotorControl;
 
 	/*云台真实姿态观测*/
@@ -59,10 +44,7 @@ typedef struct
 extern GimbalControl gimbalControl;
 extern const GimbalControl* _gimbalControl;
 
-/* yaw DM编码器前向偏置(rad)，由 ChassisEstimateUpdate 和 GimbalPoseUpdate 共用 */
-extern float yaw_dm_forward_offset_rad;
-
-/* 延时计数器，GimbalControlUpdate / GimbalPoseUpdate 共用 */
+/* 延时计数器，GimbalPoseUpdate 使用 */
 extern uint8_t shit_delay_count;
 
 /* 云台初始化（yaw轴PID/LTD/TD初始化），由 ControlInit 调用 */

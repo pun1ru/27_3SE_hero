@@ -13,6 +13,7 @@
 #define _MUSIC_MARDIO_H_
 
 #include "general_task_include.h"
+#include "general_define.h"
 
 void play_music(int pr,int wait_time,TIM_HandleTypeDef htim);
 int from_notes_to_pr(float note);

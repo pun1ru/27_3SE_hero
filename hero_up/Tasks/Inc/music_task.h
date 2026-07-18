@@ -1,10 +1,6 @@
-#include "tim.h"
-#include "usart.h"
- 
-#include "general_task_include.h"
-#include "bsp_dwt.h"
-
-#include "ws2812.h"
+#include <stdint.h>
+#include "FreeRTOS.h"
+#include "queue.h"
 // 定义一个枚举类型来表示不同的音乐/声音ID
 
 typedef enum {
@@ -29,7 +25,6 @@ typedef struct
 		uint16_t fricMotor_frame_counter[3];
 		uint16_t pitchMotor_frame_counter;
 		uint16_t superCapacity_frame_counter;
-		uint16_t smallpitchMotor_frame_counter;
 	}CircuitCounterPtr;
 	struct
 	{
@@ -39,7 +34,6 @@ typedef struct
 		uint8_t fricMotorError[3];
 		uint8_t pitchMotorError;
 		uint8_t superCapacityError;
-		uint8_t smallpitchMotorError;
 	}ifCircuitError;
 }CircuitMonitor;
 #endif // __CIRCUIT_MONITOR_H__

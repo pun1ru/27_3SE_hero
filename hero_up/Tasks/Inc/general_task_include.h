@@ -37,7 +37,9 @@
 #include "arm_math.h"
 
 /* MainControl + 驱动 */
-#include "robot_control_task.h"
+#include "gimbalControl.h"
+#include "shootControl.h"
+#include "worldGimbal.h"
 #include "DMJ4310.h"
 #include "CAN_driver.h"
 
@@ -68,12 +70,11 @@ extern TaskMonitor* _taskMonitor;		//该结构体内部均为常量指针
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const RobotState* _robotState;
 extern const DMJ4310MotorRec* _stirMotorRec;
+extern const DMJ4310MotorRec* _DMyawMotorRec;
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const DJIGMotorRec *_fricMotorRec;
 extern const DJIGMotorRec* _pitchMotorRec;
-extern const DJIGMotorRec* _smallpitchMotorRec;
 extern const NormRemoteCmd* _normRemoteCmd;
-extern const ChassisControl* _chassisControl;
 extern const GimbalControl* _gimbalControl;
 extern const ShootControl* _shootControl;
 extern const Pose* _gimbalPose;

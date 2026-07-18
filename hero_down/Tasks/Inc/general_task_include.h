@@ -74,7 +74,6 @@ void MusicTask(void* argument);
 extern TaskMonitor* _taskMonitor;		//该结构体内部均为常量指针
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const RobotState* _robotState;
-extern const DJIGMotorRec* _yawMotorRec;
 extern const DMJ4310MotorRec* _stirMotorRec;
 extern const DJIGMotorRec *_chassisMotorRec;
 extern const DJIGMotorRec *_fricMotorRec;

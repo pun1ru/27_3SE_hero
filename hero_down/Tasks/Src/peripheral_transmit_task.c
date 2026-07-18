@@ -36,8 +36,6 @@ extern GimbalControl       gimbalControl;
 extern const NormRemoteCmd* _normRemoteCmd;
 extern int                 crawler_rotate_flag;
 /* ---- 双板通信帧 ---- */
-extern DMJ4310MotorRec DMyawMotorRec;
-extern float    yaw_dm_forward_offset_rad;
 extern JointBodyState g_joint_body_state_body_dbg;
 void MotorControlCANSend(void)
 {
@@ -55,7 +53,6 @@ void MotorControlCANSend(void)
         || pDecisionAO->can_enable == CAN_DISABLE)
     {
         /* T1: Yaw 零值 — 每 slot */
-        DM_MITControl_Send(&hfdcan1, CAN1_YAW, 0,0,0,0,0);
         /* T2: 关节零值 + 轮零值 — 偶数 slot */
         if ((slot & 1) == 0)
         {
@@ -108,17 +105,7 @@ void MotorControlCANSend(void)
 //#define ZERO_STIR
 //#define ZERO_YAW
 #define ZERO_CATERPILLAR
-    /* ---- T1: Yaw — 每 slot (500Hz) ---- */
-#ifdef ZERO_YAW
-    DM_MITControl_Send(&hfdcan1, CAN1_YAW, 0,0,0,0,0);
-#else
-    DM_MITControl_Send(&hfdcan1, CAN1_YAW,
-        gimbalControl.GimbalMotorControl.mit.p,
-        gimbalControl.GimbalMotorControl.mit.v,
-        gimbalControl.GimbalMotorControl.mit.Kp,
-        gimbalControl.GimbalMotorControl.mit.Kd,
-        gimbalControl.GimbalMotorControl.mit.Tff);
-#endif
+	    /* ---- T1: Yaw — 已搬迁至上板 CAN3，下板不再发送 ---- */
     /* ---- T2: 关节 MIT ×4 — 偶数 slot (250Hz) ---- */
     if ((slot & 1) == 0)
     {
@@ -187,12 +174,11 @@ void MotorControlCANSend(void)
     }  /* else: 正常运行态结束 */
     /* ---- 双板通信 CAN：替代 RS485 转发 ---- */
     {
-        float yaw_enc = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
         B2BSendGimbalInput();   /* 0x221 500Hz 云台pitch控制（摇杆+鼠标） */
         B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
                          g_joint_body_state_body_dbg.pitch_d,
                          g_joint_body_state_body_dbg.yaw_d,
-                         yaw_enc);                        /* 0x220 500Hz 机体姿态+yaw编码器 */
+                         gimbalControl.GimbalTargetInput.yaw_angle_d);  /* 0x220 500Hz 机体姿态+yaw_cmd */
         if (slot % 5 == 0)
             B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
     }
@@ -227,10 +213,8 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
 static void DebugTransmit(void)
 {
     /* ---- 公用外部引用 ---- */
-    extern DMJ4310MotorRec DMyawMotorRec;
     extern volatile float gimbal_yaw_dps_rx;
     extern volatile float gimbal_yaw_rx_d;
-    extern float yaw_dm_forward_offset_rad;
 #if 0
     /* ===== 原始帧格式（保留） ===== */
     static uint16_t debug_seq = 0;
@@ -280,7 +264,6 @@ static void DebugTransmit(void)
     float yaw_actual = _gimbalControl->GimbalEstimate.yaw_angle_d;
     float yaw_dps    = gimbal_yaw_dps_rx;         /* IMU原始角速度, 不用estimate */
     float yaw_imu_d  = gimbal_yaw_rx_d;          /* 上板传下来的IMU原始yaw角度 */
-    float yaw_enc_raw_d = (DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f; /* 编码器原始角度(deg) */
 
     debug_data[0] = 0xAA;
     debug_data[1] = 0xBB;
@@ -309,9 +292,6 @@ static void DebugTransmit(void)
     extern volatile float gimbal_yaw_rx_d;
     static uint8_t sysid_data[30];
 
-    float yaw_angle_raw  = DMyawMotorRec.pos_d;                          /* rad */
-    float yaw_torque_raw = DMyawMotorRec.toq;                            /* Nm */
-    float yaw_vel_motor  = DMyawMotorRec.vel_radps;                      /* rad/s */
     float yaw_angle_imu  = gimbal_yaw_rx_d * 0.0174533f;                 /* deg→rad */
     float yaw_vel_imu    = gimbal_yaw_dps_rx * 0.0174533f;               /* deg/s→rad/s */
 

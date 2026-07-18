@@ -19,7 +19,7 @@
 #define B2B_CAN                hfdcan3  /**< 双板通信用 CAN 总线（CAN3 独立通道，不抢电机帧优先级） */
 
 /* ── 下板→上板（收） ─────────────────────── */
-#define B2B_DOWN_BODY_STATE    0x220U
+#define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态 + yaw_cmd（下板DecisionTask yaw目标角） */
 #define B2B_DOWN_GIMBAL_INPUT  0x221U
 #define B2B_DOWN_KEYS_SWITCH   0x222U
 
@@ -41,7 +41,7 @@ void B2B_DownAliveCheck(void);                  /* ControlTask每周期调用，
 /* ---- 上板→下板 发送 ---- */
 
 uint8_t B2BSendGimbalPose(float yaw_d, float pitch_d, float yaw_dps, float pitch_dps);
-uint8_t B2BSendGimbalTarget(float target_yaw, float target_pitch);
+uint8_t B2BSendGimbalTarget(float target_pitch);
 uint8_t B2BSendFricRPM(const int16_t rpm[6]);
 
 #endif /* _BOARD2BOARD_H_ */

@@ -27,13 +27,13 @@ uint8_t uart6RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uart10RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uartServentRecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 int64_t circle_angle;
-volatile float shoot485_yaw_rx_d = 0.0f;
-volatile uint8_t shoot485_yaw_rx_valid = 0;
-volatile float servant485_pitch_d = 0.0f;   /* 下板传输的机体pitch角 */
-volatile float servant485_roll_d  = 0.0f;   /* 下板传输的机体roll角  */
-volatile float servant485_yaw_d   = 0.0f;   /* 下板传输的机体yaw角   */
-volatile uint16_t servant485_current_hp = 0xFFFF;   /* 下板传输的裁判系统血量，默认最大值防止误触发 */
-volatile uint8_t servant485_hp_zero_flag = 0;       /* HP归零保护标志，状态机消费后清零 */
+volatile float g_b2b_yaw_cmd_d = 0.0f;       /* B2B 0x220 yaw_cmd（下板DecisionTask yaw目标角） */
+volatile uint8_t g_b2b_yaw_cmd_valid = 0;
+volatile float g_b2b_body_pitch_d = 0.0f;   /* 下板传输的机体pitch角 */
+volatile float g_b2b_body_roll_d  = 0.0f;   /* 下板传输的机体roll角  */
+volatile float g_b2b_body_yaw_d   = 0.0f;   /* 下板传输的机体yaw角   */
+volatile uint16_t g_b2b_current_hp = 0xFFFF;   /* 下板传输的裁判系统血量，默认最大值防止误触发 */
+volatile uint8_t g_b2b_hp_zero_flag = 0;       /* HP归零保护标志，状态机消费后清零 */
 
 //uint8_t uartPITCHRecBuffer[64];
 /*--------------------------------------------------remote task region------------------------------------------------*/
@@ -173,11 +173,12 @@ const DJIGMotorRec *_fricMotorRec = fricMotorRec;
 DJIGMotorRec pitchMotorRec;
 const DJIGMotorRec* _pitchMotorRec = &pitchMotorRec;
 
-DJIGMotorRec smallpitchMotorRec;//????怎么也用大疆结构体，妈的懒得改了
-const DJIGMotorRec* _smallpitchMotorRec=&smallpitchMotorRec;
 
 DMJ4310MotorRec stirMotorRec;
 const DMJ4310MotorRec* _stirMotorRec = &stirMotorRec;
+/* yaw DM 电机（从下板搬迁至 CAN3） */
+DMJ4310MotorRec DMyawMotorRec;
+const DMJ4310MotorRec* _DMyawMotorRec = &DMyawMotorRec;
 Pose externalRecPose;
 
 SuperCapacity superCapacity;
@@ -199,8 +200,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
   	{
 		FDCAN_RxHeaderTypeDef RxHeader;
 		uint8_t aData[8];
-		HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO0, &RxHeader, aData);
-		switch(RxHeader.Identifier)
+		/* 单次 ISR 读空 FIFO，避免突发积压丢帧 */
+		while(HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U)
+		{
+			HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO0, &RxHeader, aData);
+			switch(RxHeader.Identifier)
 	{		
 		default:
 				break;
@@ -234,6 +238,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			break;
 	}
 	}
+	}
 }
 uint32_t multicircle;
 float madiyo;
@@ -253,9 +258,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			if(hfdcan == & hfdcan2){
 			switch(RxHeader.Identifier){
 		case 0x201:
-			
 		case 0x202:
-            
         case 0x203:
             fricMotorRec[RxHeader.Identifier-0x201].frame_counter++;
 			fricMotorRec[RxHeader.Identifier-0x201].mechanical_angle = aData[0] << 8 | aData[1];
@@ -274,54 +277,38 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			fricMotorRec[RxHeader.Identifier-0x202].torque_current_real = aData[4] << 8 | aData[5]; 
 			fricMotorRec[RxHeader.Identifier-0x202].motor_temperature_d = aData[6];
         break;
-            //hxg
-			
-		break;
 			/*一点关于摩擦轮的思考：
 			怎么说呢有大概20-30MS电流是拉满了，大胆猜测，过程给大没鸟用啊主要靠惯量动量交换
 			简单验算一下：
 			1.摩擦时间 在相似弹速下根据开环观测大概18MS 不超过25MS，
 			2.PID满载电流时间 大概20-25MS
 			3.做功时间....NMD懒得计算了*/
-						
-			
-//				case 0x142:
-//				if(aData[0]==0x94)
-//				{
-//				
-//				multicircle = (uint32_t)aData[7] << 24 | aData[6] << 16 | aData[5] << 8 | aData[4];
-//				smallpitchMotorRec.mechanical_angle=multicircle;//不要了，什么呀
-//				pitchrecangle=(float)pitchMotorRec.mechanical_angle;
-//				//gimbalControl.GimbalEstimate.small_pitch_actual_angle=(float)smallpitchMotorRec.mechanical_angle/100.f+(gimbalControl.GimbalEstimate.pitch_angle_d-(6266-(float)pitchMotorRec.mechanical_angle)/65535*360);
-//				gimbalControl.GimbalEstimate.small_pitch_actual_angle=((float)multicircle-42497)/1000;
-//				}
-//				else if(aData[0]==0xA1)
-//				{
-//					smallpitchMotorRec.mechanical_speed_rpm = aData[5] << 8 | aData[4]; 
-//					smallpitchMotorRec.torque_current_real = aData[3] << 8 | aData[2]; 
-//					smallpitchMotorRec.motor_temperature_d = aData[1];
-//				}
-//				break;
-			
-				break;
-//				case 0x211:
-//					superCapacity.frame_counter++;
-//					superCapacity.cap_volt = (float)(aData[0] | (aData[1] << 8))/100.0f;
-//					superCapacity.power_limit = (float)(aData[2] | (aData[3] << 8));
-//					superCapacity.real_power = (float)(aData[4] | (aData[5] << 8));
-//					superCapacity.compensated_power = (float)(aData[6] | (aData[7] << 8));	
-//				break;
 			}
 		}
 		else if(hfdcan == &hfdcan3){
-				B2BCanRxHandler(RxHeader.Identifier, aData);  /* B2B 0x220-0x222（CAN3专用于双板通信） */
+				/* yaw DM 电机 (0x017) —— 从下板搬迁至 CAN3 */
+				if(RxHeader.Identifier == 0x017)
+				{
+					DMyawMotorRec.frame_counter++;
+					DMyawMotorRec.id    = (aData[0]) & 0x0F;
+					DMyawMotorRec.state = (aData[0]) >> 4;
+					DMyawMotorRec.p_int = (aData[1] << 8) | aData[2];
+					DMyawMotorRec.v_int = (aData[3] << 4) | (aData[4] >> 4);
+					DMyawMotorRec.t_int = ((aData[4] & 0xF) << 8) | aData[5];
+					DMyawMotorRec.pos_d    = -uint_to_float(DMyawMotorRec.p_int, -(DM_YAW_MAX_ENCODE_D), +(DM_YAW_MAX_ENCODE_D), 16);
+					DMyawMotorRec.vel_radps = uint_to_float(DMyawMotorRec.v_int, -45.0, 45.0, 12);
+					DMyawMotorRec.toq      = uint_to_float(DMyawMotorRec.t_int, -12.0, 12.0, 12);
+					DMyawMotorRec.Tmos     = (float)(aData[6]);
+					DMyawMotorRec.Tcoil    = (float)(aData[7]);
+				}
+				else
+				{
+					B2BCanRxHandler(RxHeader.Identifier, aData);  /* B2B 0x228-0x22B */
+				}
 			}
 		}
 	}
 }
-
-//int16_t fric_realspeed_left,fric_realspeed_right;
-//int16_t fric_speed_left, fric_speed_right;
 /*---------------------------------------------------------------------------imu task(if using onboard imu)-----------------------------------------------------------------------------------*/ 
 /*板载运算--采用ekf计算姿态角*/
 IMUUseEKFSolver imuUseEKFSolver;
@@ -572,7 +559,7 @@ void UpperPCCommTask(void* argument)
 		
 		upperComputerComm.Send.bullet_speed = ext_shoot_data.initial_speed;
 		upperComputerComm.Send.gimbal_pitch_d = _gimbalControl->GimbalEstimate.pitch_angle_d;
-		upperComputerComm.Send.gimbal_yaw_d = shoot485_yaw_rx_d;
+		upperComputerComm.Send.gimbal_yaw_d = _gimbalControl->GimbalEstimate.yaw_angle_d;
 		upperComputerComm.Send.gimbal_yaw_dps = _gimbalControl->GimbalEstimate.yaw_angular_velocity_dps;
 		upperComputerComm.Send.cam_target = _robotState->cam_target;
 		
@@ -581,16 +568,13 @@ void UpperPCCommTask(void* argument)
 		#endif
 		CDC_Transmit_HS((uint8_t*)&(upperComputerComm.Send), UPPER_PC_COMM_SEND_LENGTH);//使用虚拟串口CDC的库，类似uart但是其信号层不一样
 
-		/* B2B CAN: GimbalTarget 100Hz -> hero_down */
-		{
-			float ty = _upperComputerComm->Receive.target_yaw_angle_d;
-			float tp = _upperComputerComm->Receive.target_pitch_angle_d;
-			if (worldGimbal.enable) {
-				ty = worldGimbal.WorldGimbalControl.q_yaw_cmd_deg;
-				tp = worldGimbal.WorldGimbalControl.q_pitch_cmd_deg;
+			/* B2B CAN: GimbalTarget pitch 100Hz -> hero_down (yaw 由上板直接控制) */
+			{
+				float tp = _upperComputerComm->Receive.target_pitch_angle_d;
+				if (worldGimbal.enable)
+					tp = worldGimbal.WorldGimbalControl.q_pitch_cmd_deg;
+				B2BSendGimbalTarget(tp);
 			}
-			B2BSendGimbalTarget(ty, tp);
-		}
 		//memset(upperComputerComm.Send.reserved, 0, 3);  // 发送后清零，由state_task下一周期置位
 		/*计算任务实际运行周期*/
 		current_tick_count = xTaskGetTickCount();
@@ -855,19 +839,19 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		/* 固定偏移解析（与发送端double_mcu_frame布局一致）：
 		   [22..25] yaw_enc, [26..27] HP, [28..31] pitch, [32..35] roll, [36..39] yaw */
 		if(Size >= 40U){
-			memcpy((void*)&shoot485_yaw_rx_d, &uartServentRecBuffer[22], sizeof(float));
-			shoot485_yaw_rx_valid = 1;
+			memcpy((void*)&g_b2b_yaw_cmd_d, &uartServentRecBuffer[22], sizeof(float));
+			g_b2b_yaw_cmd_valid = 1;
 			/* 裁判系统血量 */
 			uint16_t hp;
 			memcpy((void*)&hp, &uartServentRecBuffer[26], sizeof(uint16_t));
-			servant485_current_hp = hp;
+			g_b2b_current_hp = hp;
 			if(hp == 0){
-				servant485_hp_zero_flag = 1;
+				g_b2b_hp_zero_flag = 1;
 			}
 			/* 机体姿态角 */
-			memcpy((void*)&servant485_pitch_d, &uartServentRecBuffer[28], sizeof(float));
-			memcpy((void*)&servant485_roll_d,  &uartServentRecBuffer[32], sizeof(float));
-			memcpy((void*)&servant485_yaw_d,   &uartServentRecBuffer[36], sizeof(float));
+			memcpy((void*)&g_b2b_body_pitch_d, &uartServentRecBuffer[28], sizeof(float));
+			memcpy((void*)&g_b2b_body_roll_d,  &uartServentRecBuffer[32], sizeof(float));
+			memcpy((void*)&g_b2b_body_yaw_d,   &uartServentRecBuffer[36], sizeof(float));
 		}
 	  HAL_UARTEx_ReceiveToIdle_DMA(&SERVANT_485_UART, uartServentRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
 	  __HAL_DMA_DISABLE_IT(SERVANT_485_UART.hdmarx, DMA_IT_HT);

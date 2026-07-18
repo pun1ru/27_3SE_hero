@@ -134,3 +134,12 @@ float PIDUpdateIncrement(PIDStruct* const pid, float current_error)
 	pid->output = limiter(pid->output, pid->output_max);
     return pid->output;
 }
+void PIDReset(PIDStruct *const pid)
+{
+	pid->cur_error = 0;
+	pid->last_error = 0;
+	pid->last_last_error = 0;
+	pid->sum_error = 0;
+	pid->output = 0;
+}
+

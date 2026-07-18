@@ -49,12 +49,13 @@ WorldGimbal worldGimbal = {0};
 const WorldGimbal* _worldGimbal = &worldGimbal;
 
 /* 外部引用：底盘IMU（485下板传输） */
-extern volatile float servant485_pitch_d;
-extern volatile float servant485_roll_d;
-extern volatile float servant485_yaw_d;
+extern volatile float g_b2b_body_pitch_d;
+extern volatile float g_b2b_body_roll_d;
+extern volatile float g_b2b_body_yaw_d;
 
-/* 外部引用：yaw角度来自下板485转发（±180°, sniper_on时有效） */
-extern volatile float shoot485_yaw_rx_d;
+/* 外部引用：yaw DM 编码器（上板本地 CAN3，替代原下板485转发） */
+extern DMJ4310MotorRec DMyawMotorRec;
+extern float yaw_dm_forward_offset_rad;
 
 /* 外部引用：pitch电机编码器（上板本地CAN，用于FK/IK） */
 extern DJIGMotorRec pitchMotorRec;
@@ -92,10 +93,10 @@ static void WG_ForwardKinematics(float q_yaw_rad, float q_pitch_rad,
 }
 
 /* ===== 编码器 → 电机角转换 ===== */
-/* yaw角度：来自下板485转发 shoot485_yaw_rx_d，已换算为±180° */
+/* yaw角度：本地 DM 编码器 (CAN3)，直接读取不再依赖下板485转发 */
 static inline float WG_GetCurrentYawDeg(void)
 {
-    return shoot485_yaw_rx_d;
+    return AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
 }
 /* pitch角度：上板本地LK编码器换算 */
 static float WG_PitchEncoderToDeg(uint16_t encoder)
@@ -271,9 +272,9 @@ void WorldGimbalEstimateUpdate(WorldGimbal* wg)
     /* 观测始终运行，不依赖enable状态，方便调试 */
 
     /* 1. 读取底盘IMU，计算 g_B */
-    wg->WorldGimbalEstimate.chassis_roll_deg  = servant485_roll_d;
-    wg->WorldGimbalEstimate.chassis_pitch_deg = servant485_pitch_d;
-    wg->WorldGimbalEstimate.chassis_yaw_deg   = servant485_yaw_d;
+    wg->WorldGimbalEstimate.chassis_roll_deg  = g_b2b_body_roll_d;
+    wg->WorldGimbalEstimate.chassis_pitch_deg = g_b2b_body_pitch_d;
+    wg->WorldGimbalEstimate.chassis_yaw_deg   = g_b2b_body_yaw_d;
 
     WG_ComputeGravity_B(wg->WorldGimbalEstimate.chassis_roll_deg,
                         wg->WorldGimbalEstimate.chassis_pitch_deg,

@@ -18,6 +18,9 @@
 #include "peripheral_transmit_task.h"
 #include "worldGimbal.h"
 
+/* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
+#define YAW_DUAL_PID
+
 /* === 全局实例 === */
 GimbalControl gimbalControl = {0};
 const GimbalControl* _gimbalControl = &gimbalControl;
@@ -27,13 +30,12 @@ SmoothFilter MouseFilterY = {0};
 
 float pitch_angle_from_match = 0;
 
-float kpfric = 17.5;       //hxgpid
+float kpfric = 17.5;      
 float kdfric = 12.5;
 
 /* === 外部引用 === */
 extern DJIGMotorRec pitchMotorRec;
 extern const DJIGMotorRec* _pitchMotorRec;
-extern DJIGMotorRec smallpitchMotorRec;
 extern uint8_t angle_error_flag;
 extern uint8_t distance_error_flag;
 extern Pose gimbalPose;
@@ -62,21 +64,22 @@ float shit_temp_pitch_comp = 0;
 int fl_u;
 float angle_control;
 
+/* ---- yaw 控制 (从下板搬迁) ---- */
+static SmoothFilter yawEncFilter = {0};
+static ScalarKalmanFilter yawEncKalmanFilter = {0};
+static uint8_t c_key_aim_yaw_lock = 0;
+float yaw_dm_forward_offset_rad = -2.54f;  /* DM yaw编码器"云台正前方"机械角(rad) */
+uint8_t yaw_shit_delay_count = 0;
+
 /* ==================== 函数实现 ==================== */
 
 void GimbalInputUpdate(void)//task1,更新机械限位角度
 {
-    /*物理限位为-23~38度，上下限的offset值为达到机械上下限位时，底盘水平状态下imu的反馈pitch角*/
     const float pitch_upside_limit_offset = 43;
-    const float pitch_upside_revolve_limit_offset = 43;	                     //xianfu
     const float pitch_downside_limit_offset = -7;
-    const float small_pitch_upside_limit_offset = 43;
-    const float small_pitch_upside_revolve_limit_offset = 43;
-    const float small_pitch_downside_limit_offset = -7;
     static uint16_t count = 0;
     float smooth=0.02,smoothtry=0.015;
     float micro_change=1;
-
     switch(_robotState->ctrl_terminal)
     {
         case CONTROL_STOP:
@@ -84,13 +87,12 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
             gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
             gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = 0;
         break;
-        //改一下逻辑debug
         case CONTROL_FROM_REMOTE:
-            if((_robotState->sniper==SNIPER_ON)){//task2,修改遥控器pitch输入,小pitch=大pitch输入,其实没什么改得
-                if(_normRemoteCmd->RelativeCH.ch0>0.1)//吊射模式
+            if((_robotState->sniper==SNIPER_ON)){
+                if(_normRemoteCmd->RelativeCH.ch0>0.1)//算法测试用
                 {
                 gimbalControl.GimbalTargetInput.yaw_angle_d=upperComputerComm.Receive.target_yaw_angle_d;
-                gimbalControl.GimbalTargetInput.small_pitch_angle_d=upperComputerComm.Receive.target_pitch_angle_d;
+                gimbalControl.GimbalTargetInput.pitch_angle_d=upperComputerComm.Receive.target_pitch_angle_d;
                 }
                 else
                 {
@@ -101,18 +103,14 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
                     WorldGimbalInputUpdate(&worldGimbal, dyaw, dpitch);
                 } else {
                     gimbalControl.GimbalTargetInput.yaw_angle_d += dyaw;
-                    gimbalControl.GimbalTargetInput.small_pitch_angle_d += dpitch;
+                    gimbalControl.GimbalTargetInput.pitch_angle_d += dpitch;
                 }
                 }
             }
             if(_robotState->sniper==SNIPER_OFF){
                 gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 2.5 - _normRemoteCmd->RelativeCH.ch2 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
-                gimbalControl.GimbalTargetInput.small_pitch_angle_d -= (-0.5)*(_normRemoteCmd->RelativeCH.ch3 * 2 - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
+                gimbalControl.GimbalTargetInput.pitch_angle_d -= (-0.5)*(_normRemoteCmd->RelativeCH.ch3 * 2 - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
             }
-            /*计算状态*/
-                if(_robotState->follow==FOLLOW_OFF){
-                    gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalTargetInput.small_pitch_angle_d;
-                }
 
         break;
         case CONTROL_FROM_PC:
@@ -131,7 +129,6 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
                 } else {
                     gimbalControl.GimbalTargetInput.pitch_angle_d = _upperComputerComm->Receive.target_pitch_angle_d;
                     gimbalControl.GimbalTargetInput.yaw_angle_d = _upperComputerComm->Receive.target_yaw_angle_d;
-                    gimbalControl.GimbalTargetInput.small_pitch_angle_d = _upperComputerComm->Receive.target_pitch_angle_d;
                 }
                 robotState.aim_mode = 0;  // 单次触发后立即清零，不进入持续追逐
             }
@@ -165,24 +162,19 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
 
                     smooth=smoothtry;
                 }
-                /*计算状态*/
-                if(_robotState->follow==FOLLOW_OFF){
-                    gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalTargetInput.small_pitch_angle_d;
-                    /* mouse_fix ON + sniper ON 时禁用鼠标角度输入，仅保留WASD */
-                    if(!(_robotState->sniper == SNIPER_ON && _robotState->mouse_fix == MOUSE_FIX_ON)){
-                        temp_pitch += SmoothFilterUpdate(&MouseFilterY,_normRemoteCmd->PCMouse.mouse_speed_y)*smooth;
-                        temp_yaw += SmoothFilterUpdate(&MouseFilterX,_normRemoteCmd->PCMouse.mouse_speed_x)*smooth;
-                    }
-                    micro_pitch=0;
-                    /*非锁定状态下鼠标PY可动*/
+                /* mouse_fix ON + sniper ON 时禁用鼠标角度输入，仅保留WASD */
+                if(!(_robotState->sniper == SNIPER_ON && _robotState->mouse_fix == MOUSE_FIX_ON)){
+                    temp_pitch += SmoothFilterUpdate(&MouseFilterY,_normRemoteCmd->PCMouse.mouse_speed_y)*smooth;
+                    temp_yaw += SmoothFilterUpdate(&MouseFilterX,_normRemoteCmd->PCMouse.mouse_speed_x)*smooth;
                 }
+                micro_pitch=0;
                 //最终整定
                 /* ---- 世界系模式：指令累积到虚拟目标 f_des_B，不直接改电机角 ---- */
                 /* 仅 sniper_on 时允许世界系控制，常规模式强制走普通云台控制 */
                 if (worldGimbal.enable && _robotState->sniper == SNIPER_ON) {
                     WorldGimbalInputUpdate(&worldGimbal, temp_yaw, temp_pitch);
                 } else {
-                    gimbalControl.GimbalTargetInput.small_pitch_angle_d += temp_pitch;
+                    gimbalControl.GimbalTargetInput.pitch_angle_d += temp_pitch;
                 if(_robotState->follow!=FOLLOW_ON)
                     gimbalControl.GimbalTargetInput.yaw_angle_d += temp_yaw;
                 }
@@ -196,21 +188,15 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
 
     if(_robotState->chassis_mode == CHASSIS_REVOLVE)
     {
-            gimbalControl.GimbalTargetInput.pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.pitch_angle_d, \
-                                                                             pitch_downside_limit_offset, \
-                                                                             pitch_upside_revolve_limit_offset);
-        gimbalControl.GimbalTargetInput.small_pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.small_pitch_angle_d, \
-                                                                             small_pitch_downside_limit_offset, \
-                                                                             small_pitch_upside_revolve_limit_offset);
+        gimbalControl.GimbalTargetInput.pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.pitch_angle_d,
+                                                                         pitch_downside_limit_offset,
+                                                                         pitch_upside_limit_offset);
     }
     else
     {
-        gimbalControl.GimbalTargetInput.pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.pitch_angle_d, \
-                                                                             pitch_downside_limit_offset, \
-                                                                             pitch_upside_limit_offset);//task3,角度限幅
-        gimbalControl.GimbalTargetInput.small_pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.small_pitch_angle_d, \
-                                                                             small_pitch_downside_limit_offset, \
-                                                                             small_pitch_upside_limit_offset);
+        gimbalControl.GimbalTargetInput.pitch_angle_d = DoubleEdgeLimiter(gimbalControl.GimbalTargetInput.pitch_angle_d,
+                                                                         pitch_downside_limit_offset,
+                                                                         pitch_upside_limit_offset);
     }
 }
 
@@ -218,32 +204,57 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 {
     gimbalControl.GimbalEstimate.roll_angle_d=roll_angle;
     gimbalControl.GimbalEstimate.roll_angular_velocity_dps=roll_angle_w;
-    pitch_angle_from_match= (_pitchMotorRec->mechanical_angle - PITCH_OFFSET_MACHENICAL_ANGLE) * 360.0f /LK_FULL_CIRCLE_MECHENICAL_ANGLE;//符号注意，记得改这玩意
+    pitch_angle_from_match= (_pitchMotorRec->mechanical_angle - PITCH_OFFSET_MACHENICAL_ANGLE) * 360.0f /LK_FULL_CIRCLE_MECHENICAL_ANGLE;
     pitch_angle_from_match= AngleLimit(pitch_angle_from_match, -180, 180);
 
-    /* hero_up无yaw电机，yaw角度始终用IMU观测 */
-    gimbalControl.GimbalEstimate.yaw_angle_d = yaw_angle;
+    /* yaw 角度：SNIPER_ON 走 DM 编码器 + 标量卡尔曼滤波 */
+    extern DMJ4310MotorRec DMyawMotorRec;
+    if(_robotState->sniper == SNIPER_ON)
+    {
+        float yaw_enc_rad = DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad;
+        float yaw_vel_dps  = -DMyawMotorRec.vel_radps * 57.29578f;
+        gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = yaw_vel_dps;
+        if(isfinite(yaw_enc_rad))
+        {
+            float z = AngleLimit(yaw_enc_rad * 57.29578f, -180.0f, 180.0f);
+            float u = isfinite(yaw_vel_dps) ? yaw_vel_dps : 0.0f;
+            gimbalControl.GimbalEstimate.yaw_angle_d = ScalarKalmanFilterUpdate(&yawEncKalmanFilter, z, u);
+        }
+    }
+    else
+    {
+        gimbalControl.GimbalEstimate.yaw_angle_d = yaw_angle;
+        gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = yaw_angle_w * 57.3f;
+    }
 
-    /* sniper过渡检测：pitch估计切换编码器/IMU时保护控制 */
+    /* sniper过渡检测：切换时对齐目标 + 复位 ADRC 状态 */
     {
         static uint8_t prev_sniper = SNIPER_OFF;
         if(prev_sniper != _robotState->sniper)
         {
             shit_delay_count = 0;
-            gimbalControl.GimbalTargetInput.yaw_angle_d = yaw_angle;
+            gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+#ifdef YAW_DUAL_PID
+            LTD_Reset(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalEstimate.yaw_angle_d);
+            PIDReset(&gimbalControl.GimbalMotorControl.yaw_speed_pid);
+#else
+            {
+                float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
+                TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
+                ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
+            }
+#endif
             prev_sniper = _robotState->sniper;
         }
     }
     if(shit_delay_count < 200)
         shit_delay_count++;
-    gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = yaw_angle_w * 57.3f;
     gimbalControl.GimbalEstimate.pitch_angular_velocity_dps = pitch_angle_w * 57.3f;
         //最后手段,机械角
         if(_robotState->sniper==SNIPER_OFF )
             gimbalControl.GimbalEstimate.pitch_angle_d = pitch_angle+shit_temp_pitch_comp;
-        //if(_robotState->sniper==SNIPER_ON ||_robotState->aim_mode==OUTPOSE_MODE)
         if(_robotState->sniper==SNIPER_ON )
-            gimbalControl.GimbalEstimate.pitch_angle_d=pitch_angle_from_match;//这里有什么问题为什么不能更新AAAA
+            gimbalControl.GimbalEstimate.pitch_angle_d=pitch_angle_from_match;
 
     static uint8_t last_state = 0, cur_state;
 
@@ -254,42 +265,44 @@ void GimbalInit(void)
     /* 世界系云台控制初始化 */
     WorldGimbalInit(&worldGimbal);
 
-    //云台电机
-    float pitch_angle_offset_d = 4.9;
-    gimbalControl.GimbalTargetInput.pitch_angle_d = pitch_angle_offset_d;
+    /* ---- pitch 控制初始化 ---- */
+    gimbalControl.GimbalTargetInput.pitch_angle_d = 4.9f;
     float h_temp = CONTROL_TASK_PERIOD_SET / 1000.0;
-
-//---------------------------------------pitch-ltd-eso-lsef初始化h=0.003s，
-    //min,max,LTD 输出角度参考的安全边界
-    LTDInitialize(&gimbalControl.GimbalMotorControl.pitch_LTD, 20, 0.003, -30, 60);//pitch,ltd调r
-    //r大响应快,但是可能超调,发散,r小反应慢
-    const float pitch_eso_wo=20.0f;//增大带宽噪声不好,使z3跳跳
-    const float pitch_eso_b0 = 3.0f;
-    const float pitch_z3_limit = 2000.0f;//扰动估计限幅
-    const float e_min=0;
-    const float e_max=0;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_min=-15;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_max=+36;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_min=-200;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_max=+200;//不要限幅,会怪怪的
-
-    ESOInitialize(&gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso, h_temp,
-        pitch_eso_b0,
-        3.0f*pitch_eso_wo,
-        3.0f*pitch_eso_wo*pitch_eso_wo,
-        0.30f*pitch_eso_wo*pitch_eso_wo*pitch_eso_wo,//如果只降低z3积分可以减少噪声,相当于滤波?
-        pitch_z3_limit, e_min, e_max);
-    const float pitch_k_0 = 0.0f;           // I
-    const float pitch_k_1 = 70.0f;          // P
-    const float pitch_k_2 = 8.0f;           // D
-    const float pitch_e_0_max = 50.0f;
-    const float pitch_output_limit = 1000.0f;// 输出限幅
-    LESFInitialize(&gimbalControl.GimbalMotorControl.pitch_angle_adrc.esf, pitch_k_0, pitch_k_1, pitch_k_2, pitch_e_0_max, pitch_output_limit);
-    //LESF初始化
-    gimbalControl.GimbalMotorControl.pitch_LTD.ki1=0.02;//还有一个ki   0.01
+    //狗屎
+    LTDInitialize(&gimbalControl.GimbalMotorControl.pitch_LTD, 20, 0.003, -30, 60);
+    gimbalControl.GimbalMotorControl.pitch_LTD.ki1=0.02;
     gimbalControl.GimbalMotorControl.pitch_LTD.error_sum=0;
-    gimbalControl.GimbalMotorControl.pitch_LTD.error_sum_max=90;            //80;
+    gimbalControl.GimbalMotorControl.pitch_LTD.error_sum_max=90;
     gimbalControl.GimbalMotorControl.pitch_LTD.lv_bo=0.3;
+
+    /* pitch ADRC: w0=20, b0=3 */
+    {
+        const float eso_wo = 20.0f;
+        float td_init[3]   = {0.0f, h_temp, 0.0f};
+        float lesf_init[5] = {0.0f, 70.0f, 8.0f, 50.0f, 1000.0f};                 /* k0,k1,k2,e0_max,out_limit */
+        float eso_init[6]  = {h_temp, 3.0f, 3.0f*eso_wo, 3.0f*eso_wo*eso_wo,
+                               0.30f*eso_wo*eso_wo*eso_wo, 2000.0f};                /* h,b,β01,β02,β03,z3_limit */
+        LADRCInitialize(&gimbalControl.GimbalMotorControl.pitch_angle_adrc, td_init, lesf_init, eso_init, 0.0f, 0.0f);
+    }
+    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_min = -15;
+    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_max = +36;
+    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_min = -200;
+    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_max = +200;
+    /* ---- yaw 控制初始化 (从下板搬迁) ---- */
+    int yaw_wc = 6, yaw_w0 = 22; //w0 = 3~10*wc
+    /* yaw LADRC */
+    float td_init[3]   = {20.0f, 0.002f, 1.0f};                                      // r, h0, N
+    float lesf_init[5] = {0.0f, (float)(yaw_wc*yaw_wc), (float)(2*yaw_wc), 0.0f, 50000.0f}; // k_0, k_1, k_2, e_0_max, output_limit
+    float eso_init[6]  = {0.002f, 40, (float)(3*yaw_w0), (float)(3*yaw_w0*yaw_w0), (float)(yaw_w0*yaw_w0*yaw_w0), 10000.0f}; // h, b, β01, β02, β03, z3_limit
+    LADRCInitialize(&gimbalControl.GimbalMotorControl.yaw_ADRC, td_init, lesf_init, eso_init, -3.14159f, 3.14159f);
+    SmoothFilterInitialize(&yawEncFilter, 0.7f);
+    ScalarKalmanFilterInit(&yawEncKalmanFilter, 0.0000001f, 0.0000188825f, 0.002f);
+
+#ifdef YAW_DUAL_PID
+    LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.002, -180, 180);
+    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.15, 0,    4000, 800);
+    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0, 0.01, 0, 10);
+#endif
 }
 
 void GimbalControlUpdate(void)
@@ -299,7 +312,7 @@ void GimbalControlUpdate(void)
     uint8_t joint_mode = (_robotState->joint_mode == ROBOT_JOINT_MODE_CLIMB);
 
     if(joint_mode != last_joint_mode)
-    {
+    {//超级手工答辩
         joint_delay_count = 0;
         // Align target and reset ADRC states on joint_mode transition.
         gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
@@ -344,10 +357,43 @@ void GimbalControlUpdate(void)
         angle_control=DoubleEdgeLimiter(angle_control,-9000,30000);//限位-10-33
 
         gimbalControl.GimbalMotorControl.sniper_pos=zero_pos+angle_control;
-       // gimbalControl.GimbalMotorControl.sniper_pos =264460;
         gimbalControl.GimbalMotorControl.spin_dir=(gimbalControl.GimbalMotorControl.sniper_pos>circle_angle)?0x00:0x01;//0x00顺时针,0x01逆时针
         gimbalControl.GimbalMotorControl.sniper_max_speed=50;//转动最大速度,单位dps
         }
+
+    /* ===== yaw 轴控制 (从下板搬迁) ===== */
+#ifdef YAW_DUAL_PID
+		/* ===== LTD + 双环PID 控制（原始版本：位置环输出作速度给定 + LTD前馈） ===== */
+		float yaw_pos_err_d = AngleLimit(gimbalControl.GimbalMotorControl.yaw_LTD.x1 - gimbalControl.GimbalEstimate.yaw_angle_d, -180.0f, 180.0f);
+		float pre_yaw_Tff = 0;
+		// if(fabs(yaw_pos_err_d) < 0.5f)
+		// {
+		// 	/* 小误差：强位置保持，不加前馈 */
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.1f;
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.kp = 8.0f;
+		// 	pre_yaw_Tff = 0.0f;
+		// }
+		// else
+		// {
+		// 	/* 大误差：清积分防超调 + LTD速度前馈加速追赶 */
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.ki = 0.0f;
+		// 	gimbalControl.GimbalMotorControl.yaw_pos_pid.sum_error = 0.0f;
+		// 	pre_yaw_Tff = gimbalControl.GimbalMotorControl.yaw_LTD.x2 * 0.02f;
+		// }
+		LTDUpdate(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalTargetInput.yaw_angle_d);
+		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_pos_pid, yaw_pos_err_d);
+		PIDUpdate(&gimbalControl.GimbalMotorControl.yaw_speed_pid,
+			  gimbalControl.GimbalMotorControl.yaw_pos_pid.output - gimbalControl.GimbalEstimate.yaw_angular_velocity_dps);
+		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_speed_pid.output + pre_yaw_Tff);
+		gimbalControl.GimbalMotorControl.w_d = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
+#else
+		/* ===== LADRC 角度环控制 ===== */
+		LADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
+		            gimbalControl.GimbalTargetInput.yaw_angle_d * (3.141592f / 180.0f),
+		            gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f));
+		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_ADRC.u);
+#endif
 
     /*共同保护*/
     if(CONTROL_STOP == _robotState->ctrl_terminal || shit_delay_count < 30 || joint_delay_count < 30)
@@ -363,20 +409,21 @@ void GimbalControlUpdate(void)
         gimbalControl.GimbalMotorControl.pitch_angle_adrc.u=0;
 
         gimbalControl.GimbalMotorControl.pitch_target_output = 0;
-        gimbalControl.GimbalMotorControl.small_pitch_target_output = 0;
     }
 
-// 	/*望远瞄具舵机决策+控制+发送*/
-
-    //if(CONTROL_STOP != _robotState->ctrl_terminal)
-    //{
-        //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET);
-// 		if(_robotState->lens==LENS_OFF)//调试用
-// 			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji);
-// 		if(_robotState->lens==LENS_ON)
-// 			__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duoji2);
-
-
+	        /* yaw 保护复位 */
+#ifdef YAW_DUAL_PID
+	        LTD_Reset(&gimbalControl.GimbalMotorControl.yaw_LTD, gimbalControl.GimbalEstimate.yaw_angle_d);
+	        PIDReset(&gimbalControl.GimbalMotorControl.yaw_speed_pid);
+	        gimbalControl.GimbalMotorControl.yaw_LTD.error_sum = 0;
+#else
+	        {
+	            float yaw_reset_rad = gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f);
+	            TD_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.td, yaw_reset_rad);
+	            ESO_Reset(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso, yaw_reset_rad);
+	        }
+#endif
+	        gimbalControl.GimbalMotorControl.yaw_target_output = 0;
 
     #if defined GIMBAL_OFF
         gimbalControl.GimbalMotorControl.pitch_target_output = 0;

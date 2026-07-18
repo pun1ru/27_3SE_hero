@@ -59,9 +59,14 @@ typedef struct
 }LTDPID;
 static float fhan(float x1, float x2, float r, float h);
 void TDInitialize(TD* td, float r, float h0, float N, float min, float max);
+void TDSetParam(TD* td, float r, float h0, float N, float min, float max);
+void TD_Reset(TD* td, float x1);
 void TDUpdate(TD* td, float target);
 void LTDInitialize(LTD* ltd, float r, float h, float min, float max);
+void LTDSetParam(LTD* ltd, float r, float h, float min, float max);
+void LTD_Reset(LTD* ltd, float x1);
 void LTDUpdate(LTD* ltd, float target);
+void LTDUpdateNoLimit(LTD* ltd, float target);
 void LTDPIDInitialize(LTDPID* ltdpid,float kp,float _pitchkd,float w_d_limit,float p_output_limit);
 /**
  * @brief 拓张状态观测器，估计扰动
@@ -97,6 +102,8 @@ void TDInitialize(TD* td, float r, float h0, float N, float min, float max);
 void TDUpdate(TD* td, float target);
 void ESOInitialize(ESO* eso, float h, float b, float b_01, float b_02, float b_03, float z3_limit, float min, float max);
 void ESOUpdate(ESO* eso, float feedback, float control_val);
+void LESOUpdate(ESO* eso, float feedback, float control_val);
+void ESO_Reset(ESO* eso, float z1);
 
 /// @brief 误差输出组合器
 typedef struct
@@ -129,7 +136,9 @@ typedef struct
 	float limit_min;//处理周期信号下限
 }ADRC;
 void LADRCInitialize(ADRC* adrc, float* td_init_val, float* lesf_init_val, float* eso_init_val, float min, float max);
+void LADRCInitialize(ADRC* adrc, float* td_init_val, float* lesf_init_val, float* eso_init_val, float min, float max);
 void LADRCUpdate(ADRC* adrc, float target, float feedback);
+void LADRCUpdateV2(ADRC* adrc, float target, float feedback, float actual_velocity, float z3_gain);
 void LTDADRCUpdate(ADRC* adrc,LTD* ltd, float target, float feedback);
 
 #endif

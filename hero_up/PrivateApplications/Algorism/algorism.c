@@ -180,4 +180,119 @@ void improvedleastSquareLinearFit(leastSquareLinear* data, float lambda) {
         data->a = (sum_w * sum_wxy - sum_wx * sum_wy) / denominator;
         data->b = (sum_wx2 * sum_wy - sum_wx * sum_wxy) / denominator;
     }
+} * \param[in] R  测量噪声协方差（传感器噪声方差，±0.02°噪声 → R≈0.0004）
+ * \param[in] dt 采样周期（秒），IMU周期=2ms → dt=0.002
+ */
+void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt)
+{
+    kf->x = 0.0f;
+    kf->P = 1.0f;
+    kf->Q = Q;
+    kf->R = R;
+    kf->dt = dt;
+    kf->init = 0;
+}
+
+/**
+ * \brief 标量卡尔曼滤波器更新（1状态 + 1控制 + 1测量）
+ * \param[in] z 测量值（编码器角度，deg）
+ * \param[in] u 控制输入（角速度，deg/s）
+ * \return 滤波后的角度估计值（deg）
+ * \note  模型: x_k = x_{k-1} + u * dt + w(N(0,Q))
+ *        测量: z_k = x_k + v(N(0,R))
+ *        首次调用时自动用测量值初始化状态（避免从0收敛）
+ */
+float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u)
+{
+    /* 首次测量：直接用测量值初始化状态 */
+    if(!kf->init)
+    {
+        kf->x = z;
+        kf->init = 1;
+        return kf->x;
+    }
+
+    /* NaN/Inf 保护：测量异常时仅预测不更新 */
+    if(!isfinite(z))
+    {
+        kf->x += u * kf->dt;
+        return kf->x;
+    }
+
+    /* 第1步：预测 — 用角速度外推 */
+    /* x = x + u * dt,  P = P + Q */
+    kf->x += u * kf->dt;
+    kf->P += kf->Q;
+
+    /* 第2步：更新 — 卡尔曼增益融合测量值 */
+    /* K = P / (P + R),  x = x + K * (z - x),  P = (1 - K) * P */
+    float K = kf->P / (kf->P + kf->R);
+    kf->x += K * (z - kf->x);
+    kf->P = (1.0f - K) * kf->P;
+
+    return kf->x;
+}
+
+/**
+ * \brief 标量卡尔曼自适应更新（卡方检验三段平滑过渡）
+ * \param[in] z          测量值（编码器角度，deg，永远可信）
+ * \param[in] u          控制输入（角速度，deg/s，冲击时不可信）
+ * \param[in] chi_thresh 卡方阈值，建议3.84(95%)~9.0(3σ)
+ * \return 滤波后的角度估计值
+ * \note  模仿EKF的AdaptiveGainScale三段结构，但逻辑相反（编码器可信、预测不可信）：
+ *        rk < 0.1×阈值  → 正常卡尔曼（预测和编码器一致）
+ *        rk ∈ 过渡区     → 平滑插值：rk越大越信编码器，rk越小越信预测
+ *        rk > 阈值      → 编码器优先（预测已不可信）
+ */
+float ScalarKalmanUpdateAdaptive(ScalarKalmanFilter* kf, float z, float u, float chi_thresh)
+{
+    if(!kf->init)
+    {
+        kf->x = z;
+        kf->init = 1;
+        return kf->x;
+    }
+
+    if(!isfinite(z))
+    {
+        kf->x += u * kf->dt;
+        kf->P += kf->Q;
+        return kf->x;
+    }
+
+    /* 预测一步 */
+    float x_pred = kf->x + u * kf->dt;
+    float P_pred = kf->P + kf->Q;
+
+    /* 卡方检验 */
+    float innovation = z - x_pred;
+    float S = P_pred + kf->R;
+    float rk = innovation * innovation / S;
+
+    float K = P_pred / S;
+    float rk_low  = 0.1f * chi_thresh;   /* 下界：低于此正常融合 */
+    float rk_high = chi_thresh;           /* 上界：高于此完全信编码器 */
+
+    if(rk < rk_low)
+    {
+        /* 正常区：预测和编码器一致，标准卡尔曼 */
+        kf->x = x_pred + K * innovation;
+        kf->P = (1.0f - K) * P_pred;
+    }
+    else if(rk < rk_high)
+    {
+        /* 过渡区：rk越大→越不信预测→越信编码器，线性插值 */
+        float ratio = (rk - rk_low) / (rk_high - rk_low);  /* 0→1 */
+        float x_kalman = x_pred + K * innovation;
+        kf->x = x_kalman + ratio * (z - x_kalman);          /* 从卡尔曼平滑过渡到编码器 */
+        kf->P = (1.0f - K) * P_pred;
+    }
+    else
+    {
+        /* 异常区：预测跑飞，编码器接管，P从R重新开始 */
+        kf->x = z;
+        kf->P = kf->R;
+    }
+
+    return kf->x;
 }

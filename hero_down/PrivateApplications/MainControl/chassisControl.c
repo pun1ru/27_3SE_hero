@@ -11,9 +11,7 @@ SmoothFilter MouseFilterX = {0};
 AverageFilter PowerFilter = {0};
 
 /* general_task_include.h 里没有的外部引用 — 需要单独 extern */
-extern const DMJ4310MotorRec* _DMyawMotorRec;
 extern DJIGMotorRec            yawMotorRec;
-extern float                   yaw_dm_forward_offset_rad;
 extern Pose                    gimbalPose;
 
 void ChassisInputUpdate(void)
@@ -315,9 +313,9 @@ void ChassisInputUpdate(void)
  */
 void ChassisEstimateUpdate(void)
 {
-	/*底盘云台的相对角度（减去正前方偏置，与yaw_enc_deg保持一致）*/
-	extern float yaw_dm_forward_offset_rad;
-	chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d = (yaw_dm_forward_offset_rad - _DMyawMotorRec->pos_d) * (180.0f/3.141592f);
+		/* 底盘云台相对角度：取反即得（B2B 0x228 yaw = DM编码器°，offset已内置到上板计算） */
+		extern volatile float gimbal_yaw_rx_d;
+		chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d = -gimbal_yaw_rx_d;
 	chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d = AngleLimit(chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d, -180, 180);
 	/*跟随角度 = 云台与底盘的相对角，云台正前方时为0*/
 	chassisControl.ChassisEstimate.chassis_follow_angle_d = chassisControl.ChassisEstimate.gimbal_to_chassis_delta_angle_d;														  //+ (- gimbalControl.GimbalMotorControl.yaw_angle_adrc.esf.e_1);

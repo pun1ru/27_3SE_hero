@@ -70,14 +70,14 @@ uint8_t B2BSendKeysSwitch(void);
  *          [0..1] roll_d × 100      int16  (0.01°)
  *          [2..3] pitch_d × 100     int16  (0.01°)
  *          [4..5] yaw_d × 100       int16  (0.01°)
- *          [6..7] yaw_enc_deg × 100 int16  (0.01°)
+ *          [6..7] yaw_cmd_d × 100  int16  (0.01°)  DecisionTask yaw目标角
  * @param   roll_d       机体 roll  角 deg
  * @param   pitch_d      机体 pitch 角 deg
  * @param   yaw_d        机体 yaw   角 deg
- * @param   yaw_enc_deg  yaw 电机编码器角 deg
+ * @param   yaw_cmd_d    DecisionTask yaw 目标角 deg
  * @retval  0: 发送成功, 1: 发送失败
  */
-uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_enc_deg);
+uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_cmd_d);
 
 /* ---- 上板→下板 接收 ---- */
 

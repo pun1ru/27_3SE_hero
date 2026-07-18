@@ -99,19 +99,19 @@ uint8_t B2BSendKeysSwitch(void)
 /**
  * @brief   发送机体姿态 + yaw 编码器帧
  */
-uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_enc_deg)
+uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_cmd_d)
 {
     uint8_t data[8];
 
-    int16_t roll     = (int16_t)(roll_d       * 100.0f);
-    int16_t pitch    = (int16_t)(pitch_d      * 100.0f);
-    int16_t yaw      = (int16_t)(yaw_d        * 100.0f);
-    int16_t yaw_enc  = (int16_t)(yaw_enc_deg  * 100.0f);
+    int16_t roll    = (int16_t)(roll_d      * 100.0f);
+    int16_t pitch   = (int16_t)(pitch_d     * 100.0f);
+    int16_t yaw     = (int16_t)(yaw_d       * 100.0f);
+    int16_t yaw_cmd = (int16_t)(yaw_cmd_d   * 100.0f);
 
     b2bWriteI16BE(data + 0, roll);
     b2bWriteI16BE(data + 2, pitch);
     b2bWriteI16BE(data + 4, yaw);
-    b2bWriteI16BE(data + 6, yaw_enc);
+    b2bWriteI16BE(data + 6, yaw_cmd);
 
     return fdcanx_send_data(&B2B_CAN, B2B_DOWN_BODY_STATE, data, 8);
 }

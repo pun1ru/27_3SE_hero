@@ -38,11 +38,26 @@ float Fal(float e, float alpha, float delta)
 		return fsgn(e) * powf(fabs(e), alpha);
 }//误差小采用线性部分,误差大展现幂函数特性
 void LTDInitialize(LTD* ltd, float r, float h, float min, float max)
-{ 
+{
 	ltd->r = r;
 	ltd->min = min;
 	ltd->max = max;
 	ltd->h = h;
+}
+
+void LTDSetParam(LTD* ltd, float r, float h, float min, float max)
+{
+	ltd->r   = r;
+	ltd->h   = h;
+	ltd->min = min;
+	ltd->max = max;
+}
+
+void LTD_Reset(LTD* ltd, float x1)
+{
+	ltd->x1 = x1;
+	ltd->x2 = 0.0f;
+	ltd->error_sum = 0.0f;
 }
 /*PS:怎么说呢，改大这玩意有时候会超大变成NAN*/
 void LTDUpdate(LTD* ltd, float target)//LTD和普通TD有什么区别?高了一阶似乎，更平滑了？大概
@@ -64,7 +79,30 @@ void LTDUpdate(LTD* ltd, float target)//LTD和普通TD有什么区别?高了一�
        // 你还可以在这里设置一个错误标志或打印一条调试信息
     }
 	if(ltd->min != ltd->max)
-		ltd->x1 = AngleLimit(ltd->x1, ltd->min, ltd->max);	
+		ltd->x1 = AngleLimit(ltd->x1, ltd->min, ltd->max);
+}
+
+/*
+ * LTDUpdateNoLimit: 与 LTDUpdate 相同的二阶跟踪微分器实现，
+ * 但不对 x1 做周期性限幅（不调用 AngleLimit），适用于非周期角度
+ * 或不需要环绕处理的信号。保留数值发散保护。
+ */
+void LTDUpdateNoLimit(LTD* ltd, float target)
+{
+	float x1_delta = ltd->x1 - target;
+	ltd->h = DWT_GetDeltaT(&ltd->cnt);
+
+	/* 状态更新（二阶系统积分） */
+	ltd->x1 += ltd->h * ltd->x2;
+	ltd->x2 += ltd->h * (-2.0f * ltd->r * ltd->x2 - ltd->r * ltd->r * x1_delta);
+
+	/* 数值安全检查：发散时复位到目标并清速度 */
+	if (!isfinite(ltd->x1) || !isfinite(ltd->x2)) {
+		ltd->x1 = target;
+		ltd->x2 = 0.0f;
+	}
+
+	/* 注意：此函数不做 x1 的限幅 or 环绕处理 */
 }
 //void LTDUpdate(LTD* ltd, float target)
 //{
@@ -148,6 +186,20 @@ void TDInitialize(TD* td, float r, float h0, float N, float min, float max)
 	td->min = min;
 }
 
+void TDSetParam(TD* td, float r, float h0, float N, float min, float max)
+{
+	td->h = h0 * N;
+	td->r = r;
+	td->max = max;
+	td->min = min;
+}
+
+void TD_Reset(TD* td, float x1)
+{
+	td->x1 = x1;
+	td->x2 = 0.0f;
+}
+
 /**
  * @brief TD微分器计算
  * @param [0]TD结构体
@@ -216,7 +268,17 @@ void ESOUpdate(ESO* eso, float feedback, float control_val)
 	if(eso->min != eso->max)
 		eso->z1 = AngleLimit(eso->z1, eso->min, eso->max);
     eso->z2 = DoubleEdgeLimiter(eso->z2,eso->z2_min,eso->z2_max);
-	  eso->z1 = DoubleEdgeLimiter(eso->z1,eso->z1_min,eso->z1_max);	
+	  eso->z1 = DoubleEdgeLimiter(eso->z1,eso->z1_min,eso->z1_max);
+}
+
+/**
+ * @brief ESO 状态复位：z1对齐当前值，z2/z3清零
+ */
+void ESO_Reset(ESO* eso, float z1)
+{
+	eso->z1 = z1;
+	eso->z2 = 0.0f;
+	eso->z3 = 0.0f;
 }
 
 //void ESOUpdate(ESO* eso, float feedback, float control_val)
@@ -310,6 +372,27 @@ void LADRCUpdate(ADRC* adrc, float target, float feedback)
 	//update extensional state observer
 	ESOUpdate(&adrc->eso, feedback, adrc->u);
 }
+
+/// @brief 线性自抗扰计算 V2 — e2 使用实际测量速度代替 ESO.z2
+/// @param adrc 自抗扰控制计算所需结构体
+/// @param target 控制目标期望值 (rad)
+/// @param feedback 控制目标反馈值 (rad)
+/// @param actual_velocity 实际测量角速度 (rad/s)，替代 eso.z2 参与 LESF 组合
+/// @param z3_gain 扰动补偿权重 (0~1)，乘在 z3 上：u = (u0 - z3_gain*z3) / b
+void LADRCUpdateV2(ADRC* adrc, float target, float feedback, float actual_velocity, float z3_gain)
+{
+	TDUpdate(&adrc->td, target);
+	/* V2: e2 = td.x2 - actual_velocity，用实测速度替换 ESO 估计速度 */
+	adrc->u_0 = LESFUpdate(&adrc->esf,
+		AngleLimit(adrc->td.x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max),
+		adrc->td.x2 - actual_velocity);
+	if(adrc->eso.b == 0)
+		adrc->u = adrc->u_0;
+	else
+		adrc->u = (adrc->u_0 - z3_gain * adrc->eso.z3) / (adrc->eso.b * 1.0f);
+	ESOUpdate(&adrc->eso, feedback, adrc->u);
+}
+
 void LTDADRCUpdate(ADRC* adrc,LTD* ltd, float target, float feedback)
 {
 	//input transection

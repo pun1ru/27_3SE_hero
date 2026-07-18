@@ -212,6 +212,41 @@ DecisionTask(p5,10ms) 独立运行
 - **目标芯片**：STM32H723VGTx（Cortex-M7, 480MHz）
 - **下载调试**：J-Link / ST-Link
 
+## clangd / VS Code IntelliSense 配置
+
+### 关键文件
+
+| 文件 | 作用 |
+|------|------|
+| 根目录 `.clangd` | 指向 hero_up 的 `compile_commands.json`，避免索引 hero_down 的同名符号 |
+| `hero_up/.clangd` | hero_up 额外 include path（MainControl, MadWick, Music） |
+| `hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/compile_commands.json` | 编译数据库，clangd 索引的依据 |
+
+### 已知问题
+
+1. **Keil MDK 导出的 `compile_commands.json` 只包含 HAL/Middlewares/Core/Tasks 目录的文件**，`PrivateApplications/` 和 `PrivateDrivers/` 下的 `.c` 文件全部缺失。这导致函数定义跳转失败（跳到 hero_down 的同名定义），以及 clangd 报 "unknown type" 等虚假错误。
+2. **工作区根目录是 `27_3SE_hero/`，同时包含 hero_up 和 hero_down**，如果根目录没有 `.clangd` 指向明确的 compilation database，clangd 会尝试索引两套代码，同名函数（如 `GimbalInit`）的跳转、补全都会窜到错误的目标。
+
+### 新增模块后的操作
+
+每次在 `PrivateApplications/` 或 `PrivateDrivers/` 下新增 `.c` 文件后，运行以下脚本补全 `compile_commands.json`：
+
+```bash
+cd hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
+python add_missing.py  # 需提前创建，遍历 hero_up 并添加缺失的 .c 文件
+```
+
+然后清除 clangd 缓存并重启语言服务器：
+```bash
+rm -rf hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/.cache/clangd
+# VS Code: Ctrl+Shift+P → clangd: Restart language server
+```
+
+### 注意
+
+- `.clangd` 的 `CompilationDatabase:` 路径必须以 `>-` (YAML block scalar) 书写，路径中的反斜杠在 YAML block scalar 中被当作字面量处理，不要用引号包裹。
+- `compile_commands.json` 中的路径使用 Windows 反斜杠，Python 脚本处理时注意 JSON 的 `\\` 转义。
+
 ## 编码规范
 
 ### 命名约定

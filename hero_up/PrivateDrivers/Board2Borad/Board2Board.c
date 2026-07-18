@@ -10,13 +10,13 @@
 
 /* ---- 485 原有全局变量 ---- */
 extern NormRemoteCmd       normRemoteCmd;
-extern volatile float      shoot485_yaw_rx_d;
-extern volatile uint8_t    shoot485_yaw_rx_valid;
-extern volatile float      servant485_pitch_d;
-extern volatile float      servant485_roll_d;
-extern volatile float      servant485_yaw_d;
-extern volatile uint16_t   servant485_current_hp;
-extern volatile uint8_t    servant485_hp_zero_flag;
+extern volatile float      g_b2b_yaw_cmd_d;
+extern volatile uint8_t    g_b2b_yaw_cmd_valid;
+extern volatile float      g_b2b_body_pitch_d;
+extern volatile float      g_b2b_body_roll_d;
+extern volatile float      g_b2b_body_yaw_d;
+extern volatile uint16_t   g_b2b_current_hp;
+extern volatile uint8_t    g_b2b_hp_zero_flag;
 extern EventGroupHandle_t  remoteRecEventGroup;
 
 /* ---- 模式缓存 ---- */
@@ -52,15 +52,15 @@ static inline void b2bWriteI16BE(uint8_t* dst, int16_t val)
  * ====================================================================== */
 
 /**
- * @brief   解析 0x100 机体姿态 + yaw 编码器
+ * @brief   解析 0x220 机体姿态 + yaw_cmd（下板DecisionTask的yaw目标角）
  */
 static void b2bParseBodyState(uint8_t* data,
-                              float* yaw_enc_deg,
+                              float* yaw_cmd_deg,
                               float* body_pitch,
                               float* body_roll,
                               float* body_yaw)
 {
-    *yaw_enc_deg = (float)b2bReadI16BE(data + 6) / 100.0f;
+    *yaw_cmd_deg = (float)b2bReadI16BE(data + 6) / 100.0f;
     *body_pitch  = (float)b2bReadI16BE(data + 2) / 100.0f;
     *body_roll   = (float)b2bReadI16BE(data + 0) / 100.0f;
     *body_yaw    = (float)b2bReadI16BE(data + 4) / 100.0f;
@@ -104,7 +104,7 @@ static void b2bParseKeysSwitch(uint8_t* data,
 
     *hp_out = hp;
     if (hp == 0)
-        servant485_hp_zero_flag = 1;
+        g_b2b_hp_zero_flag = 1;
 
     b2b_switch_r = sw_r;
 }
@@ -127,12 +127,13 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
     switch (can_id)
     {
         case B2B_DOWN_BODY_STATE:
+            /* yaw_cmd 来自下板 DecisionTask */
             b2bParseBodyState(data,
-                              (float*)&shoot485_yaw_rx_d,
-                              (float*)&servant485_pitch_d,
-                              (float*)&servant485_roll_d,
-                              (float*)&servant485_yaw_d);
-            shoot485_yaw_rx_valid = 1;
+                              (float*)&g_b2b_yaw_cmd_d,
+                              (float*)&g_b2b_body_pitch_d,
+                              (float*)&g_b2b_body_roll_d,
+                              (float*)&g_b2b_body_yaw_d);
+            g_b2b_yaw_cmd_valid = 1;
             g_b2b_down_alive_ctr = B2B_DOWN_ALIVE_THRESHOLD;
             g_b2b_down_valid = 1;
             return 1U;
@@ -144,7 +145,7 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
             return 1U;
 
         case B2B_DOWN_KEYS_SWITCH:
-            b2bParseKeysSwitch(data, &normRemoteCmd, (uint16_t*)&servant485_current_hp);
+            b2bParseKeysSwitch(data, &normRemoteCmd, (uint16_t*)&g_b2b_current_hp);
             return 1U;
 
         default:
@@ -188,11 +189,11 @@ uint8_t B2BSendGimbalPose(float yaw_d, float pitch_d, float yaw_dps, float pitch
     return fdcanx_send_data(&B2B_CAN, B2B_UP_GIMBAL_POSE, data, 8);
 }
 
-uint8_t B2BSendGimbalTarget(float target_yaw, float target_pitch)
+uint8_t B2BSendGimbalTarget(float target_pitch)
 {
     uint8_t data[8];
 
-    b2bWriteI16BE(data + 0, (int16_t)(target_yaw   * 100.0f));
+    b2bWriteI16BE(data + 0, (int16_t)(0));
     b2bWriteI16BE(data + 2, (int16_t)(target_pitch * 100.0f));
     data[4] = 0;
     data[5] = 0;
