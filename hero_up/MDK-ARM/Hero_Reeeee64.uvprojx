@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32H723xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;\PrivateDrivers\Board2Board;..\PrivateApplications\MainControl</IncludePath>
+              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;\PrivateDrivers\Board2Board;..\PrivateApplications\MainControl;..\PrivateApplications\MadWick</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1311,6 +1311,21 @@
               <FileName>worldGimbal.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\PrivateApplications\MainControl\worldGimbal.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>UsersPrivateApplications/MadWick</GroupName>
+          <Files>
+            <File>
+              <FileName>MadWick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateApplications\MadWick\MadWick.c</FilePath>
+            </File>
+            <File>
+              <FileName>MadWick.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MadWick\MadWick.h</FilePath>
             </File>
           </Files>
         </Group>

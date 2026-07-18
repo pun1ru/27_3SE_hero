@@ -8,6 +8,8 @@
 #include "dt7_remote_driver.h"
 #include "VT13_rc_ctrl.h"
 #include "ekf_imu_solver.h"
+#include "MadWick.h"
+#include "bsp_dwt.h"
 #include "judge_receive.h"
 #include "DMJ4310.h"
 #include "LK_driver.h"
@@ -327,6 +329,19 @@ const IMUUseEKFSolver* _onboardIMUUseEKF = &imuUseEKFSolver;
 IMURecData imuRecData;
 const IMURecData* _onboardIMURecForEKF = &imuRecData;
 
+/* Madgwick AHRS —— 与 EKF 并行解算，性能对比 */
+MadWickAHRS madgwickAHRS;
+uint8_t  madgwick_inited = 0;
+uint32_t ekf_cyc_cnt      = 0;   /* EKF 单次耗时 (CYCCNT ticks) */
+uint32_t madgwick_cyc_cnt = 0;   /* Madgwick 单次耗时 (CYCCNT ticks) */
+
+/* Yaw 零漂测试：上电静止锁初始角度 */
+float yaw_drift_madgwick = 0.0f;
+float yaw_drift_ekf      = 0.0f;
+static float  yaw_init_madgwick = 0.0f;
+static float  yaw_init_ekf      = 0.0f;
+static uint16_t drift_lock_cnt  = 0;
+
 /*云台姿态记录*/
 Pose gimbalPose;
 const Pose* _gimbalPose = &gimbalPose;
@@ -405,12 +420,53 @@ void IMUTask(void* argument)
 	current_tick_count = last_tick_count = xTaskGetTickCount();	
 	while(1)
 	{
+
 		/* 温控始终运行 */
 		OnboardIMUTemperatureControl(imuRecData.temperature);
 		
-		/* 偏置已由 GetIMUOffset 写入实测值，直接进入EKF解算 */
+		/* 偏置已由 GetIMUOffset 写入实测值，直接进入EKF解算 —— 含 Madgwick 对照 */
 		#if defined ONBOARD_EKF_SOLVE
+		{
+			uint32_t t0, t1;
+
+			/* Madgwick 首次调用时初始化 */
+			if(!madgwick_inited)
+			{
+				MadWickAHRSInit(&madgwickAHRS, 0.05f);
+				madgwick_inited = 1;
+			}
+
+			/* ---- EKF ---- */
+			t0 = DWT->CYCCNT;
 			IMUSolverUseEKFUserFunc(&imuUseEKFSolver, &imuRecData);
+			t1 = DWT->CYCCNT;
+			ekf_cyc_cnt = t1 - t0;
+
+			/* ---- Madgwick (同一组 gyro/accel 数据，公平对比) ---- */
+			t0 = DWT->CYCCNT;
+			MadWickAHRSUpdate(&madgwickAHRS,
+					imuRecData.gyro[X], imuRecData.gyro[Y], imuRecData.gyro[Z],
+					imuRecData.accel[X], imuRecData.accel[Y], imuRecData.accel[Z],
+					IMU_TASK_PERIOD_SET / 1000.0f);
+			t1 = DWT->CYCCNT;
+			madgwick_cyc_cnt = t1 - t0;
+
+				/* ---- Yaw 零漂：锁定初始角度后计算漂移量 ---- */
+				if(drift_lock_cnt < 2000)
+				{
+					drift_lock_cnt++;
+					if(drift_lock_cnt == 2000)
+					{
+						yaw_init_madgwick = madgwickAHRS.Yaw;
+						yaw_init_ekf      = imuUseEKFSolver.Yaw_d;
+					}
+				}
+				else
+				{
+					yaw_drift_madgwick = madgwickAHRS.Yaw - yaw_init_madgwick;
+					yaw_drift_ekf      = imuUseEKFSolver.Yaw_d - yaw_init_ekf;
+				}
+		}
 		#endif
 		PoseUpdateFromIMU(&gimbalPose, &imuUseEKFSolver);
 		RS485_SendIMU();  /* IMU数据立即发出 */

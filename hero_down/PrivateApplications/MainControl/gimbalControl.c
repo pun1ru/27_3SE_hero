@@ -70,9 +70,9 @@ extern SmoothFilter MouseFilterX;
 void GimbalInit(void)
 {
 	/* yaw轴 LADRC 初始化 */
-	int wc = 9, w0 = 32; //w0 = 3~10*wc
+	int wc = 6, w0 = 22; //w0 = 3~10*wc
 	float td_init[3]   = {20.0f, 0.002f, 1.0f};                         // r, h0, N
-	float lesf_init[5] = {0.0f, wc*wc, 2*wc, 0.0f, 5000.0f};              // k_0, k_1, k_2, e_0_max, output_limit
+	float lesf_init[5] = {0.0f, wc*wc, 2*wc, 0.0f, 50000.0f};              // k_0, k_1, k_2, e_0_max, output_limit
 	float eso_init[6]  = {0.002f, 40, 3*w0, 3*w0*w0, w0*w0*w0, 10000.0f}; // h, b, β01, β02, β03, z3_limit
 	LADRCInitialize(&gimbalControl.GimbalMotorControl.yaw_ADRC, td_init, lesf_init, eso_init, -3.14159f, 3.14159f);
 	/* yaw反馈平滑滤波初始化 *///编码器速度噪声大不好看

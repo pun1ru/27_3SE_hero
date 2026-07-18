@@ -53,6 +53,7 @@ void AverageFilterInitialize(AverageFilter*filter);
 float AverageFilterUpdate(AverageFilter*filter, float input);
 void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt);
 float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u);
+float ScalarKalmanUpdateAdaptive(ScalarKalmanFilter* kf, float z, float u, float chi_thresh);
 
 
 

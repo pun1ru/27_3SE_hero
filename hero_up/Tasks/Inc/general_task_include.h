@@ -30,6 +30,7 @@
 
 /* 算法/控制模块 */
 #include "algorism.h"
+#include "MadWick.h"
 #include "pid.h"
 #include "shoot_speed_best_contrl.h"
 #include "adrc.h"

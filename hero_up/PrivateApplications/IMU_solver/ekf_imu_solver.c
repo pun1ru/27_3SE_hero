@@ -154,11 +154,11 @@ static void GetIMUOffset(IMURecData* imu_data_rec)
 	BMI088_init();
 	
 	/* 实测偏置值（2026-05-12 校准结果），直接写入，不再调用校准流程 */
-	imu_data_rec->gyro_offset[X] =  0.00215948722f;
-	imu_data_rec->gyro_offset[Y] = -0.000540939218f;
-	imu_data_rec->gyro_offset[Z] =  0.00162238639f;
-	imu_data_rec->g_norm = 9.81f;
-	imu_data_rec->accel_scale = 1.0f;
+	imu_data_rec->gyro_offset[X] =  0.00218079216f;
+	imu_data_rec->gyro_offset[Y] = -0.000620621489f;
+	imu_data_rec->gyro_offset[Z] =  0.00137354317f;
+	imu_data_rec->g_norm = 9.78158283f;
+	imu_data_rec->accel_scale = 1.00290525f;
 	
 	/* 标记校准已完成，跳过校准状态机 */
 	imu_data_rec->calib_state       = IMU_CALIB_DONE;
