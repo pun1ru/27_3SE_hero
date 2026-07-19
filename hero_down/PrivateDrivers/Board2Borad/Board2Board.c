@@ -208,7 +208,7 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
     {
         case B2B_UP_GIMBAL_POSE:
             b2b_pose_rx_count++;
-            g_b2b_pose_alive_ctr = 10U;  /* 10ms超时（≈5帧@500Hz），IMU 1kHz = 10次tick */
+            g_b2b_pose_alive_ctr = 30U;  /* 60ms超时（≈30帧@500Hz），容忍抖动不误报 */
             b2bParseGimbalPose(data,
                                (float*)&gimbal_yaw_rx_d,
                                (float*)&gimbal_pitch_rx_d,

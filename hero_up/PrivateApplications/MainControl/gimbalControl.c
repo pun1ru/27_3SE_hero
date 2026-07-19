@@ -47,6 +47,10 @@ extern const RobotState* _robotState;
 extern const NormRemoteCmd* _normRemoteCmd;
 extern WorldGimbal worldGimbal;
 
+/* B2B yaw目标（下板累积CH2后通过0x220下发） */
+extern volatile float g_b2b_yaw_cmd_d;
+extern volatile uint8_t g_b2b_yaw_cmd_valid;
+
 /* 世界系辅助函数（定义在 robot_control_task.c） */
 extern void WG_WorldAnglesToFdesB(float world_yaw_deg, float world_pitch_deg,
                                    const float* g_B, float* f_des_B_out);
@@ -88,6 +92,7 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
             gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = 0;
         break;
         case CONTROL_FROM_REMOTE:
+            /* yaw目标由下板B2B 0x220 yaw_cmd提供（下板已累积CH2），上板无遥控器接收机 */
             if((_robotState->sniper==SNIPER_ON)){
                 if(_normRemoteCmd->RelativeCH.ch0>0.1)//算法测试用
                 {
@@ -96,22 +101,22 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
                 }
                 else
                 {
-                /* CH2→dyaw, CH3→dpitch: 世界系模式走虚拟目标，否则直接改电机角 */
-                float dyaw = _normRemoteCmd->RelativeCH.ch2 * 0.1f - _normRemoteCmd->RelativeCH.ch2 * (_robotState->chassis_mode == CHASSIS_SEPARATE);
+                /* CH3→dpitch, yaw直接取B2B下发的累积目标 */
                 float dpitch = 0.03f * (_normRemoteCmd->RelativeCH.ch3 * 2.0f - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
                 if (worldGimbal.enable) {
-                    WorldGimbalInputUpdate(&worldGimbal, dyaw, dpitch);
+                    WorldGimbalInputUpdate(&worldGimbal, 0, dpitch);
                 } else {
-                    gimbalControl.GimbalTargetInput.yaw_angle_d += dyaw;
+                    if(g_b2b_yaw_cmd_valid)
+                        gimbalControl.GimbalTargetInput.yaw_angle_d = g_b2b_yaw_cmd_d;
                     gimbalControl.GimbalTargetInput.pitch_angle_d += dpitch;
                 }
                 }
             }
             if(_robotState->sniper==SNIPER_OFF){
-                gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 2.5 - _normRemoteCmd->RelativeCH.ch2 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
+                if(g_b2b_yaw_cmd_valid)
+                    gimbalControl.GimbalTargetInput.yaw_angle_d = g_b2b_yaw_cmd_d;
                 gimbalControl.GimbalTargetInput.pitch_angle_d -= (-0.5)*(_normRemoteCmd->RelativeCH.ch3 * 2 - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
             }
-
         break;
         case CONTROL_FROM_PC:
 
@@ -314,7 +319,6 @@ void GimbalControlUpdate(void)
     if(joint_mode != last_joint_mode)
     {//超级手工答辩
         joint_delay_count = 0;
-        // Align target and reset ADRC states on joint_mode transition.
         gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
         gimbalControl.GimbalMotorControl.pitch_LTD.error_sum = 0;
         gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1 = 0;
@@ -409,7 +413,7 @@ void GimbalControlUpdate(void)
         gimbalControl.GimbalMotorControl.pitch_angle_adrc.u=0;
 
         gimbalControl.GimbalMotorControl.pitch_target_output = 0;
-    }
+
 
 	        /* yaw 保护复位 */
 #ifdef YAW_DUAL_PID
@@ -424,6 +428,7 @@ void GimbalControlUpdate(void)
 	        }
 #endif
 	        gimbalControl.GimbalMotorControl.yaw_target_output = 0;
+    }
 
     #if defined GIMBAL_OFF
         gimbalControl.GimbalMotorControl.pitch_target_output = 0;

@@ -129,7 +129,7 @@ void MotorControlCANSend(void)
 	     break;
 		}
 
-		/* ---- yaw DM 电机 MIT 控制 (CAN3 0x017, 从下板搬迁) ---- */
+		/* ---- yaw DM 电机 MIT 控制 (CAN3 CMD=0x07, RSP=0x017) ---- */
 		{
 			uint8_t yawData[8];
 			extern DMJ4310MotorRec DMyawMotorRec;
@@ -146,7 +146,7 @@ void MotorControlCANSend(void)
 					AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f), yawData);
 			}
 #endif
-			CANTransmit_U8(&hfdcan3, 0x017, yawData);
+			CANTransmit_U8(&hfdcan3, 0x07, yawData);
 		}
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){

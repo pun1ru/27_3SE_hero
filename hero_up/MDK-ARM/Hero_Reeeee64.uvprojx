@@ -446,16 +446,6 @@
               <FilePath>..\Tasks\Src\peripheral_transmit_task.c</FilePath>
             </File>
             <File>
-              <FileName>robot_control_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Tasks\Src\robot_control_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>robot_control_task.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Tasks\Inc\robot_control_task.h</FilePath>
-            </File>
-            <File>
               <FileName>music_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Tasks\Src\music_task.c</FilePath>

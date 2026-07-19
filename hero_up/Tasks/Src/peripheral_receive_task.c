@@ -208,6 +208,20 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	{		
 		default:
 				break;
+			case 0x017:
+				/* yaw DM电机 — 双路监听（CAN1/CAN3均可收） */
+				DMyawMotorRec.frame_counter++;
+				DMyawMotorRec.id    = (aData[0]) & 0x0F;
+				DMyawMotorRec.state = (aData[0]) >> 4;
+				DMyawMotorRec.p_int = (aData[1] << 8) | aData[2];
+				DMyawMotorRec.v_int = (aData[3] << 4) | (aData[4] >> 4);
+				DMyawMotorRec.t_int = ((aData[4] & 0xF) << 8) | aData[5];
+				DMyawMotorRec.pos_d    = -uint_to_float(DMyawMotorRec.p_int, -(DM_YAW_MAX_ENCODE_D), +(DM_YAW_MAX_ENCODE_D), 16);
+				DMyawMotorRec.vel_radps = uint_to_float(DMyawMotorRec.v_int, -45.0, 45.0, 12);
+				DMyawMotorRec.toq      = uint_to_float(DMyawMotorRec.t_int, -12.0, 12.0, 12);
+				DMyawMotorRec.Tmos     = (float)(aData[6]);
+				DMyawMotorRec.Tcoil    = (float)(aData[7]);
+			break;
 			case 0x141:
 	
 			if(aData[0]==0xA1||aData[0]==0xA6||aData[0]==0xA4){

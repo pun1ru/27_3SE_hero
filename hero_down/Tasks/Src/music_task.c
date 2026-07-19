@@ -1,6 +1,7 @@
 #include "music_mardio.h"
 #include "general_task_include.h"
 #include "general_define.h"
+#include "tim.h"
 static void StartupNotice(const float* puzi, int arr_size, int wait_time, float pintiao);
 extern QueueHandle_t g_musicQueue;
 void Error_check();
@@ -73,7 +74,9 @@ void Error_check()
 			circuitMonitror.ifCircuitError.chassisMotorError[i] = 0;
 	}
 	
-	// 2. 检查云台Yaw DM电机 用 CAN fdcan1
+	// 2. 检查云台Yaw B2B通信 (DM电机已搬迁至上板，B2B 0x228心跳替代CAN帧检测)
+	extern volatile uint8_t gimbal_yaw_rx_valid;
+	if(!gimbal_yaw_rx_valid)
 		circuitMonitror.ifCircuitError.yawMotorError = 1;
 	else
 		circuitMonitror.ifCircuitError.yawMotorError = 0;

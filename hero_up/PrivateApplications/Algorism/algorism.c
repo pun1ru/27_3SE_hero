@@ -180,7 +180,9 @@ void improvedleastSquareLinearFit(leastSquareLinear* data, float lambda) {
         data->a = (sum_w * sum_wxy - sum_wx * sum_wy) / denominator;
         data->b = (sum_wx2 * sum_wy - sum_wx * sum_wxy) / denominator;
     }
-} * \param[in] R  测量噪声协方差（传感器噪声方差，±0.02°噪声 → R≈0.0004）
+}
+/**
+ * \param[in] R  测量噪声协方差（传感器噪声方差，±0.02°噪声 → R≈0.0004）
  * \param[in] dt 采样周期（秒），IMU周期=2ms → dt=0.002
  */
 void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt)

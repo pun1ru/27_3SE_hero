@@ -11,7 +11,7 @@ SmoothFilter MouseFilterX = {0};
 AverageFilter PowerFilter = {0};
 
 /* general_task_include.h 里没有的外部引用 — 需要单独 extern */
-extern DJIGMotorRec            yawMotorRec;
+DJIGMotorRec yawMotorRec = {0}; /* yaw DM已搬迁至上板，下板不再有yaw DJI电机，保持零值 */
 extern Pose                    gimbalPose;
 
 void ChassisInputUpdate(void)

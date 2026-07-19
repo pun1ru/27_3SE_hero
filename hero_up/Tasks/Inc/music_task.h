@@ -22,7 +22,7 @@ typedef struct
 		uint16_t chassisMotor_frame_counter[4];
 		uint16_t yawMotor_frame_counter;
 		uint16_t stirMotor_frame_counter;
-		uint16_t fricMotor_frame_counter[3];
+		uint16_t fricMotor_frame_counter[6];
 		uint16_t pitchMotor_frame_counter;
 		uint16_t superCapacity_frame_counter;
 	}CircuitCounterPtr;
@@ -31,7 +31,7 @@ typedef struct
 		uint8_t chassisMotorError[4];
 		uint8_t yawMotorError;
 		uint8_t stirMotorError;
-		uint8_t fricMotorError[3];
+		uint8_t fricMotorError[6];
 		uint8_t pitchMotorError;
 		uint8_t superCapacityError;
 	}ifCircuitError;

@@ -1,5 +1,7 @@
 #include "music_mardio.h"
 #include "general_define.h"
+#include "general_task_include.h"
+#include "tim.h"
 static void StartupNotice(const float* puzi,int wait_time,float pintiao);
 extern QueueHandle_t g_musicQueue;
 void Error_check();
