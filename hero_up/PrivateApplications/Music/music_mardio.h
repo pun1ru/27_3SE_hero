@@ -1,12 +1,11 @@
 /**
  * @file music_mardio.h
  * @author 3SE 马丢
- * @brief 
- * @version 
- * @date 
- * 
+ * @brief 蜂鸣器音乐播放 (PWM + TIM)
+ * @note  v2 新增: MusicNote 结构体 + play_music_notes() 支持每音独立时长
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 
 #ifndef _MUSIC_MARDIO_H_
@@ -15,10 +14,42 @@
 #include "general_task_include.h"
 #include "general_define.h"
 
-void play_music(int pr,int wait_time,TIM_HandleTypeDef htim);
-int from_notes_to_pr(float note);
-int music_init(TIM_HandleTypeDef htim,uint32_t Channel);
-void all_paly_music(float *notes,int size,int wait_time,TIM_HandleTypeDef htim);
+/*===========================================================================
+ *  数据结构
+ *===========================================================================*/
+
+/**
+ * @brief 音乐音符 (v2: 每音独立时长)
+ * @param note     mardio 音高编号 (MIDI音高+2), 100=休止符
+ * @param dur_ms   持续时间(毫秒)
+ */
+typedef struct
+{
+    float    note;     // 音高编号
+    uint16_t dur_ms;   // 持续时间(ms)
+} MusicNote;
+
+/*===========================================================================
+ *  v1 接口 (旧版, 固定 wait_time)
+ *===========================================================================*/
+
+void play_music(int pr, int wait_time, TIM_HandleTypeDef htim);
+int  from_notes_to_pr(float note);
+int  music_init(TIM_HandleTypeDef htim, uint32_t Channel);
+void all_paly_music(float *notes, int size, int wait_time, TIM_HandleTypeDef htim);
+
+/*===========================================================================
+ *  v2 接口 (推荐: 每音独立时长)
+ *===========================================================================*/
+
+/**
+ * @brief   播放乐谱 (每音独立时长)
+ * @param   score   MusicNote 数组
+ * @param   len     数组长度
+ * @param   htim    TIM 句柄 (PWM 输出)
+ * @note    每个音符播放自己的 dur_ms, 休止符 note>=100 时不响
+ */
+void play_music_notes(const MusicNote* score, int len, TIM_HandleTypeDef htim);
 
 #endif
 
