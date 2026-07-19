@@ -18,6 +18,7 @@
 #define UPPER_PC_TRANSMIT_ENABLE 
 //#define LASER_PC_TRANSMIT_ENABLE
 #define DEBUG_MSG_ENABLE
+//#define DEBUG_FRAME_YAW_ADRC    /* yaw ADRC调试帧 42B: TD/ESO/LESF + yaw angle + raw enc */
 
 /*比赛模式*/
 #define MATCH_MODE

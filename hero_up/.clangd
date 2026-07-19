@@ -1,6 +1,9 @@
+# hero_up（上板）clangd 配置
+# clangd 从源文件目录向上遍历合并 .clangd，hero_up/ 下的文件只用此文件 + 根 .clangd
+# 不会碰到 hero_down/.clangd，因此两个工程的索引完全隔离
+
 CompileFlags:
-  CompilationDatabase: >-
-    c:\Users\liaoz\Desktop\rm\Code\27_3SE_hero\hero_up\MDK-ARM\out\Hero_Reeeee64\Hero_Reeeee64
+  CompilationDatabase: MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
   Add:
     - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_up/PrivateApplications/MainControl
     - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_up/PrivateApplications/MadWick

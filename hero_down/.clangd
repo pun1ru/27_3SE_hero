@@ -1,4 +1,11 @@
+# hero_down（下板）clangd 配置
+# clangd 从源文件目录向上遍历合并 .clangd，hero_down/ 下的文件只用此文件 + 根 .clangd
+# 不会碰到 hero_up/.clangd，因此两个工程的索引完全隔离
+
 CompileFlags:
-  CompilationDatabase: >-
-    c:\Users\liaoz\Desktop\rm\Code\27_3SE_hero\hero_down\MDK-ARM\out\Hero_Reeeee64\Hero_Reeeee64
-  Add: [-I../../../PrivateDrivers/MIT, -I../../../qp/qpc/include, -I../../../qp/qpc/ports, -I../../../qp]
+  CompilationDatabase: MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
+  Add:
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateDrivers/MIT
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/qp/qpc/include
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/qp/qpc/ports
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/qp

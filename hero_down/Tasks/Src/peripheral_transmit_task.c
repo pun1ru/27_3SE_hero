@@ -208,7 +208,7 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     return crc;
 }
 /* ---- Debug 帧类型选择（只定义一个） ---- */
-#define DEBUG_FRAME_CTRL     /* ADRC调试帧 0xAABB 34B */
+//#define DEBUG_FRAME_CTRL     /* ADRC调试帧 0xAABB 34B */
 //#define DEBUG_FRAME_SYSID      /* 系统辨识调试帧 0xAABB 30B */
 static void DebugTransmit(void)
 {
@@ -239,45 +239,6 @@ static void DebugTransmit(void)
     memcpy(&debug_data[33], &stirMotorRec.vel_radps, 4);
     debug_data[37] = crc8_maxim(debug_data, 37);
     HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
-#elif defined(DEBUG_FRAME_CTRL)
-	    /* ===== ADRC调试帧 (42B) =====
-     * [0-1]   0xAA 0xBB  帧头
-     * [2-5]   float       td_x1_deg       TD跟踪位置 (deg)
-     * [6-9]   float       adrc_u          ADRC最终控制量u
-     * [10-13] float       eso_z3          ESO扰动估计z3
-     * [14-17] float       eso_z2          ESO速度估计z2 (deg/s)
-     * [18-21] float       esf_e1_deg      位置误差e1 (deg)
-     * [22-25] float       eso_z1_deg      ESO位置估计z1 (deg)
-     * [26-29] float       yaw_actual_deg  估计yaw角度 (deg, GimbalEstimate)
-	     * [30-33] float       yaw_actual_dps  实际yaw角速度 (deg/s, 上板IMU)
-	     * [34-37] float       yaw_imu_raw_d   上板传下IMU原始yaw角度 (deg)
-	     * [38-41] float       yaw_enc_raw_d   yaw编码器原始角度 (deg, 未滤波)
-	     */
-    extern const GimbalControl* _gimbalControl;
-    const ADRC* adrc = &_gimbalControl->GimbalMotorControl.yaw_ADRC;
-    float td_x1_d    = adrc->td.x1 * 57.29578f;
-    float adrc_u     = adrc->u;
-    float eso_z3     = adrc->eso.z3;
-    float eso_z2     = adrc->eso.z2 * 57.29578f;   /* rad/s→deg/s */
-    float esf_e1_d   = adrc->esf.e_1 * 57.29578f;
-    float eso_z1_d   = adrc->eso.z1 * 57.29578f;
-    float yaw_actual = _gimbalControl->GimbalEstimate.yaw_angle_d;
-    float yaw_dps    = gimbal_yaw_dps_rx;         /* IMU原始角速度, 不用estimate */
-    float yaw_imu_d  = gimbal_yaw_rx_d;          /* 上板传下来的IMU原始yaw角度 */
-
-    debug_data[0] = 0xAA;
-    debug_data[1] = 0xBB;
-    memcpy(&debug_data[2],  (void*)&td_x1_d,      4);
-    memcpy(&debug_data[6],  (void*)&adrc_u,       4);
-    memcpy(&debug_data[10], (void*)&eso_z3,       4);
-    memcpy(&debug_data[14], (void*)&eso_z2,       4);
-    memcpy(&debug_data[18], (void*)&esf_e1_d,     4);
-    memcpy(&debug_data[22], (void*)&eso_z1_d,     4);
-    memcpy(&debug_data[26], (void*)&yaw_actual,   4);
-    memcpy(&debug_data[30], (void*)&yaw_dps,      4);
-    memcpy(&debug_data[34], (void*)&yaw_imu_d,    4);
-    memcpy(&debug_data[38], (void*)&yaw_enc_raw_d,4);
-    HAL_UART_Transmit_DMA(&huart7, debug_data, 42);
 #elif defined(DEBUG_FRAME_SYSID)
     /* ===== 系统辨识调试帧 (30B) =====
      * [0-1]   0xAA 0xBB  帧头

@@ -18,7 +18,9 @@ const GimbalControl* _gimbalControl = &gimbalControl;
 uint8_t shit_delay_count = 0;             /* 状态切换延时计数器 */
 
 /* GimbalInputUpdate 专用静态变量 */
-
+static float micro_yaw = 0;
+static int   temp_yaw_count = 0;
+static int   last_temp_yaww = 0;
 
 
 
@@ -39,6 +41,7 @@ extern RobotState robotState;
 extern ShootControl shootControl;
 
 /* 鼠标滤波 */
+extern SmoothFilter MouseFilterX;
 
 /*---------------------------------------------------------------------------初始化-------------------------------------------------------------------------------------------*/
 
@@ -47,6 +50,9 @@ extern ShootControl shootControl;
  * @note  由 ControlInit() 调用
  */
 void GimbalInit(void)
+{
+
+}
 /*---------------------------------------------------------------------------输入决策更新-------------------------------------------------------------------------------------*/
 
 /**
@@ -103,10 +109,20 @@ void GimbalInputUpdate(void)
 					/* AD键yaw微调 */
 					int temp_yaw_an = (_normRemoteCmd->PCKeyBoard.level_key_D - _normRemoteCmd->PCKeyBoard.level_key_A);
 					if (temp_yaw_an != 0){
+						last_temp_yaww = temp_yaw_an;
+						temp_yaw_count++;
+						if(temp_yaw_count > 10){
 							temp_yaw = (_normRemoteCmd->PCKeyBoard.level_key_D - _normRemoteCmd->PCKeyBoard.level_key_A) * 0.01f;
+							micro_yaw += (_normRemoteCmd->PCKeyBoard.level_key_D - _normRemoteCmd->PCKeyBoard.level_key_A) * 0.01f;
 						}
 					}
+					if (temp_yaw_an == 0 && last_temp_yaww != 0){
+						if(temp_yaw_count <= 10){
+							micro_yaw += last_temp_yaww * 0.1f;
+							temp_yaw += last_temp_yaww * 0.1f;
 						}
+						last_temp_yaww = 0;
+						temp_yaw_count = 0;
 					}
 				}
 
@@ -114,6 +130,7 @@ void GimbalInputUpdate(void)
 					if(!(pDecisionAO->sniper == SNIPER_ON && pDecisionAO->mouse_fix == MOUSE_FIX_ON)){
 						temp_yaw += SmoothFilterUpdate(&MouseFilterX, _normRemoteCmd->PCMouse.mouse_speed_x) * smooth;
 					}
+					micro_yaw = 0;
 				}
 
 				if(pDecisionAO->sniper != SNIPER_ON)
@@ -124,6 +141,7 @@ void GimbalInputUpdate(void)
 					}
 					else
 					{
+						gimbalControl.GimbalTargetInput.yaw_angle_d += temp_yaw + micro_yaw;
 					}
 				}
 			}
@@ -141,6 +159,7 @@ void GimbalInputUpdate(void)
 	/* yaw角限幅 */
 	gimbalControl.GimbalTargetInput.yaw_angle_d = AngleLimit(gimbalControl.GimbalTargetInput.yaw_angle_d, -180, 180);
 }
+
 
 /*---------------------------------------------------------------------------观测更新-----------------------------------------------------------------------------------------*/
 
@@ -165,16 +184,15 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 	if (isfinite(gimbal_yaw_rx_d))
 		gimbalControl.GimbalEstimate.yaw_angle_d = gimbal_yaw_rx_d;
 	if (isfinite(gimbal_yaw_dps_rx))
-		gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;f (isfinite(gimbal_pitch_rx_d))
+		gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = gimbal_yaw_dps_rx;
+	if (isfinite(gimbal_pitch_rx_d))
 		gimbalControl.GimbalEstimate.pitch_angle_d = gimbal_pitch_rx_d;
+		
 	if (isfinite(gimbal_pitch_dps_rx))
 		gimbalControl.GimbalEstimate.pitch_angular_velocity_dps = gimbal_pitch_dps_rx;
 
 	if (shit_delay_count < 200)
 		shit_delay_count++;
-
-		prev_sniper = _robotState->sniper;
-	}
 }
 
 /*---------------------------------------------------------------------------闭环控制-----------------------------------------------------------------------------------------*/

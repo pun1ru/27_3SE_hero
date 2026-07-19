@@ -214,38 +214,79 @@ DecisionTask(p5,10ms) 独立运行
 
 ## clangd / VS Code IntelliSense 配置
 
-### 关键文件
+### `.clangd` 架构 — 双工程独立 `.clangd` + 根最小化
 
-| 文件 | 作用 |
-|------|------|
-| 根目录 `.clangd` | 指向 hero_up 的 `compile_commands.json`，避免索引 hero_down 的同名符号 |
-| `hero_up/.clangd` | hero_up 额外 include path（MainControl, MadWick, Music） |
-| `hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/compile_commands.json` | 编译数据库，clangd 索引的依据 |
+工作区同时包含 `hero_up` 和 `hero_down`（双板），两套代码有同名函数（如 `GimbalInit`）。采用**三个 `.clangd` 文件分工协作**：
+
+- **根 `.clangd`**（`27_3SE_hero/.clangd`）：只放全局 clangd 设置（Diagnostics、Index），**禁止放 `CompilationDatabase` 和 `CompileFlags.Add`**
+- **`hero_down/.clangd`**：hero_down 专属编译数据库 + 独有 include 路径（MIT, qp）
+- **`hero_up/.clangd`**：hero_up 专属编译数据库 + 独有 include 路径（MainControl, MadWick, Music）
+
+```yaml
+# 根 .clangd — 只有全局设置，无 CompileFlags
+Diagnostics:
+  UnusedIncludes: None
+Index:
+  Background: Build
+
+# hero_down/.clangd — 只服务于 hero_down/ 下的源文件
+CompileFlags:
+  CompilationDatabase: MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
+  Add:
+    - -I.../hero_down/PrivateDrivers/MIT
+    - -I.../hero_down/qp/qpc/include
+    - -I.../hero_down/qp/qpc/ports
+    - -I.../hero_down/qp
+
+# hero_up/.clangd — 只服务于 hero_up/ 下的源文件
+CompileFlags:
+  CompilationDatabase: MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
+  Add:
+    - -I.../hero_up/PrivateApplications/MainControl
+    - -I.../hero_up/PrivateApplications/MadWick
+    - -I.../hero_up/PrivateApplications/Music
+```
+
+**原理**：clangd 从源文件所在目录向上遍历父目录，合并沿途所有 `.clangd` 配置。文件在 `hero_down/` 下时只合并 `hero_down/.clangd` + 根 `.clangd`；文件在 `hero_up/` 下时只合并 `hero_up/.clangd` + 根 `.clangd`。由于根 `.clangd` 没有 `CompilationDatabase` 和 `Add`，两个工程的编译数据库和 include 路径**完全隔离**，不存在交叉污染。
+
+**为什么不用根 `.clangd` 的 `If` + `PathMatch`？** 之前的方案在根 `.clangd` 中用 `If` 条件路由，但 `CompileFlags` 与 `If` 处于同级缩进时（YAML 语法问题），clangd 不将 `CompileFlags` 视为 `If` 的子块，导致两个 `CompilationDatabase` 被全局激活、`Add` 路径互相污染——这就是**同名函数跳转到错误工程**的根本原因。分离 `.clangd` 从根本上消除了此问题。
+
+### 编译数据库
+
+两个项目各有独立的 `compile_commands.json`：
+- `hero_down/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/compile_commands.json`
+- `hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/compile_commands.json`
 
 ### 已知问题
 
-1. **Keil MDK 导出的 `compile_commands.json` 只包含 HAL/Middlewares/Core/Tasks 目录的文件**，`PrivateApplications/` 和 `PrivateDrivers/` 下的 `.c` 文件全部缺失。这导致函数定义跳转失败（跳到 hero_down 的同名定义），以及 clangd 报 "unknown type" 等虚假错误。
-2. **工作区根目录是 `27_3SE_hero/`，同时包含 hero_up 和 hero_down**，如果根目录没有 `.clangd` 指向明确的 compilation database，clangd 会尝试索引两套代码，同名函数（如 `GimbalInit`）的跳转、补全都会窜到错误的目标。
+**Keil MDK 导出的 `compile_commands.json` 只包含 HAL/Middlewares/Core/Tasks 目录的文件**，`PrivateApplications/` 和 `PrivateDrivers/` 下的 `.c` 文件全部缺失。导致函数定义跳转失败和 clangd 报 "unknown type" 等虚假错误。
 
 ### 新增模块后的操作
 
-每次在 `PrivateApplications/` 或 `PrivateDrivers/` 下新增 `.c` 文件后，运行以下脚本补全 `compile_commands.json`：
+每次在 `PrivateApplications/` 或 `PrivateDrivers/` 下新增 `.c` 文件后，运行对应项目的 `add_missing.py` 补全编译数据库：
 
 ```bash
+# hero_down 新增文件后
+cd hero_down/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
+"C:/Program Files/Python314/python.exe" add_missing.py
+
+# hero_up 新增文件后
 cd hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
-python add_missing.py  # 需提前创建，遍历 hero_up 并添加缺失的 .c 文件
+"C:/Program Files/Python314/python.exe" add_missing.py
 ```
 
 然后清除 clangd 缓存并重启语言服务器：
 ```bash
+rm -rf hero_down/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/.cache/clangd
 rm -rf hero_up/MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64/.cache/clangd
 # VS Code: Ctrl+Shift+P → clangd: Restart language server
 ```
 
 ### 注意
 
-- `.clangd` 的 `CompilationDatabase:` 路径必须以 `>-` (YAML block scalar) 书写，路径中的反斜杠在 YAML block scalar 中被当作字面量处理，不要用引号包裹。
+- **根 `.clangd` 禁止添加 `CompilationDatabase` 和 `CompileFlags.Add`**：否则会被 hero_down 和 hero_up 的所有文件继承，造成头文件解析窜到错误项目。
 - `compile_commands.json` 中的路径使用 Windows 反斜杠，Python 脚本处理时注意 JSON 的 `\\` 转义。
+- 子目录 `.clangd` 中的 `CompilationDatabase` 支持相对路径（相对于 `.clangd` 所在目录）。
 
 ## 编码规范
 

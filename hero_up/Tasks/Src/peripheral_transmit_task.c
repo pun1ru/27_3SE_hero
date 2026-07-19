@@ -229,10 +229,54 @@ uint8_t debug_data[42];
  extern DJIGMotorRec chassisMotorRec[CHASSIS_MOTOR_NUM];
 int16_t trans[6];
 int cnt;
-static void DebugTransmit(void) 
+static void DebugTransmit(void)
 {
 	cnt++;
-  int16_t speed_rpm1=-fricMotorRec[1].mechanical_speed_rpm;
+#ifdef DEBUG_FRAME_YAW_ADRC
+	/* ===== YAW ADRC调试帧 (42B) =====
+	 * [0-1]   0xAA 0xBB  帧头
+	 * [2-5]   float       td_x1_deg       TD跟踪位置 (deg)
+	 * [6-9]   float       adrc_u          ADRC最终控制量u
+	 * [10-13]  float       eso_z3          ESO扰动估计z3
+	 * [14-17]  float       eso_z2          ESO速度估计z2 (deg/s)
+	 * [18-21]  float       esf_e1_deg      位置误差e1 (deg)
+	 * [22-25]  float       eso_z1_deg      ESO位置估计z1 (deg)
+	 * [26-29]  float       yaw_actual_deg  估计yaw角度 (deg, GimbalEstimate)
+	 * [30-33]  float       yaw_actual_dps  实际yaw角速度 (deg/s, 上板IMU)
+	 * [34-37]  float       yaw_imu_raw_d   上板IMU原始yaw角度 (deg, EKF解算)
+	 * [38-41]  float       yaw_enc_raw_d   yaw编码器原始角度 (deg, 未滤波)
+	 */
+	extern DMJ4310MotorRec DMyawMotorRec;
+	extern float yaw_dm_forward_offset_rad;
+	extern Pose gimbalPose;
+	const ADRC* adrc = &gimbalControl.GimbalMotorControl.yaw_ADRC;
+	float td_x1_d    = adrc->td.x1 * 57.29578f;
+	float adrc_u     = adrc->u;
+	float eso_z3     = adrc->eso.z3;
+	float eso_z2     = adrc->eso.z2 * 57.29578f;   /* rad/s→deg/s */
+	float esf_e1_d   = adrc->esf.e_1 * 57.29578f;
+	float eso_z1_d   = adrc->eso.z1 * 57.29578f;
+	float yaw_actual = gimbalControl.GimbalEstimate.yaw_angle_d;
+	float yaw_dps    = gimbalControl.GimbalEstimate.yaw_angular_velocity_dps;
+	float yaw_imu_d  = gimbalPose.yaw_d;            /* EKF IMU解算yaw */
+	float yaw_enc_d  = (float)((double)(DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578);
+
+	debug_data[0] = 0xAA;
+	debug_data[1] = 0xBB;
+	memcpy(&debug_data[2],  (void*)&td_x1_d,     4);
+	memcpy(&debug_data[6],  (void*)&adrc_u,      4);
+	memcpy(&debug_data[10], (void*)&eso_z3,      4);
+	memcpy(&debug_data[14], (void*)&eso_z2,      4);
+	memcpy(&debug_data[18], (void*)&esf_e1_d,    4);
+	memcpy(&debug_data[22], (void*)&eso_z1_d,    4);
+	memcpy(&debug_data[26], (void*)&yaw_actual,  4);
+	memcpy(&debug_data[30], (void*)&yaw_dps,     4);
+	memcpy(&debug_data[34], (void*)&yaw_imu_d,   4);
+	memcpy(&debug_data[38], (void*)&yaw_enc_d,   4);
+	HAL_UART_Transmit_DMA(&huart7, debug_data, 42);
+#else
+	/* 摩擦轮转速调试帧 (14B): 0xAA 0xBB + 6×int16 RPM */
+	int16_t speed_rpm1=-fricMotorRec[1].mechanical_speed_rpm;
 	debug_data[0] = 0xAA; debug_data[1] = 0xBB;
 	memcpy(&debug_data[2], &fricMotorRec[0].mechanical_speed_rpm, 2);
 	memcpy(&debug_data[4], &speed_rpm1, 2);
@@ -241,5 +285,5 @@ static void DebugTransmit(void)
 	memcpy(&debug_data[10], &fricMotorRec[4].mechanical_speed_rpm, 2);
 	memcpy(&debug_data[12], &fricMotorRec[5].mechanical_speed_rpm, 2);
 	HAL_UART_Transmit_DMA(&huart7,debug_data, 2+6*2);
-
+#endif
 }
