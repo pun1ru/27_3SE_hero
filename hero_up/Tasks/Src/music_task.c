@@ -19,7 +19,6 @@ void MusicTask(void* argument)
 	{		
 		/*轮询主动通讯检测*/
 		 Error_check();
-		 
 		
 		 short music_receive,a;
 		 /*错误处理音效*/
@@ -34,12 +33,14 @@ void MusicTask(void* argument)
 				 case 3:
 					 StartupNotice(battlefiled,150,-8);
 				 break;
+				 case 4:
+					play_music_notes(Kyokorigyu,sizeof(Kyokorigyu)/sizeof(MusicNote),BUZZER_TIM);
+				 break;
 				 default:
 					 a=music_receive;//call of stack
 					 StartupNotice(battlefiled,150,-8);
 			 }
 		 }
-		//xPortGetFreeHeapSize();
 		/*计算任务实际运行周期*/
 		task_counter++;
 		current_tick_count = xTaskGetTickCount();
@@ -78,6 +79,12 @@ void Error_check()
 	else
 		circuitMonitror.ifCircuitError.pitchMotorError = 0;
 
+	// 2. 检查云台Yaw电机 (Yaw Motor)
+	if(circuitMonitror.CircuitCounterPtr.yawMotor_frame_counter == _DMyawMotorRec->frame_counter)
+		circuitMonitror.ifCircuitError.yawMotorError = 1;
+	else
+		circuitMonitror.ifCircuitError.yawMotorError = 0;
+
 	// 3. 检查6个摩擦轮电机 (Friction Motors)
 	for (int i = 0; i < 6; i++)
 	{
@@ -94,7 +101,8 @@ void Error_check()
 
 
 	circuitMonitror.CircuitCounterPtr.pitchMotor_frame_counter = _pitchMotorRec->frame_counter;
-	
+	circuitMonitror.CircuitCounterPtr.yawMotor_frame_counter   = _DMyawMotorRec->frame_counter;
+
 	circuitMonitror.CircuitCounterPtr.fricMotor_frame_counter[0] = _fricMotorRec[0].frame_counter;
 	circuitMonitror.CircuitCounterPtr.fricMotor_frame_counter[1] = _fricMotorRec[1].frame_counter;
 	circuitMonitror.CircuitCounterPtr.fricMotor_frame_counter[2] = _fricMotorRec[2].frame_counter;

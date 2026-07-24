@@ -3,13 +3,14 @@
  * @brief   双板 CAN 通信驱动实现（下板端 — 发送）
  * @note    仿照 serialleg 模式：发送端完成模式选择 + 语义打包，上板零解析消费。
  *          按频率分帧：
- *            B2BSendGimbalInput() → 500Hz，云台 pitch 控制（摇杆 + 鼠标）
- *            B2BSendKeysSwitch()  →  50Hz，键位 + 开关
- *            B2BSendBodyState()   → 按需，  机体姿态 + yaw 编码器
+ *            B2BSendGimbalInput() → 100Hz，云台目标（yaw_cmd + pitch_cmd）
+ *            B2BSendKeysSwitch()  → 100Hz，键位 + 开关
+ *            B2BSendBodyState()   → 500Hz，机体姿态
  */
 
 #include "Board2Board.h"
 #include "general_task_include.h"
+#include <math.h>
 
 /* ---- 遥控器归一化指令（只读） ---- */
 extern const NormRemoteCmd* _normRemoteCmd;
@@ -31,6 +32,11 @@ static inline void b2bWriteU16BE(uint8_t* dst, uint16_t val)
     dst[1] = (uint8_t)(val);
 }
 
+static inline void b2bWriteF32(uint8_t* dst, float val)
+{
+    memcpy(dst, &val, sizeof(val));
+}
+
 /* ======================================================================
  * API 实现
  * ====================================================================== */
@@ -41,27 +47,27 @@ void B2BInit(void)
 }
 
 /**
- * @brief   发送云台 pitch 控制输入帧
- * @note    上板只有 pitch 电机，只需 pitch 控制量，yaw 在下板直接处理。
- *          RC 模式用 ch3（摇杆），PC 模式用 mouse_speed_y（鼠标）。
- *          上板收到后直接用语义值，无需判断模式。
+ * @brief   发送云台最终目标（yaw float + pitch float）
  */
-uint8_t B2BSendGimbalInput(void)
+uint8_t B2BSendGimbalInput(float yaw_cmd_d, float pitch_cmd_d)
 {
     uint8_t data[8];
 
-    /* pitch_cmd: RC=ch3摇杆, mouse_speed_y: PC=鼠标Y增量 */
-    int16_t pitch_cmd     = (int16_t)(_normRemoteCmd->RelativeCH.ch3 * 1000.0f);
-    int16_t mouse_speed_y = _normRemoteCmd->PCMouse.mouse_speed_y;
-    int16_t ch0 = (int16_t)(_normRemoteCmd->RelativeCH.ch0 * 1000.0f);
-    int16_t ch1 = (int16_t)(_normRemoteCmd->RelativeCH.ch1 * 1000.0f);
-
-    b2bWriteI16BE(data + 0, pitch_cmd);
-    b2bWriteI16BE(data + 2, mouse_speed_y);
-    b2bWriteI16BE(data + 4, ch0);
-    b2bWriteI16BE(data + 6, ch1);
+    b2bWriteF32(data + 0, yaw_cmd_d);
+    b2bWriteF32(data + 4, pitch_cmd_d);
 
     return fdcanx_send_data(&B2B_CAN, B2B_DOWN_GIMBAL_INPUT, data, 8);
+}
+
+uint8_t B2BSendShootState(void)
+{
+    uint8_t data[8] = {0};
+    extern ext_shoot_data_t ext_shoot_data;
+
+    data[0] = (uint8_t)((pDecisionAO->stir_mode != STIR_LOCK) ? 1U : 0U);
+    b2bWriteF32(data + 1, ext_shoot_data.initial_speed);
+
+    return fdcanx_send_data(&B2B_CAN, B2B_DOWN_SHOOT_STATE, data, 8);
 }
 
 /**
@@ -97,23 +103,41 @@ uint8_t B2BSendKeysSwitch(void)
 }
 
 /**
- * @brief   发送机体姿态 + yaw 编码器帧
+ * @brief   发送机体姿态帧
  */
-uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d, float yaw_cmd_d)
+uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d)
 {
-    uint8_t data[8];
+    uint8_t data[8] = {0};
 
-    int16_t roll    = (int16_t)(roll_d      * 100.0f);
-    int16_t pitch   = (int16_t)(pitch_d     * 100.0f);
-    int16_t yaw     = (int16_t)(yaw_d       * 100.0f);
-    int16_t yaw_cmd = (int16_t)(yaw_cmd_d   * 100.0f);
+    int16_t roll  = (int16_t)(roll_d  * 100.0f);
+    int16_t pitch = (int16_t)(pitch_d * 100.0f);
+    int16_t yaw   = (int16_t)(yaw_d   * 100.0f);
 
     b2bWriteI16BE(data + 0, roll);
     b2bWriteI16BE(data + 2, pitch);
     b2bWriteI16BE(data + 4, yaw);
-    b2bWriteI16BE(data + 6, yaw_cmd);
+    /* data[6..7] 保留置零 */
 
     return fdcanx_send_data(&B2B_CAN, B2B_DOWN_BODY_STATE, data, 8);
+}
+
+/* ======================================================================
+ * B2BSendStir — 拨盘数据帧（500Hz）
+ * ====================================================================== */
+
+uint8_t B2BSendStir(void)
+{
+    uint8_t data[8] = {0};
+    extern DMJ4310MotorRec stirMotorRec;
+
+    int16_t stir_toq = (int16_t)(stirMotorRec.toq       * 100.0f);
+    int16_t stir_vel = (int16_t)(stirMotorRec.vel_radps * 100.0f);
+
+    b2bWriteI16BE(data + 0, stir_toq);
+    b2bWriteI16BE(data + 2, stir_vel);
+    /* data[4..7] 保留置零 */
+
+    return fdcanx_send_data(&B2B_CAN, B2B_DOWN_STIR, data, 8);
 }
 
 /* ======================================================================
@@ -136,19 +160,30 @@ static inline int16_t b2bReadI16BE(const uint8_t* src)
     return (int16_t)((src[0] << 8) | src[1]);
 }
 
+static inline float b2bReadF32(const uint8_t* src)
+{
+    float val;
+    memcpy(&val, src, sizeof(val));
+    return val;
+}
+
 /**
  * @brief   解析 0x200 云台姿态 → gimbal_*_rx
  */
 static void b2bParseGimbalPose(uint8_t* data,
                                 float* yaw_deg,
-                                float* pitch_deg,
-                                float* yaw_dps,
-                                float* pitch_dps)
+                                float* pitch_deg)
 {
-    *yaw_deg   = (float)b2bReadI16BE(data + 0) / 100.0f;
-    *pitch_deg = (float)b2bReadI16BE(data + 2) / 100.0f;
-    *yaw_dps   = (float)b2bReadI16BE(data + 4) / 100.0f;
-    *pitch_dps = (float)b2bReadI16BE(data + 6) / 100.0f;
+    *yaw_deg   = b2bReadF32(data + 0);
+    *pitch_deg = b2bReadF32(data + 4);
+}
+
+static void b2bParseGimbalVelocity(uint8_t* data,
+                                    float* yaw_dps,
+                                    float* pitch_dps)
+{
+    *yaw_dps   = b2bReadF32(data + 0);
+    *pitch_dps = b2bReadF32(data + 4);
 }
 
 /**
@@ -158,8 +193,8 @@ static void b2bParseGimbalTarget(uint8_t* data,
                                   float* target_yaw,
                                   float* target_pitch)
 {
-    *target_yaw   = (float)b2bReadI16BE(data + 0) / 100.0f;
-    *target_pitch = (float)b2bReadI16BE(data + 2) / 100.0f;
+    *target_yaw   = b2bReadF32(data + 0);
+    *target_pitch = b2bReadF32(data + 4);
 }
 
 /* ---- 接收 dispatcher ---- */
@@ -207,21 +242,45 @@ uint8_t B2BCanRxHandler(uint16_t can_id, uint8_t* data)
     switch (can_id)
     {
         case B2B_UP_GIMBAL_POSE:
+        {
+            float yaw_deg;
+            float pitch_deg;
             b2b_pose_rx_count++;
+            b2bParseGimbalPose(data, &yaw_deg, &pitch_deg);
+            if (!isfinite(yaw_deg) || !isfinite(pitch_deg)
+                || fabsf(yaw_deg) > 180.0f || fabsf(pitch_deg) > 180.0f)
+                return 1U;
+            gimbal_yaw_rx_d = yaw_deg;
+            gimbal_pitch_rx_d = pitch_deg;
             g_b2b_pose_alive_ctr = 30U;  /* 60ms超时（≈30帧@500Hz），容忍抖动不误报 */
-            b2bParseGimbalPose(data,
-                               (float*)&gimbal_yaw_rx_d,
-                               (float*)&gimbal_pitch_rx_d,
-                               (float*)&gimbal_yaw_dps_rx,
-                               (float*)&gimbal_pitch_dps_rx);
             gimbal_yaw_rx_valid = 1;
             return 1U;
+        }
+
+        case B2B_UP_GIMBAL_VELOCITY:
+        {
+            float yaw_dps;
+            float pitch_dps;
+            b2bParseGimbalVelocity(data, &yaw_dps, &pitch_dps);
+            if (!isfinite(yaw_dps) || !isfinite(pitch_dps))
+                return 1U;
+            gimbal_yaw_dps_rx = yaw_dps;
+            gimbal_pitch_dps_rx = pitch_dps;
+            return 1U;
+        }
 
         case B2B_UP_GIMBAL_TARGET:
-            b2bParseGimbalTarget(data,
-                                 (float*)&gimbal_yaw_target_rx_d,
-                                 (float*)&gimbal_pitch_target_rx_d);
+        {
+            float target_yaw;
+            float target_pitch;
+            b2bParseGimbalTarget(data, &target_yaw, &target_pitch);
+            if (!isfinite(target_yaw) || !isfinite(target_pitch)
+                || fabsf(target_yaw) > 180.0f || fabsf(target_pitch) > 180.0f)
+                return 1U;
+            gimbal_yaw_target_rx_d = target_yaw;
+            gimbal_pitch_target_rx_d = target_pitch;
             return 1U;
+        }
 
         case B2B_UP_FRIC_RPM_A:
             gimbal_fric_rpm_rx_arr[0] = b2bReadI16BE(data + 0);

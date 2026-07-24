@@ -46,7 +46,9 @@ void DecisionTask(void* argument)
 static void DecisionInit(void)
 {
     extern SmoothFilter MouseFilterX;
+    extern SmoothFilter MouseFilterY;
     SmoothFilterInitialize(&MouseFilterX, 0.7);
+    SmoothFilterInitialize(&MouseFilterY, 0.7);
 
     PIDInitialize(&chassisControl.ChassisFollowControl.follow_speed_need_pid, -0.02, 0, 0.008, 0, 3);
     PIDInitialize(&chassisControl.ChassisFollowControl.follow_speed_need_pid, -0.02, 0, 0.008, 0, 3);

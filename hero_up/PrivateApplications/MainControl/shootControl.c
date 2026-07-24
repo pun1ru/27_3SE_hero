@@ -115,6 +115,9 @@ void ShootInputUpdate(void)
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] =0;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP1] =0;
 	}
+
+	/* 拨盘在hero_down，shoot_flag同步stir_mode状态（debug帧/上位机消费） */
+	shootControl.ShootTargetInput.shoot_flag = (_robotState->stir_mode != STIR_LOCK) ? 1 : 0;
 }
 
 void ShootEstimateUpdate(void)

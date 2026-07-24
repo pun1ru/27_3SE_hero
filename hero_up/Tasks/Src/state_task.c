@@ -5,6 +5,8 @@
 #include "general_task_include.h"
 #include "ws2812.h"
 #include "iwdg.h"
+#include "queue.h"
+extern QueueHandle_t g_musicQueue;
 /*---------------------------------------------------------------------------task monitor-----------------------------------------------------------------------------------*/
 TaskMonitor taskMonitor;
 TaskMonitor* _taskMonitor = &taskMonitor;
@@ -326,7 +328,11 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 	if(norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_UP && norm_remote_cmd->Switch.switch_R1 == NORM_RC_SW_UP)
 	{
 		if(norm_remote_cmd->RelativeCH.ch4 > 0.1f)
+		{
 			state_machine_debug_mode = 0;
+			short music_cmd = 4;
+			xQueueSend(g_musicQueue, &music_cmd, 0);
+		}
 		else if(norm_remote_cmd->RelativeCH.ch4 < -0.1f)
 			state_machine_debug_mode = 1;
 
@@ -366,7 +372,7 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 		case NORM_RC_SW_UP:
 			/*双拨上保护*/
 			if(normRemoteCmdLast.Switch.switch_L1 == NORM_RC_SW_UP){
-				StateInit(robot_state);	
+				StateInit(robot_state);
 				StateInit(&lastRobotState);
 			}
 			

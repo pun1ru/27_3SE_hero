@@ -210,7 +210,8 @@ def parse_midi(filepath):
 # ============================================================
 
 def extract_monophonic(notes, time_tol_ms=8):
-    """从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音"""
+    """从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音
+从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音"""
     if not notes:
         return []
 
@@ -243,45 +244,77 @@ def extract_monophonic(notes, time_tol_ms=8):
     return merged
 
 
+def filter_melody(notes, min_dur_ms=120):
+    """旋律过滤: 短于 min_dur_ms(≈十六分@120BPM)的音合并到前一音,
+       保留真正的主旋律线条."""
+    if not notes:
+        return []
+    result = [notes[0]]
+    for n in notes[1:]:
+        if n.dur_ms < min_dur_ms:
+            prev = result[-1]
+            result[-1] = NoteInfo(prev.pitch, prev.channel,
+                                  prev.start_ms,
+                                  max(prev.dur_ms,
+                                      n.start_ms + n.dur_ms - prev.start_ms))
+        else:
+            result.append(n)
+    return result
+
+
 # ============================================================
 #  输出格式
 # ============================================================
 
 def gap_to_seq(notes):
-    """将 NoteInfo 转为线性播放序列 [(mardio_pitch, dur_ms)]"""
-    MIN_DUR_MS = 10  # 最短音符时长 (避免 0ms)
+    """将 NoteInfo 转为线性播放序列 [(mardio_pitch, dur_ms)]
+
+    蜂鸣器机械起振 ~30-40ms; BPM120 十六分=125ms, 三十二分=62ms.
+    """
+    MIN_DUR_MS  = 60   # 最短音符 (≈三十二分@120BPM)
+    MIN_REST_MS = 40   # 最短休止
 
     seq = []
     for i, n in enumerate(notes):
         pitch_mardio = n.pitch + 2
+        dur_midi = round(n.dur_ms)
 
         if i + 1 < len(notes):
             gap = notes[i + 1].start_ms - n.start_ms
-            dur = max(round(n.dur_ms), MIN_DUR_MS)
 
-            # 间隙 > 本音×1.3 → 音+休止
-            if gap > dur * 1.3 and gap > 30:
-                seq.append((pitch_mardio, dur))
-                rest = round(gap - dur)
-                if rest > 20:
-                    seq.append((100, rest))
+            if gap > dur_midi and gap - dur_midi > MIN_REST_MS:
+                # 有自然间隙: 音 + 休止
+                out_dur = max(dur_midi, MIN_DUR_MS)
+                seq.append((pitch_mardio, out_dur))
+                seq.append((100, round(gap - dur_midi)))
+            elif dur_midi < MIN_DUR_MS:
+                # MIDI时值太短 → 跳过 (装饰音)
+                pass
+            elif gap > dur_midi:
+                # gap略大于音长, 但不够插休止 → 用实际时值, 无休止
+                seq.append((pitch_mardio, max(dur_midi, MIN_DUR_MS)))
             else:
-                seq.append((pitch_mardio, max(round(gap), MIN_DUR_MS)))
+                # 重叠(gap ≤ dur_midi): MIDI和弦音叠加, 用实际时值不截断
+                seq.append((pitch_mardio, max(dur_midi, MIN_DUR_MS)))
         else:
-            seq.append((pitch_mardio, max(round(n.dur_ms), 80)))
+            seq.append((pitch_mardio, max(dur_midi, MIN_DUR_MS)))
 
     return seq
 
 
 def format_struct_array(seq, varname, bpm, tick_per_qn):
-    """生成 MusicNote 结构体数组文本"""
+    """生成 MusicNote 结构体数组文本 (横向紧凑排列)"""
     lines = [
         f"// BPM: {bpm:.1f}  每四分音符={tick_per_qn} ticks",
         f"// 共 {len(seq)} 个音符/休止",
         f"static const MusicNote {varname}[] = {{",
     ]
-    for note, dur in seq:
-        lines.append(f"    {{ {note:3d}, {dur:4d} }},")
+    # 每行放 ENTRYS_PER_LINE 个
+    ENTRYS_PER_LINE = 8
+    for i in range(0, len(seq), ENTRYS_PER_LINE):
+        chunk = seq[i:i + ENTRYS_PER_LINE]
+        row = "    " + ", ".join(f"{{{note:3d},{dur:4d}}}" for note, dur in chunk) + ","
+        lines.append(row)
     lines.append("};")
     return "\n".join(lines)
 
@@ -369,6 +402,7 @@ def process_midi_file(filepath, target_ch=DEFAULT_CHANNEL,
     if not notes:
         return None
 
+    notes = filter_melody(notes)
     seq = gap_to_seq(notes)
     varname = filename_to_varname(filepath)
     code = format_struct_array(seq, varname,
@@ -457,6 +491,7 @@ def single_mode(filepath, fmt, target_ch, mono, min_p, max_p):
         sys.exit(0)
 
     varname = filename_to_varname(filepath)
+    notes = filter_melody(notes)
     seq = gap_to_seq(notes)
 
     print(f"\n{'='*70}")

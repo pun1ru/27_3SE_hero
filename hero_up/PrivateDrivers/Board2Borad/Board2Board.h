@@ -19,15 +19,18 @@
 #define B2B_CAN                hfdcan3  /**< 双板通信用 CAN 总线（CAN3 独立通道，不抢电机帧优先级） */
 
 /* ── 下板→上板（收） ─────────────────────── */
-#define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态 + yaw_cmd（下板DecisionTask yaw目标角） */
-#define B2B_DOWN_GIMBAL_INPUT  0x221U
+#define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态                          */
+#define B2B_DOWN_GIMBAL_INPUT  0x221U  /**< 云台目标(yaw_cmd+pitch_cmd) 100Hz */
 #define B2B_DOWN_KEYS_SWITCH   0x222U
+#define B2B_DOWN_STIR          0x223U  /**< 拨盘力矩+速度               500Hz */
+#define B2B_DOWN_SHOOT_STATE   0x224U  /**< 射击标志+弹速               100Hz */
 
 /* ── 上板→下板（发） ─────────────────────── */
-#define B2B_UP_GIMBAL_POSE     0x228U  /**< 云台姿态           500Hz(2ms,IMUTask) */
-#define B2B_UP_GIMBAL_TARGET   0x229U  /**< 云台目标           100Hz(10ms)        */
+#define B2B_UP_GIMBAL_POSE     0x228U  /**< yaw/pitch姿态      500Hz(2ms)         */
+#define B2B_UP_GIMBAL_TARGET   0x229U  /**< 候选yaw/pitch目标  100Hz(10ms)        */
 #define B2B_UP_FRIC_RPM_A      0x22AU  /**< 摩擦轮 0..3        （暂不发送）        */
 #define B2B_UP_FRIC_RPM_B      0x22BU  /**< 摩擦轮 4..5        （暂不发送）        */
+#define B2B_UP_GIMBAL_VELOCITY 0x22CU  /**< 云台角速度         500Hz(2ms)          */
 
 /* ============================= API =================================== */
 
@@ -41,7 +44,7 @@ void B2B_DownAliveCheck(void);                  /* ControlTask每周期调用，
 /* ---- 上板→下板 发送 ---- */
 
 uint8_t B2BSendGimbalPose(float yaw_d, float pitch_d, float yaw_dps, float pitch_dps);
-uint8_t B2BSendGimbalTarget(float target_pitch);
+uint8_t B2BSendGimbalTarget(float target_yaw, float target_pitch);
 uint8_t B2BSendFricRPM(const int16_t rpm[6]);
 
 #endif /* _BOARD2BOARD_H_ */

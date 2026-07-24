@@ -42,9 +42,8 @@ void ControlTask(void* argument)
         /* 控制链监控：记录 Control 开始执行时刻 */
         g_chain_timer.cyc_ctrl_entry = DWT->CYCCNT;
 
-        /* 世界系 IK 反解 + 应用到目标（需要最新的估计结果） */
+        /* 世界系 IK 只计算候选目标；最终目标经 0x229 交给下板决策后由 0x221 返回。 */
         WorldGimbalIKSolve(&worldGimbal);
-        WorldGimbalApplyToTargets(&worldGimbal);
 
         /* 闭环控制 */
         GimbalControlUpdate();

@@ -9,6 +9,7 @@
  */
 
 #include "music_mardio.h"
+#include "tim.h"
 
 /*--- 休止符判定阈值 ---*/
 #define REST_NOTE_MIN  100   /* note >= 100 视为休止 */
@@ -47,7 +48,7 @@ int from_notes_to_pr(float note)
 
     /* 十二平均律: 261 * 2^((note-62)/12) */
     hz = 261 * pow(2, (note - 62) / 12.0);
-    pr = (int)168000000 / hz / 126000;
+    pr = (int)(240000.0f / hz)  /* TIM12=240MHz, ARR=999 */;
 
     if(note > 150)
         pr = -1;   /* 休止标记 */
@@ -98,6 +99,7 @@ void all_paly_music(float *notes, int size, int wait_time, TIM_HandleTypeDef hti
  */
 void play_music_notes(const MusicNote* score, int len, TIM_HandleTypeDef htim)
 {
+    music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
     for(int i = 0; i < len; i++)
     {
         float   note   = score[i].note;
@@ -127,6 +129,7 @@ void play_music_notes(const MusicNote* score, int len, TIM_HandleTypeDef htim)
         /* 等待指定时长 (ms → FreeRTOS ticks) */
         vTaskDelay(pdMS_TO_TICKS(dur_ms));
     }
+    __HAL_TIM_SetCompare(&htim, BUZZER_TIM_CHANNEL, 0);
 }
 
 /*===========================================================================

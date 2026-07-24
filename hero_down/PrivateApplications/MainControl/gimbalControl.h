@@ -15,6 +15,7 @@ typedef struct
 	{
 		float yaw_angle_d;		//期望的yaw目标角（DecisionTask设置，B2B 0x220发送）
 		float yaw_angular_velocity_dps; //yaw期望角速度
+		float pitch_angle_d;	//期望的pitch目标角（DecisionTask设置，B2B 0x221发送）
 	}GimbalTargetInput;
 	/*云台控制相关（yaw控制已搬迁至上板）*/
 	struct

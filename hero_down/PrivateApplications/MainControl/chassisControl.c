@@ -8,6 +8,7 @@ const ChassisControl* _chassisControl = &chassisControl;
 /* 模块级变量 */
 int temp_yaw = 0, last_temp_yaw = 0;
 SmoothFilter MouseFilterX = {0};
+SmoothFilter MouseFilterY = {0};
 AverageFilter PowerFilter = {0};
 
 /* general_task_include.h 里没有的外部引用 — 需要单独 extern */

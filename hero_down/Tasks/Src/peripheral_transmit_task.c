@@ -174,13 +174,17 @@ void MotorControlCANSend(void)
     }  /* else: 正常运行态结束 */
     /* ---- 双板通信 CAN：替代 RS485 转发 ---- */
     {
-        B2BSendGimbalInput();   /* 0x221 500Hz 云台pitch控制（摇杆+鼠标） */
         B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
                          g_joint_body_state_body_dbg.pitch_d,
-                         g_joint_body_state_body_dbg.yaw_d,
-                         gimbalControl.GimbalTargetInput.yaw_angle_d);  /* 0x220 500Hz 机体姿态+yaw_cmd */
+                         g_joint_body_state_body_dbg.yaw_d);  /* 0x220 500Hz 机体姿态 */
+        B2BSendStir();                                    /* 0x223 500Hz 拨盘数据 */
         if (slot % 5 == 0)
+        {
+            B2BSendGimbalInput(gimbalControl.GimbalTargetInput.yaw_angle_d,
+                               gimbalControl.GimbalTargetInput.pitch_angle_d); /* 0x221 100Hz yaw_cmd+pitch_cmd */
             B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
+            B2BSendShootState();                           /* 0x224 100Hz shoot_flag+弹速 */
+        }
     }
 }
 /* ==================================================================

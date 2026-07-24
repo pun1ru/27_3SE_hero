@@ -27,7 +27,12 @@ uint8_t uart6RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uart10RecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 uint8_t uartServentRecBuffer[MAX_RECEIVE_BUFFER_LENGTH];
 int64_t circle_angle;
-volatile float g_b2b_yaw_cmd_d = 0.0f;       /* B2B 0x220 yaw_cmd（下板DecisionTask yaw目标角） */
+volatile float g_b2b_yaw_cmd_d = 0.0f;       /* B2B 0x221 yaw_cmd（下板GimbalInputUpdate yaw目标角） */
+volatile float g_b2b_pitch_cmd_d = 0.0f;     /* B2B 0x221 pitch_cmd（下板GimbalInputUpdate pitch目标角） */
+volatile float g_b2b_stir_toq = 0.0f;       /* B2B 0x223 stir_toq 拨盘力矩 (Nm) */
+volatile float g_b2b_stir_vel = 0.0f;       /* B2B 0x223 stir_vel 拨盘速度 (rad/s) */
+volatile uint8_t g_b2b_shoot_flag = 0;      /* B2B 0x221 shoot_flag 射击标志 */
+volatile float g_b2b_bullet_speed = 0.0f;   /* B2B 0x221 弹速 (m/s) */
 volatile uint8_t g_b2b_yaw_cmd_valid = 0;
 volatile float g_b2b_body_pitch_d = 0.0f;   /* 下板传输的机体pitch角 */
 volatile float g_b2b_body_roll_d  = 0.0f;   /* 下板传输的机体roll角  */
@@ -584,10 +589,13 @@ void UpperPCCommTask(void* argument)
 
 			/* B2B CAN: GimbalTarget pitch 100Hz -> hero_down (yaw 由上板直接控制) */
 			{
+				float ty = _upperComputerComm->Receive.target_yaw_angle_d;
 				float tp = _upperComputerComm->Receive.target_pitch_angle_d;
-				if (worldGimbal.enable)
+				if (worldGimbal.enable) {
+					ty = worldGimbal.WorldGimbalControl.q_yaw_cmd_deg;
 					tp = worldGimbal.WorldGimbalControl.q_pitch_cmd_deg;
-				B2BSendGimbalTarget(tp);
+				}
+				B2BSendGimbalTarget(ty, tp);
 			}
 		//memset(upperComputerComm.Send.reserved, 0, 3);  // 发送后清零，由state_task下一周期置位
 		/*计算任务实际运行周期*/
@@ -850,23 +858,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 			//无遥控器数据
 
 		}
-		/* 固定偏移解析（与发送端double_mcu_frame布局一致）：
-		   [22..25] yaw_enc, [26..27] HP, [28..31] pitch, [32..35] roll, [36..39] yaw */
-		if(Size >= 40U){
-			memcpy((void*)&g_b2b_yaw_cmd_d, &uartServentRecBuffer[22], sizeof(float));
-			g_b2b_yaw_cmd_valid = 1;
-			/* 裁判系统血量 */
-			uint16_t hp;
-			memcpy((void*)&hp, &uartServentRecBuffer[26], sizeof(uint16_t));
-			g_b2b_current_hp = hp;
-			if(hp == 0){
-				g_b2b_hp_zero_flag = 1;
-			}
-			/* 机体姿态角 */
-			memcpy((void*)&g_b2b_body_pitch_d, &uartServentRecBuffer[28], sizeof(float));
-			memcpy((void*)&g_b2b_body_roll_d,  &uartServentRecBuffer[32], sizeof(float));
-			memcpy((void*)&g_b2b_body_yaw_d,   &uartServentRecBuffer[36], sizeof(float));
-		}
+		/* 云台目标、机体姿态和 HP 只由 B2B CAN 解析，禁止旧 RS485 字段覆盖。 */
 	  HAL_UARTEx_ReceiveToIdle_DMA(&SERVANT_485_UART, uartServentRecBuffer, MAX_RECEIVE_BUFFER_LENGTH);
 	  __HAL_DMA_DISABLE_IT(SERVANT_485_UART.hdmarx, DMA_IT_HT);
 	}

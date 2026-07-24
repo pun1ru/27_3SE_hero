@@ -8,7 +8,6 @@
 #include "general_task_include.h"
 #include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
-
 /*---------------------------------------------------------------------------全局实例-------------------------------------------------------------------------------------------*/
 GimbalControl gimbalControl = {0};
 const GimbalControl* _gimbalControl = &gimbalControl;
@@ -20,9 +19,10 @@ uint8_t shit_delay_count = 0;             /* 状态切换延时计数器 */
 /* GimbalInputUpdate 专用静态变量 */
 static float micro_yaw = 0;
 static int   temp_yaw_count = 0;
+static float micro_pitch = 0;
+static int   temp_pitch_count = 0;
+static int   last_temp_pitch = 0;
 static int   last_temp_yaww = 0;
-
-
 
 /*---------------------------------------------------------------------------外部引用-----------------------------------------------------------------------------------------*/
 /* RS485 接收数据 */
@@ -42,6 +42,7 @@ extern ShootControl shootControl;
 
 /* 鼠标滤波 */
 extern SmoothFilter MouseFilterX;
+extern SmoothFilter MouseFilterY;
 
 /*---------------------------------------------------------------------------初始化-------------------------------------------------------------------------------------------*/
 
@@ -56,7 +57,7 @@ void GimbalInit(void)
 /*---------------------------------------------------------------------------输入决策更新-------------------------------------------------------------------------------------*/
 
 /**
- * @brief 云台yaw输入决策更新（pitch由上板独立控制）
+ * @brief 在下板统一计算 yaw/pitch 最终目标
  */
 void GimbalInputUpdate(void)
 {
@@ -64,10 +65,18 @@ void GimbalInputUpdate(void)
 	{
 		case CONTROL_STOP:
 			gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
-		break;
+			gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
+			break;
 
 		case CONTROL_FROM_REMOTE:
+			if (!gimbal_yaw_rx_valid)
+			{
+				gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+				gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
+				break;
+			}
 			if((pDecisionAO->sniper==SNIPER_ON)){
+				/* 保持 47c7530 的 yaw 目标更新语义：世界系取上位机目标，否则累积 CH2。 */
 				if(pDecisionAO->world_enable == WORLD_ENABLE_ON)
 				{
 					gimbalControl.GimbalTargetInput.yaw_angle_d = gimbal_yaw_target_rx_d;
@@ -76,9 +85,13 @@ void GimbalInputUpdate(void)
 				{
 					gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 0.1 - _normRemoteCmd->RelativeCH.ch2 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
 				}
+				float dpitch = 0.03f * (_normRemoteCmd->RelativeCH.ch3 * 2.0f - _normRemoteCmd->RelativeCH.ch3 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
+				gimbalControl.GimbalTargetInput.pitch_angle_d += dpitch;
 			}
 			if(pDecisionAO->sniper==SNIPER_OFF){
 				gimbalControl.GimbalTargetInput.yaw_angle_d += (_normRemoteCmd->RelativeCH.ch2 * 1.0 - _normRemoteCmd->RelativeCH.ch2 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
+				/* sniper OFF: ch3摇杆增量pitch */
+				gimbalControl.GimbalTargetInput.pitch_angle_d -= (-0.5f) * (_normRemoteCmd->RelativeCH.ch3 * 2.0f - _normRemoteCmd->RelativeCH.ch3 * (pDecisionAO->chassis_mode == CHASSIS_SEPARATE));
 			}
 			#ifndef SHOOT_OFF
 			shootControl.ShootEstimate.stir_enableflag_desire = ENABLE;
@@ -103,11 +116,13 @@ void GimbalInputUpdate(void)
 				last_aim_mode_state = 0;
 				float temp_yaw = 0;
 				float smooth = 0.02f;
+				float temp_pitch = 0;
 				if(pDecisionAO->sniper==SNIPER_ON){
 					smooth = 0.015f;
 
 					/* AD键yaw微调 */
 					int temp_yaw_an = (_normRemoteCmd->PCKeyBoard.level_key_D - _normRemoteCmd->PCKeyBoard.level_key_A);
+					int temp_pitch_an;  /* WS键pitch微调（声明提前，C89兼容） */
 					if (temp_yaw_an != 0){
 						last_temp_yaww = temp_yaw_an;
 						temp_yaw_count++;
@@ -124,13 +139,33 @@ void GimbalInputUpdate(void)
 						last_temp_yaww = 0;
 						temp_yaw_count = 0;
 					}
+					/* WS键pitch微调 */
+					temp_pitch_an = (_normRemoteCmd->PCKeyBoard.level_key_W - _normRemoteCmd->PCKeyBoard.level_key_S);
+					if (temp_pitch_an != 0){
+						last_temp_pitch = temp_pitch_an;
+						temp_pitch_count++;
+						if(temp_pitch_count > 10){
+							temp_pitch = (_normRemoteCmd->PCKeyBoard.level_key_W - _normRemoteCmd->PCKeyBoard.level_key_S) * 0.01f;
+							micro_pitch += (_normRemoteCmd->PCKeyBoard.level_key_W - _normRemoteCmd->PCKeyBoard.level_key_S) * 0.01f;
+						}
+					}
+					if (temp_pitch_an == 0 && last_temp_pitch != 0){
+						if(temp_pitch_count <= 10){
+							micro_pitch += last_temp_pitch * 0.1f;
+							temp_pitch += last_temp_pitch * 0.1f;
+						}
+						last_temp_pitch = 0;
+						temp_pitch_count = 0;
+					}
 				}
 
 				if(pDecisionAO->sniper == SNIPER_OFF){
 					if(!(pDecisionAO->sniper == SNIPER_ON && pDecisionAO->mouse_fix == MOUSE_FIX_ON)){
 						temp_yaw += SmoothFilterUpdate(&MouseFilterX, _normRemoteCmd->PCMouse.mouse_speed_x) * smooth;
+					temp_pitch += SmoothFilterUpdate(&MouseFilterY, _normRemoteCmd->PCMouse.mouse_speed_y) * smooth;
 					}
 					micro_yaw = 0;
+					micro_pitch = 0;
 				}
 
 				if(pDecisionAO->sniper != SNIPER_ON)
@@ -138,14 +173,15 @@ void GimbalInputUpdate(void)
 					if (!gimbal_yaw_rx_valid && pDecisionAO->sniper == SNIPER_OFF)
 					{
 						gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+						gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
 					}
 					else
 					{
 						gimbalControl.GimbalTargetInput.yaw_angle_d += temp_yaw + micro_yaw;
+						gimbalControl.GimbalTargetInput.pitch_angle_d += temp_pitch + micro_pitch;
 					}
 				}
 			}
-
 
 			#ifndef GIMBAL_OFF
 				shootControl.ShootEstimate.stir_enableflag_desire = ENABLE;
@@ -156,10 +192,9 @@ void GimbalInputUpdate(void)
 		break;
 	}
 
-	/* yaw角限幅 */
+	/* yaw/pitch角限幅 */
 	gimbalControl.GimbalTargetInput.yaw_angle_d = AngleLimit(gimbalControl.GimbalTargetInput.yaw_angle_d, -180, 180);
 }
-
 
 /*---------------------------------------------------------------------------观测更新-----------------------------------------------------------------------------------------*/
 
@@ -193,6 +228,18 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 
 	if (shit_delay_count < 200)
 		shit_delay_count++;
+
+	/* 下板是目标唯一生产者；观测坐标切换时必须在下板对齐目标。 */
+	{
+		static uint8_t prev_sniper = SNIPER_OFF;
+		if (prev_sniper != pDecisionAO->sniper)
+		{
+			shit_delay_count = 0;
+			gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+			gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
+			prev_sniper = pDecisionAO->sniper;
+		}
+	}
 }
 
 /*---------------------------------------------------------------------------闭环控制-----------------------------------------------------------------------------------------*/
@@ -203,6 +250,20 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 void GimbalControlUpdate(void)
 {
 	/* yaw控制已搬迁至上板 */
-	if(CONTROL_STOP == pDecisionAO->ctrl_terminal || shit_delay_count < 30)
+	static uint8_t last_ctrl_terminal = CONTROL_STOP;
+
+	/* 恢复 47c7530 的退保护边沿：重新启动对齐窗口，禁止旧目标直接下发。 */
+	if(last_ctrl_terminal == CONTROL_STOP && pDecisionAO->ctrl_terminal != CONTROL_STOP)
+	{
 		gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+		gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
+		shit_delay_count = 0;
+	}
+	last_ctrl_terminal = pDecisionAO->ctrl_terminal;
+
+	if(CONTROL_STOP == pDecisionAO->ctrl_terminal || shit_delay_count < 30)
+		{
+			gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+			gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
+		}
 }

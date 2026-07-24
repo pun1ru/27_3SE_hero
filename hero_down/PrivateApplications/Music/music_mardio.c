@@ -45,7 +45,7 @@ int from_notes_to_pr(float note)
     float hz;
 
     hz=261 * pow(2, (note -62) / 12.0);//利用十二平均律公式求出频率
-    pr=(int) 168000000/hz/126000;//求出预分频器值
+    pr=(int)(240000.0f / hz); /* TIM12=240MHz, ARR=999 */
 	
 		if(note>150)
 			pr=-1;//特殊标记

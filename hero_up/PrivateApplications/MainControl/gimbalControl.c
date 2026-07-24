@@ -17,6 +17,7 @@
 #include "peripheral_receive_task.h"
 #include "peripheral_transmit_task.h"
 #include "worldGimbal.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
 /* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
 #define YAW_DUAL_PID
@@ -40,25 +41,13 @@ extern uint8_t angle_error_flag;
 extern uint8_t distance_error_flag;
 extern Pose gimbalPose;
 extern int64_t circle_angle;
-extern UpperComputerComm upperComputerComm;
-extern const UpperComputerComm* _upperComputerComm;
-extern RobotState robotState;
 extern const RobotState* _robotState;
-extern const NormRemoteCmd* _normRemoteCmd;
 extern WorldGimbal worldGimbal;
 
-/* B2B yaw目标（下板累积CH2后通过0x220下发） */
+/* 下板计算完成的云台绝对目标，通过 B2B 0x221 下发。 */
 extern volatile float g_b2b_yaw_cmd_d;
+extern volatile float g_b2b_pitch_cmd_d;
 extern volatile uint8_t g_b2b_yaw_cmd_valid;
-
-/* 世界系辅助函数（定义在 robot_control_task.c） */
-extern void WG_WorldAnglesToFdesB(float world_yaw_deg, float world_pitch_deg,
-                                   const float* g_B, float* f_des_B_out);
-
-/* === 模块级变量 === */
-/* GimbalInputUpdate 相关 */
-float micro_pitch = 0;
-int temp_pitch_count = 0, last_temp_pitch = 0;
 
 /* GimbalPoseUpdate 相关 */
 uint8_t shit_delay_count = 0;
@@ -71,9 +60,7 @@ float angle_control;
 /* ---- yaw 控制 (从下板搬迁) ---- */
 static SmoothFilter yawEncFilter = {0};
 static ScalarKalmanFilter yawEncKalmanFilter = {0};
-static uint8_t c_key_aim_yaw_lock = 0;
 float yaw_dm_forward_offset_rad = -2.54f;  /* DM yaw编码器"云台正前方"机械角(rad) */
-uint8_t yaw_shit_delay_count = 0;
 
 /* ==================== 函数实现 ==================== */
 
@@ -81,9 +68,7 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
 {
     const float pitch_upside_limit_offset = 43;
     const float pitch_downside_limit_offset = -7;
-    static uint16_t count = 0;
-    float smooth=0.02,smoothtry=0.015;
-    float micro_change=1;
+
     switch(_robotState->ctrl_terminal)
     {
         case CONTROL_STOP:
@@ -92,99 +77,19 @@ void GimbalInputUpdate(void)//task1,更新机械限位角度
             gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = 0;
         break;
         case CONTROL_FROM_REMOTE:
-            /* yaw目标由下板B2B 0x220 yaw_cmd提供（下板已累积CH2），上板无遥控器接收机 */
-            if((_robotState->sniper==SNIPER_ON)){
-                if(_normRemoteCmd->RelativeCH.ch0>0.1)//算法测试用
-                {
-                gimbalControl.GimbalTargetInput.yaw_angle_d=upperComputerComm.Receive.target_yaw_angle_d;
-                gimbalControl.GimbalTargetInput.pitch_angle_d=upperComputerComm.Receive.target_pitch_angle_d;
-                }
-                else
-                {
-                /* CH3→dpitch, yaw直接取B2B下发的累积目标 */
-                float dpitch = 0.03f * (_normRemoteCmd->RelativeCH.ch3 * 2.0f - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
-                if (worldGimbal.enable) {
-                    WorldGimbalInputUpdate(&worldGimbal, 0, dpitch);
-                } else {
-                    if(g_b2b_yaw_cmd_valid)
-                        gimbalControl.GimbalTargetInput.yaw_angle_d = g_b2b_yaw_cmd_d;
-                    gimbalControl.GimbalTargetInput.pitch_angle_d += dpitch;
-                }
-                }
-            }
-            if(_robotState->sniper==SNIPER_OFF){
-                if(g_b2b_yaw_cmd_valid)
-                    gimbalControl.GimbalTargetInput.yaw_angle_d = g_b2b_yaw_cmd_d;
-                gimbalControl.GimbalTargetInput.pitch_angle_d -= (-0.5)*(_normRemoteCmd->RelativeCH.ch3 * 2 - _normRemoteCmd->RelativeCH.ch3 * (_robotState->chassis_mode == CHASSIS_SEPARATE));
-            }
-        break;
         case CONTROL_FROM_PC:
-
-              if(_robotState->aim_mode && _robotState->sniper == SNIPER_ON)//C键单次追逐上位机目标角度
+            /* 下板是唯一目标生产者，上板只消费 0x221 的最终 yaw/pitch。 */
+            if(g_b2b_yaw_cmd_valid && g_b2b_down_valid)
             {
-                if (worldGimbal.enable) {
-                    /* 世界系模式：上位机发送世界系yaw/pitch → 转换为机体向量f_des_B → IK反解电机角 */
-                    WG_WorldAnglesToFdesB(
-                        _upperComputerComm->Receive.target_yaw_angle_d,
-                        _upperComputerComm->Receive.target_pitch_angle_d,
-                        worldGimbal.WorldGimbalEstimate.g_B,
-                        worldGimbal.WorldGimbalTargetInput.f_des_B);
-                    worldGimbal.WorldGimbalTargetInput.init_done = 1;
-                    worldGimbal.WorldGimbalTargetInput.last_right_valid = 0;
-                } else {
-                    gimbalControl.GimbalTargetInput.pitch_angle_d = _upperComputerComm->Receive.target_pitch_angle_d;
-                    gimbalControl.GimbalTargetInput.yaw_angle_d = _upperComputerComm->Receive.target_yaw_angle_d;
-                }
-                robotState.aim_mode = 0;  // 单次触发后立即清零，不进入持续追逐
+                gimbalControl.GimbalTargetInput.yaw_angle_d = g_b2b_yaw_cmd_d;
+                gimbalControl.GimbalTargetInput.pitch_angle_d = g_b2b_pitch_cmd_d;
             }
             else
             {
-                float temp_pitch = 0;
-                float temp_yaw = 0;
-                if(_robotState->sniper==SNIPER_OFF){
-                    smooth=smooth;
-                }
-                if((_robotState->sniper==SNIPER_ON)){
-                    int temp_pitch_an = (_normRemoteCmd->PCKeyBoard.level_key_W-_normRemoteCmd->PCKeyBoard.level_key_S);
-                        /*正在WASD的时候*/
-                        if (temp_pitch_an !=0){
-                            last_temp_pitch=temp_pitch_an;
-                            temp_pitch_count++;
-                            if(temp_pitch_count>10){
-                                temp_pitch=(_normRemoteCmd->PCKeyBoard.level_key_W-_normRemoteCmd->PCKeyBoard.level_key_S)*0.01;
-                                micro_pitch+=(_normRemoteCmd->PCKeyBoard.level_key_W-_normRemoteCmd->PCKeyBoard.level_key_S)*0.01;
-                            }
-                        }
-                    /*狙击WASD结束的时候*/
-                    if (temp_pitch_an ==0 && last_temp_pitch!=0){
-                        if(temp_pitch_count<=10){//短按动一格子
-                            micro_pitch+=last_temp_pitch*0.1;
-                            temp_pitch +=last_temp_pitch*0.1;
-                    }
-                            last_temp_pitch=0;
-                            temp_pitch_count=0;
-                    }
-
-                    smooth=smoothtry;
-                }
-                /* mouse_fix ON + sniper ON 时禁用鼠标角度输入，仅保留WASD */
-                if(!(_robotState->sniper == SNIPER_ON && _robotState->mouse_fix == MOUSE_FIX_ON)){
-                    temp_pitch += SmoothFilterUpdate(&MouseFilterY,_normRemoteCmd->PCMouse.mouse_speed_y)*smooth;
-                    temp_yaw += SmoothFilterUpdate(&MouseFilterX,_normRemoteCmd->PCMouse.mouse_speed_x)*smooth;
-                }
-                micro_pitch=0;
-                //最终整定
-                /* ---- 世界系模式：指令累积到虚拟目标 f_des_B，不直接改电机角 ---- */
-                /* 仅 sniper_on 时允许世界系控制，常规模式强制走普通云台控制 */
-                if (worldGimbal.enable && _robotState->sniper == SNIPER_ON) {
-                    WorldGimbalInputUpdate(&worldGimbal, temp_yaw, temp_pitch);
-                } else {
-                    gimbalControl.GimbalTargetInput.pitch_angle_d += temp_pitch;
-                if(_robotState->follow!=FOLLOW_ON)
-                    gimbalControl.GimbalTargetInput.yaw_angle_d += temp_yaw;
-                }
+                gimbalControl.GimbalTargetInput.yaw_angle_d = gimbalControl.GimbalEstimate.yaw_angle_d;
+                gimbalControl.GimbalTargetInput.pitch_angle_d = gimbalControl.GimbalEstimate.pitch_angle_d;
             }
-
+        break;
     }
 
     /*角度限幅*/
@@ -305,7 +210,7 @@ void GimbalInit(void)
 
 #ifdef YAW_DUAL_PID
     LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.002, -180, 180);
-    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.15, 0,    4000, 800);
+    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.05, 0,    4000, 800);
     PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0, 0.01, 0, 10);
 #endif
 }

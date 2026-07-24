@@ -11,6 +11,7 @@
 #include "LK_485_driver.h"
 #include "peripheral_receive_task.h"
 #include "peripheral_transmit_task.h"
+
 int count=0;
 extern GimbalControl gimbalControl;
 extern const GimbalControl* _gimbalControl;
@@ -51,32 +52,16 @@ void MotorControlCANSend(void)
 		/* B2B CAN: 云台姿态 0x228 */
 		{
 			b2b_pose_tx_cnt++;
-			extern Pose gimbalPose;
-			extern WorldGimbal worldGimbal;
-			extern DMJ4310MotorRec DMyawMotorRec;
-			extern float yaw_dm_forward_offset_rad;
-
-			/* yaw: 世界系优先, 否则始终发 DM 编码器（下板底盘跟随需要编码器值） */
-			float yaw_f;
-			if (worldGimbal.enable && _robotState->sniper == SNIPER_ON)
-				yaw_f = worldGimbal.WorldGimbalEstimate.world_yaw_deg;
-			else
-				yaw_f = AngleLimit((DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578f, -180.0f, 180.0f);
-
-			/* pitch 来源: 世界系 > 编码器/IMU */
-			float pitch_f;
-			if (worldGimbal.enable && _robotState->sniper == SNIPER_ON)
-				pitch_f = worldGimbal.WorldGimbalEstimate.world_pitch_deg;
-			else
-				pitch_f = gimbalControl.GimbalEstimate.pitch_angle_d;
-
+			/* 0x228 必须与上板控制反馈同一坐标系；保护态 yaw 即上板 IMU yaw。 */
+			float yaw_f = gimbalControl.GimbalEstimate.yaw_angle_d;
+			float pitch_f = gimbalControl.GimbalEstimate.pitch_angle_d;
 			float yaw_dps   = gimbalControl.GimbalEstimate.yaw_angular_velocity_dps;
 			float pitch_dps = gimbalControl.GimbalEstimate.pitch_angular_velocity_dps;
 
 			B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
 		}
 
-	/* B2B 下行保护：下板信号丢失 → 停摩擦轮 + pitch零力矩 */
+	/* B2B 下行保护：下板信号丢失 → 停摩擦轮 + pitch零力矩（yaw本地控制不受影响） */
 	B2B_DownAliveCheck();
 	if (!g_b2b_down_valid) {
 		CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
@@ -85,6 +70,31 @@ void MotorControlCANSend(void)
 		LK_iqControl(sadata, 0);
 		CANTransmit_U8(&hfdcan1, 0x141, sadata);
 		return;
+}
+	/* ---- yaw DM 电机 MIT 控制 (CAN3 CMD=0x07, RSP=0x017) ---- */
+	/* 维护：定期使能+清错，防止电机掉线（参照 hero_down T4 维护周期） */
+	{
+		extern DMJ4310MotorRec DMyawMotorRec;
+		static uint8_t yaw_maint_seq = 0;
+		yaw_maint_seq++;
+		if (yaw_maint_seq % 200 == 1)
+			start_motor(&hfdcan3, 0x07);
+		else if (yaw_maint_seq % 200 == 101)
+			clear_error(&hfdcan3, 0x07);
+
+#ifdef ZERO_YAW
+		DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
+#else
+		if(CONTROL_STOP == _robotState->ctrl_terminal)
+		{
+			DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
+		}
+		else
+		{
+			DM_MITControl_Send(&hfdcan3, 0x07, 0.0f, 0.0f, 0.0f, 0.0f,
+				AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 5.0f));
+		}
+#endif
 	}
 
 #ifdef ZERO_FRIC
@@ -129,26 +139,8 @@ void MotorControlCANSend(void)
 	     break;
 		}
 
-		/* ---- yaw DM 电机 MIT 控制 (CAN3 CMD=0x07, RSP=0x017) ---- */
-		{
-			uint8_t yawData[8];
-			extern DMJ4310MotorRec DMyawMotorRec;
-#ifdef ZERO_YAW
-			DM_MITControl(DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f, yawData);
-#else
-			if(CONTROL_STOP == _robotState->ctrl_terminal)
-			{
-				DM_MITControl(DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f, yawData);
-			}
-			else
-			{
-				DM_MITControl(0.0f, 0.0f, 0.0f, 0.0f,
-					AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 10.0f), yawData);
-			}
-#endif
-			CANTransmit_U8(&hfdcan3, 0x07, yawData);
-		}
 }
+
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	    if (huart->Instance == PITCH_UART.Instance) 
     {
@@ -175,12 +167,9 @@ void DebugTask(void* argument)
 	current_tick_count = last_tick_count = xTaskGetTickCount();	
 	while(1)
 	{
-		/*在这个任务里在放点别的东西*/
-		//CanFix();	
-		/*任务主进程*/
 		#ifdef DEBUG_MSG_ENABLE
 			DebugTransmit();
-			//AutoShoot();
+
 		#endif
 		/*任务状态更新*/
 		task_counter++;
@@ -227,8 +216,28 @@ uint8_t debug_data[42];
  extern GimbalControl gimbalControl;
  extern ext_shoot_data_t ext_shoot_data;
  extern DJIGMotorRec chassisMotorRec[CHASSIS_MOTOR_NUM];
+extern volatile float g_b2b_stir_toq;
+extern volatile float g_b2b_stir_vel;
+extern volatile uint8_t g_b2b_shoot_flag;
+extern volatile float g_b2b_bullet_speed;
 int16_t trans[6];
 int cnt;
+/* ---- Debug 工具函数 ---- */
+static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
+{
+    uint8_t crc = 0x00;
+    for (uint16_t i = 0; i < len; i++) {
+        crc ^= data[i];
+        for (uint8_t bit = 0; bit < 8; bit++) {
+            if (crc & 0x80)
+                crc = (crc << 1) ^ 0x07;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+#define DEBUG_FRAME_ORIGINAL
 static void DebugTransmit(void)
 {
 	cnt++;
@@ -274,6 +283,30 @@ static void DebugTransmit(void)
 	memcpy(&debug_data[34], (void*)&yaw_imu_d,   4);
 	memcpy(&debug_data[38], (void*)&yaw_enc_d,   4);
 	HAL_UART_Transmit_DMA(&huart7, debug_data, 42);
+#elif defined(DEBUG_FRAME_ORIGINAL)
+	/* ===== 原始帧格式（hero_down 移植） ===== */
+	static uint16_t debug_seq = 0;
+	/* shoot_flag/弹速来自 B2B 0x224。帧头 2B | 序号 2B | shoot_flag 1B | initial_speed 4B |
+	           fric_rpm[6] 12B | pitch_angle 4B | yaw_angle 4B |
+	           stir_torque 4B | stir_speed 4B | CRC-8 1B = 38B */
+	debug_data[0] = 0xAA;
+	debug_data[1] = 0xBB;
+	memcpy(&debug_data[2], &debug_seq, 2);
+	debug_seq++;
+	debug_data[4] = g_b2b_shoot_flag;
+	memcpy(&debug_data[5], (void*)&g_b2b_bullet_speed, 4);
+	memcpy(&debug_data[9],  (void*)&fricMotorRec[0].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[11], (void*)&fricMotorRec[1].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[13], (void*)&fricMotorRec[2].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[15], (void*)&fricMotorRec[3].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[17], (void*)&fricMotorRec[4].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[19], (void*)&fricMotorRec[5].mechanical_speed_rpm, 2);
+	memcpy(&debug_data[21], (void*)&gimbalControl.GimbalEstimate.pitch_angle_d, 4);
+	memcpy(&debug_data[25], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
+	memcpy(&debug_data[29], (void*)&g_b2b_stir_toq, 4);
+	memcpy(&debug_data[33], (void*)&g_b2b_stir_vel, 4);
+	debug_data[37] = crc8_maxim(debug_data, 37);
+	HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
 #else
 	/* 摩擦轮转速调试帧 (14B): 0xAA 0xBB + 6×int16 RPM */
 	int16_t speed_rpm1=-fricMotorRec[1].mechanical_speed_rpm;

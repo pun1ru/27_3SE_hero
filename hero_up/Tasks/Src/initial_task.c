@@ -74,8 +74,6 @@ void InitTask(void const * argument)
 	WS2812_PWM_Init();  // WS2812 PWM+DMA LED strip init (replaces servo PWM on PA0/TIM2_CH1)
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);//升温
 	
-	StartupNotice();//奏乐！
-	
 	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2,500);//蜂鸣器！我的心跳！
 	
 	xTaskCreate(MonitorTask,        "MonitorTask_",       128,  NULL,  7,  &monitorTaskHandle      );
@@ -105,25 +103,6 @@ void InitTask(void const * argument)
 		   	
 	vTaskDelete(NULL);   
 	taskEXIT_CRITICAL();   
-}
-
-static void StartupNotice()
-{
-	music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
-	int size = 0;
-		
-	#define playThis mygo
-	//float touhou[] = {3, 3, 8, 8, 10, 10, 13, 13, 10, 10, 8, 8, 3, 8, 10, 10, 3, 3, 8, 8, 10, 10, 13, 13, 15, 15, 10, 10, 8, 10, 8, 6};
-	//float zuki[] = {15, 15, 17, 17, 20, 22, 17, 15, 17, 17, 12, 1, 12, 1, 12, 8, 10, 10, 5, 8, 10, 13, 15, 13, 15, 1000, 15, 13, 12, 20, 17, 17};
-	//bleach 死神 number one
-	size = sizeof(playThis) / sizeof(float);
-	for (int i = 0; i < size; i++)
-	{
-		play_music(from_notes_to_pr(playThis[i]-8), 150, BUZZER_TIM);
-		//HAL_IWDG_Refresh(&hiwdg1);
-	}
-//	HAL_Delay(10);
-//	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
 
 
