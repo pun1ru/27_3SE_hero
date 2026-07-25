@@ -136,8 +136,8 @@ typedef struct
 	float limit_min;//处理周期信号下限
 }ADRC;
 void LADRCInitialize(ADRC* adrc, float* td_init_val, float* lesf_init_val, float* eso_init_val, float min, float max);
-void LADRCInitialize(ADRC* adrc, float* td_init_val, float* lesf_init_val, float* eso_init_val, float min, float max);
 void LADRCUpdate(ADRC* adrc, float target, float feedback);
+void YawLADRCUpdate(ADRC* adrc, float target, float feedback);
 void LADRCUpdateV2(ADRC* adrc, float target, float feedback, float actual_velocity, float z3_gain);
 void LTDADRCUpdate(ADRC* adrc,LTD* ltd, float target, float feedback);
 

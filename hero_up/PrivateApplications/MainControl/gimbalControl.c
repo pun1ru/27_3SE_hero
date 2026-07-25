@@ -20,7 +20,7 @@
 #include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
 /* 算法切换: 注释此行切换为 LADRC, 取消注释切换为 LTD+双环PID */
-#define YAW_DUAL_PID
+//#define YAW_DUAL_PID
 
 /* === 全局实例 === */
 GimbalControl gimbalControl = {0};
@@ -119,6 +119,7 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
 
     /* yaw 角度：SNIPER_ON 走 DM 编码器 + 标量卡尔曼滤波 */
     extern DMJ4310MotorRec DMyawMotorRec;
+    static uint8_t yaw_kf_realign = 1U;
     if(_robotState->sniper == SNIPER_ON)
     {
         float yaw_enc_rad = DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad;
@@ -128,11 +129,17 @@ void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, f
         {
             float z = AngleLimit(yaw_enc_rad * 57.29578f, -180.0f, 180.0f);
             float u = isfinite(yaw_vel_dps) ? yaw_vel_dps : 0.0f;
+            if(yaw_kf_realign)
+            {
+                ScalarKalmanFilterReset(&yawEncKalmanFilter, z);
+                yaw_kf_realign = 0U;
+            }
             gimbalControl.GimbalEstimate.yaw_angle_d = ScalarKalmanFilterUpdate(&yawEncKalmanFilter, z, u);
         }
     }
     else
     {
+        yaw_kf_realign = 1U;
         gimbalControl.GimbalEstimate.yaw_angle_d = yaw_angle;
         gimbalControl.GimbalEstimate.yaw_angular_velocity_dps = yaw_angle_w * 57.3f;
     }
@@ -210,7 +217,7 @@ void GimbalInit(void)
 
 #ifdef YAW_DUAL_PID
     LTDInitialize(&gimbalControl.GimbalMotorControl.yaw_LTD, 20, 0.002, -180, 180);
-    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.05, 0,    4000, 800);
+    PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_pos_pid,   8.5, 0.15, 0,    4000, 800);
     PIDInitialize(&gimbalControl.GimbalMotorControl.yaw_speed_pid, 0.09, 0.0, 0.01, 0, 10);
 #endif
 }
@@ -298,7 +305,7 @@ void GimbalControlUpdate(void)
 		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
 #else
 		/* ===== LADRC 角度环控制 ===== */
-		LADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
+		YawLADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
 		            gimbalControl.GimbalTargetInput.yaw_angle_d * (3.141592f / 180.0f),
 		            gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f));
 		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_ADRC.u);

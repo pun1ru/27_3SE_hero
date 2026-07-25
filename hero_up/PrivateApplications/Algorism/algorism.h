@@ -61,6 +61,7 @@ int Sign(float x);
 
 /* 标量卡尔曼滤波器 */
 void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt);
+void ScalarKalmanFilterReset(ScalarKalmanFilter* kf, float angle_deg);
 float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u);
 float ScalarKalmanUpdateAdaptive(ScalarKalmanFilter* kf, float z, float u, float chi_thresh);
 

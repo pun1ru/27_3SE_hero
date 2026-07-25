@@ -22,6 +22,14 @@
 #endif
 #define TARGET_BULLET_SPEED 15.10
 
+typedef enum
+{
+    STIR_FIRE_TWO_STEP = 0,
+    STIR_FIRE_SINGLE_STEP
+} StirFireMode;
+
+#define STIR_FIRE_MODE_CH1_THRESHOLD 0.1f
+
 /**
  * @brief 发射控制相关结构体
  */
@@ -75,6 +83,7 @@ extern uint8_t  stir_stall_recovery_state;
 extern uint8_t  stir_flag;
 extern uint8_t  stir_two_step_phase;
 extern uint16_t stir_delay_counter;
+extern StirFireMode stir_fire_mode;
 
 /* 射击/摩擦轮变量 */
 extern float predict_speed0;

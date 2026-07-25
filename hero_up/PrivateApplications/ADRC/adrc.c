@@ -373,6 +373,44 @@ void LADRCUpdate(ADRC* adrc, float target, float feedback)
 	ESOUpdate(&adrc->eso, feedback, adrc->u);
 }
 
+/*
+ * Yaw observer retained from 47c7530. Pitch uses the upper-board ESOUpdate()
+ * path with explicit z1/z2 bounds, so the two tuned observers stay isolated.
+ */
+static void YawTunedESOUpdate(ESO* eso, float feedback, float control_val)
+{
+	float e = eso->z1 - feedback;
+
+	if (eso->min != eso->max)
+		e = AngleLimit(e, eso->min, eso->max);
+
+	eso->z1 += eso->h * (eso->z2 - eso->beta_01 * e);
+	eso->z2 += eso->h * (eso->z3
+		- eso->beta_02 * Fal(e, 0.5f, 10.0f * eso->h)
+		+ eso->b * control_val);
+	eso->z3 -= eso->h * eso->beta_03 * Fal(e, 0.25f, eso->h);
+	eso->z3 = AbsLimiter(eso->z3, eso->z3_limit);
+
+	if (eso->min != eso->max)
+		eso->z1 = AngleLimit(eso->z1, eso->min, eso->max);
+}
+
+void YawLADRCUpdate(ADRC* adrc, float target, float feedback)
+{
+	TDUpdate(&adrc->td, target);
+	adrc->u_0 = LESFUpdate(
+		&adrc->esf,
+		AngleLimit(adrc->td.x1 - adrc->eso.z1, adrc->limit_min, adrc->limit_max),
+		adrc->td.x2 - adrc->eso.z2);
+
+	if (adrc->eso.b == 0.0f)
+		adrc->u = adrc->u_0;
+	else
+		adrc->u = (adrc->u_0 - adrc->eso.z3) / adrc->eso.b;
+
+	YawTunedESOUpdate(&adrc->eso, feedback, adrc->u);
+}
+
 /// @brief 线性自抗扰计算 V2 — e2 使用实际测量速度代替 ESO.z2
 /// @param adrc 自抗扰控制计算所需结构体
 /// @param target 控制目标期望值 (rad)

@@ -24,7 +24,7 @@ uint8_t uart10_tx_complete=1;
  uint8_t tx[8] = {0};
 
 	/* 调试零值宏: 注释=正常输出, 取消注释=强制该组电机零力矩 */
-	//#define ZERO_YAW
+	#define ZERO_YAW
 	//#define ZERO_PITCH
 	//#define ZERO_FRIC
 /* IMU数据快速发送：IMUTask调用，PoseUpdateFromIMU后立即发出，消除任务调度延迟 */
@@ -61,40 +61,57 @@ void MotorControlCANSend(void)
 			B2BSendGimbalPose(yaw_f, pitch_f, yaw_dps, pitch_dps);
 		}
 
-	/* B2B 下行保护：下板信号丢失 → 停摩擦轮 + pitch零力矩（yaw本地控制不受影响） */
+	/* 更新 B2B 下行状态；掉线保护在 yaw 本地控制之后执行。 */
 	B2B_DownAliveCheck();
-	if (!g_b2b_down_valid) {
-		CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
-		CANTransmit_I16(&hfdcan2, 0x1FF, 0,0,0,0);
-		uint8_t sadata[8] = {0x94};
-		LK_iqControl(sadata, 0);
-		CANTransmit_U8(&hfdcan1, 0x141, sadata);
-		return;
-}
+
 	/* ---- yaw DM 电机 MIT 控制 (CAN3 CMD=0x07, RSP=0x017) ---- */
-	/* 维护：定期使能+清错，防止电机掉线（参照 hero_down T4 维护周期） */
 	{
 		extern DMJ4310MotorRec DMyawMotorRec;
-		static uint8_t yaw_maint_seq = 0;
-		yaw_maint_seq++;
-		if (yaw_maint_seq % 200 == 1)
-			start_motor(&hfdcan3, 0x07);
-		else if (yaw_maint_seq % 200 == 101)
-			clear_error(&hfdcan3, 0x07);
+		static uint16_t yaw_enable_divider = 199U;
+		static uint8_t yaw_protect_maint_slot = 0U;
 
-#ifdef ZERO_YAW
-		DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
-#else
-		if(CONTROL_STOP == _robotState->ctrl_terminal)
+		if (CONTROL_STOP == _robotState->ctrl_terminal)
 		{
-			DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d, 0.0f, 0.0f, 0.0f, 0.0f);
+			/* 保护态保持零力矩，并参照下板维护节拍执行失能和清错。 */
+			DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d,
+				0.0f, 0.0f, 0.0f, 0.0f);
+
+			if (yaw_protect_maint_slot == 0U)
+				lock_motor(&hfdcan3, 0x07);
+			else if (yaw_protect_maint_slot == 8U)
+				clear_error(&hfdcan3, 0x07);
+
+			yaw_protect_maint_slot = (yaw_protect_maint_slot + 1U) % 16U;
+			yaw_enable_divider = 199U;  /* 退出保护后的首周期立即使能。 */
 		}
 		else
 		{
+			yaw_protect_maint_slot = 0U;
+			if (++yaw_enable_divider >= 200U)
+			{
+				yaw_enable_divider = 0U;
+				start_motor(&hfdcan3, 0x07);
+			}
+
+#ifdef ZERO_YAW
+			DM_MITControl_Send(&hfdcan3, 0x07, DMyawMotorRec.pos_d,
+				0.0f, 0.0f, 0.0f, 0.0f);
+#else
 			DM_MITControl_Send(&hfdcan3, 0x07, 0.0f, 0.0f, 0.0f, 0.0f,
 				AbsLimiter(gimbalControl.GimbalMotorControl.yaw_target_output, 5.0f));
-		}
 #endif
+		}
+	}
+
+	/* B2B 下行保护：停摩擦轮和 pitch；yaw 已在上面按本地状态处理。 */
+	if (!g_b2b_down_valid)
+	{
+		uint8_t sadata[8] = {0x94};
+		CANTransmit_I16(&hfdcan2, 0x200, 0,0,0,0);
+		CANTransmit_I16(&hfdcan2, 0x1FF, 0,0,0,0);
+		LK_iqControl(sadata, 0);
+		CANTransmit_U8(&hfdcan1, 0x141, sadata);
+		return;
 	}
 
 #ifdef ZERO_FRIC
@@ -221,7 +238,7 @@ extern volatile float g_b2b_stir_vel;
 extern volatile uint8_t g_b2b_shoot_flag;
 extern volatile float g_b2b_bullet_speed;
 int16_t trans[6];
-int cnt;
+static uint32_t cnt;
 /* ---- Debug 工具函数 ---- */
 static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
 {
@@ -237,23 +254,32 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     }
     return crc;
 }
-#define DEBUG_FRAME_ORIGINAL
+//#define DEBUG_FRAME_ORIGINAL
+#define DEBUG_FRAME_YAW_ADRC
 static void DebugTransmit(void)
 {
 	cnt++;
+	/* DebugTask runs at 1 kHz; transmit every other invocation at 500 Hz. */
+	if ((cnt % 2U) != 0U)
+		return;
+
 #ifdef DEBUG_FRAME_YAW_ADRC
 	/* ===== YAW ADRC调试帧 (42B) =====
+	 * 发送频率：500 Hz。字段更新频率如下：
+	 * - ControlTask数据：IMU通知驱动，标称500 Hz；
+	 * - IMU姿态数据：IMUTask更新，标称500 Hz；
+	 * - DM编码器数据：FDCAN3响应中断异步更新，此处读取最新值，标称约500 Hz。
 	 * [0-1]   0xAA 0xBB  帧头
-	 * [2-5]   float       td_x1_deg       TD跟踪位置 (deg)
-	 * [6-9]   float       adrc_u          ADRC最终控制量u
-	 * [10-13]  float       eso_z3          ESO扰动估计z3
-	 * [14-17]  float       eso_z2          ESO速度估计z2 (deg/s)
-	 * [18-21]  float       esf_e1_deg      位置误差e1 (deg)
-	 * [22-25]  float       eso_z1_deg      ESO位置估计z1 (deg)
-	 * [26-29]  float       yaw_actual_deg  估计yaw角度 (deg, GimbalEstimate)
-	 * [30-33]  float       yaw_actual_dps  实际yaw角速度 (deg/s, 上板IMU)
-	 * [34-37]  float       yaw_imu_raw_d   上板IMU原始yaw角度 (deg, EKF解算)
-	 * [38-41]  float       yaw_enc_raw_d   yaw编码器原始角度 (deg, 未滤波)
+	 * [2-5]   float       td_x1_deg       TD跟踪位置 (deg, ControlTask 500 Hz)
+	 * [6-9]   float       adrc_u          ADRC最终控制量u (ControlTask 500 Hz)
+	 * [10-13] float       eso_z3          ESO扰动估计z3 (ControlTask 500 Hz)
+	 * [14-17] float       eso_z2          ESO速度估计z2 (deg/s, ControlTask 500 Hz)
+	 * [18-21] float       esf_e1_deg      位置误差e1 (deg, ControlTask 500 Hz)
+	 * [22-25] float       eso_z1_deg      ESO位置估计z1 (deg, ControlTask 500 Hz)
+	 * [26-29] float       yaw_actual_deg  估计yaw角度 (deg, IMUTask 500 Hz)
+	 * [30-33] float       yaw_imu_dps     上板IMU yaw角速度 (deg/s, IMUTask 500 Hz)
+	 * [34-37] float       yaw_imu_raw_d   上板IMU EKF yaw角度 (deg, IMUTask 500 Hz)
+	 * [38-41] float       yaw_enc_raw_d   DM yaw编码器角度 (deg, CAN异步最新值, 未滤波)
 	 */
 	extern DMJ4310MotorRec DMyawMotorRec;
 	extern float yaw_dm_forward_offset_rad;
@@ -266,7 +292,7 @@ static void DebugTransmit(void)
 	float esf_e1_d   = adrc->esf.e_1 * 57.29578f;
 	float eso_z1_d   = adrc->eso.z1 * 57.29578f;
 	float yaw_actual = gimbalControl.GimbalEstimate.yaw_angle_d;
-	float yaw_dps    = gimbalControl.GimbalEstimate.yaw_angular_velocity_dps;
+	float yaw_dps    = gimbalPose.yaw_radps * 57.29578f;
 	float yaw_imu_d  = gimbalPose.yaw_d;            /* EKF IMU解算yaw */
 	float yaw_enc_d  = (float)((double)(DMyawMotorRec.pos_d - yaw_dm_forward_offset_rad) * 57.29578);
 

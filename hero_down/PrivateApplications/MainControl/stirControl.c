@@ -9,8 +9,9 @@ const ShootControl* _shootControl = &shootControl;
 uint16_t stall_count = 0;
 uint8_t  stir_stall_recovery_state = 0;
 uint8_t  stir_flag = 0;
-uint8_t  stir_two_step_phase = 0;   /* 二段拨弹: 0=空闲, 1=第一段30°完成等待300ms, 2=第二段30°完成 */
+uint8_t  stir_two_step_phase = 0;   /* 0=空闲, 1=二次拨弹第一段完成等待, 2=本次拨弹完成等待复位 */
 uint16_t stir_delay_counter = 0;    /* 二段拨弹延时计数 (30 = 300ms @10ms/周期) */
+StirFireMode stir_fire_mode = STIR_FIRE_TWO_STEP;
 
 /* 射击/摩擦轮相关变量 — 从 robot_control_task.c 搬迁 */
 float targetspeed[30] = {0};
@@ -130,7 +131,20 @@ void ShootInputUpdate(void)
 
 	uint8_t in_stall_recovery = (stir_stall_recovery_state != 0);
 
-	/* ===== 二段拨弹状态机 (20° + 300ms延时 + 40°) =====
+	/* sniper 模式下通过 CH1 选择拨弹方式；离开 sniper 后恢复默认二次拨弹。 */
+	if (pDecisionAO->sniper != SNIPER_ON)
+	{
+		stir_fire_mode = STIR_FIRE_TWO_STEP;
+	}
+	else if (shootControl.ShootEstimate.stir_block_flag == 0 && !in_stall_recovery)
+	{
+		if (_normRemoteCmd->RelativeCH.ch1 > STIR_FIRE_MODE_CH1_THRESHOLD)
+			stir_fire_mode = STIR_FIRE_SINGLE_STEP;
+		else if (_normRemoteCmd->RelativeCH.ch1 < -STIR_FIRE_MODE_CH1_THRESHOLD)
+			stir_fire_mode = STIR_FIRE_TWO_STEP;
+	}
+
+	/* ===== 拨弹状态机 (二次: 20° + 300ms延时 + 40°; 一次: 60°) =====
 	 * Phase 0: 空闲, 等待 stir_mode=ANGLE_CONTROL + 拨盘到位
 	 * Phase 1: 第一段20°到位 → 延时300ms → 发出第二段40°
 	 * Phase 2: 二段完成, 等待 stir_mode=LOCK 复归 (防止连发)
@@ -143,8 +157,18 @@ void ShootInputUpdate(void)
 			&& shootControl.ShootEstimate.stir_block_flag == 0
 			&& !in_stall_recovery)
 		{
-			shootControl.ShootTargetInput.stir_all_target_pos_d -= 20.0f;  /* 第一段: 20° */
-			stir_two_step_phase = 1;
+			if (stir_fire_mode == STIR_FIRE_SINGLE_STEP)
+			{
+				/* 一次拨弹：沿用历史方案，一次转过 60°。 */
+				shootControl.ShootTargetInput.stir_all_target_pos_d -= 60.0f;
+				stir_two_step_phase = 2;
+			}
+			else
+			{
+				/* 二次拨弹：先转 20°，到位后等待，再转 40°。 */
+				shootControl.ShootTargetInput.stir_all_target_pos_d -= 20.0f;
+				stir_two_step_phase = 1;
+			}
 			stir_delay_counter = 0;
 			stir_flag = 1;
 

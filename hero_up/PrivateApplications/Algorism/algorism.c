@@ -195,6 +195,13 @@ void ScalarKalmanFilterInit(ScalarKalmanFilter* kf, float Q, float R, float dt)
     kf->init = 0;
 }
 
+void ScalarKalmanFilterReset(ScalarKalmanFilter* kf, float angle_deg)
+{
+    kf->x = AngleLimit(angle_deg, -180.0f, 180.0f);
+    kf->P = 1.0f;
+    kf->init = 1;
+}
+
 /**
  * \brief 标量卡尔曼滤波器更新（1状态 + 1控制 + 1测量）
  * \param[in] z 测量值（编码器角度，deg）
@@ -217,19 +224,25 @@ float ScalarKalmanFilterUpdate(ScalarKalmanFilter* kf, float z, float u)
     /* NaN/Inf 保护：测量异常时仅预测不更新 */
     if(!isfinite(z))
     {
-        kf->x += u * kf->dt;
+        if(isfinite(u))
+            kf->x = AngleLimit(kf->x + u * kf->dt, -180.0f, 180.0f);
+        kf->P += kf->Q;
         return kf->x;
     }
 
+	if(!isfinite(u))
+		u = 0.0f;
+
     /* 第1步：预测 — 用角速度外推 */
     /* x = x + u * dt,  P = P + Q */
-    kf->x += u * kf->dt;
+    kf->x = AngleLimit(kf->x + u * kf->dt, -180.0f, 180.0f);
     kf->P += kf->Q;
 
     /* 第2步：更新 — 卡尔曼增益融合测量值 */
     /* K = P / (P + R),  x = x + K * (z - x),  P = (1 - K) * P */
     float K = kf->P / (kf->P + kf->R);
-    kf->x += K * (z - kf->x);
+    float innovation = AngleLimit(z - kf->x, -180.0f, 180.0f);
+    kf->x = AngleLimit(kf->x + K * innovation, -180.0f, 180.0f);
     kf->P = (1.0f - K) * kf->P;
 
     return kf->x;
