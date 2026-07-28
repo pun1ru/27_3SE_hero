@@ -254,8 +254,8 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     }
     return crc;
 }
-//#define DEBUG_FRAME_ORIGINAL
-#define DEBUG_FRAME_YAW_ADRC
+#define DEBUG_FRAME_ORIGINAL
+//#define DEBUG_FRAME_YAW_ADRC
 static void DebugTransmit(void)
 {
 	cnt++;

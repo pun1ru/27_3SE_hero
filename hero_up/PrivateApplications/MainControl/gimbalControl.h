@@ -7,7 +7,7 @@
 #include "adrc.h"
 #include "DMJ4310.h"
 
-#define PITCH_OFFSET_MACHENICAL_ANGLE (58267-1487-1220)
+#define PITCH_OFFSET_MACHENICAL_ANGLE (56183)
 
 /**
  * @brief 云台控制相关结构体

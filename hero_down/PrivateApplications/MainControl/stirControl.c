@@ -134,14 +134,14 @@ void ShootInputUpdate(void)
 	/* sniper 模式下通过 CH1 选择拨弹方式；离开 sniper 后恢复默认二次拨弹。 */
 	if (pDecisionAO->sniper != SNIPER_ON)
 	{
-		stir_fire_mode = STIR_FIRE_TWO_STEP;
+		stir_fire_mode = STIR_FIRE_SINGLE_STEP;
 	}
 	else if (shootControl.ShootEstimate.stir_block_flag == 0 && !in_stall_recovery)
 	{
-		if (_normRemoteCmd->RelativeCH.ch1 > STIR_FIRE_MODE_CH1_THRESHOLD)
-			stir_fire_mode = STIR_FIRE_SINGLE_STEP;
-		else if (_normRemoteCmd->RelativeCH.ch1 < -STIR_FIRE_MODE_CH1_THRESHOLD)
+		if (_normRemoteCmd->RelativeCH.ch0 > STIR_FIRE_MODE_CH1_THRESHOLD)
 			stir_fire_mode = STIR_FIRE_TWO_STEP;
+		else if (_normRemoteCmd->RelativeCH.ch0 < -STIR_FIRE_MODE_CH1_THRESHOLD)
+			stir_fire_mode = STIR_FIRE_SINGLE_STEP;
 	}
 
 	/* ===== 拨弹状态机 (二次: 20° + 300ms延时 + 40°; 一次: 60°) =====

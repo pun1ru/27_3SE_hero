@@ -192,6 +192,30 @@ void GimbalInputUpdate(void)
 		break;
 	}
 
+	/* Sniper 模式下 CH1 > 0.1 固定 pitch=37°（吊射角），CH1 < -0.1 恢复正常控制 */
+	{
+		static uint8_t pitch_fixed_mode = 0;
+		if(pDecisionAO->sniper == SNIPER_ON)
+		{
+			if(_normRemoteCmd->RelativeCH.ch1 > SNIPER_PITCH_FIXED_CH1_THRESHOLD)
+			{
+				pitch_fixed_mode = 1;
+			}
+			else if(_normRemoteCmd->RelativeCH.ch1 < -SNIPER_PITCH_FIXED_CH1_THRESHOLD)
+			{
+				pitch_fixed_mode = 0;
+			}
+			if(pitch_fixed_mode)
+			{
+				gimbalControl.GimbalTargetInput.pitch_angle_d = SNIPER_PITCH_FIXED_DEG;
+			}
+		}
+		else
+		{
+			pitch_fixed_mode = 0;
+		}
+	}
+
 	/* yaw/pitch角限幅 */
 	gimbalControl.GimbalTargetInput.yaw_angle_d = AngleLimit(gimbalControl.GimbalTargetInput.yaw_angle_d, -180, 180);
 }

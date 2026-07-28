@@ -66,7 +66,7 @@ float yaw_dm_forward_offset_rad = -2.54f;  /* DM yaw编码器"云台正前方"�
 
 void GimbalInputUpdate(void)//task1,更新机械限位角度
 {
-    const float pitch_upside_limit_offset = 43;
+    const float pitch_upside_limit_offset = 41.5;
     const float pitch_downside_limit_offset = -7;
 
     switch(_robotState->ctrl_terminal)

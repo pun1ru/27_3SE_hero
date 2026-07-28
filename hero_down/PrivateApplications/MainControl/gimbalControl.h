@@ -5,6 +5,10 @@
 #include "adrc.h"
 #include "DMJ4310.h"
 
+/* Sniper 固定 pitch 角模式 */
+#define SNIPER_PITCH_FIXED_DEG             38.0f   /**< 固定吊射角（度） */
+#define SNIPER_PITCH_FIXED_CH1_THRESHOLD   0.1f    /**< CH1 阈值，>此值切固定角，< -此值切回正常 */
+
 /**
  * @brief 云台控制相关结构体
  */

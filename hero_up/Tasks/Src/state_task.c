@@ -331,7 +331,7 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 		{
 			state_machine_debug_mode = 0;
 			short music_cmd = 4;
-			xQueueSend(g_musicQueue, &music_cmd, 0);
+			//xQueueSend(g_musicQueue, &music_cmd, 0);
 		}
 		else if(norm_remote_cmd->RelativeCH.ch4 < -0.1f)
 			state_machine_debug_mode = 1;
