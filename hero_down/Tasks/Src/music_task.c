@@ -1,26 +1,55 @@
-#include "music_mardio.h"
-#include "general_task_include.h"
+#include "music_task.h"
+
+#include <stdint.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "main.h"
+#include "general_config_label.h"
 #include "general_define.h"
+#include "music_mardio.h"
+#include "peripheral_receive_task.h"
+#include "task_monitor.h"
 #include "tim.h"
-static void StartupNotice(const float* puzi, int arr_size, int wait_time, float pintiao);
-extern QueueHandle_t g_musicQueue;
-void Error_check();
-void Error_fuck();
-CircuitMonitor circuitMonitror={0};
+
+typedef struct
+{
+    struct
+    {
+        uint16_t chassisMotor_frame_counter[4];
+        uint16_t yawMotor_frame_counter;
+        uint16_t stirMotor_frame_counter;
+        uint16_t jointMotor_frame_counter[4];
+        uint16_t caterpillarMotor_frame_counter[2];
+        uint16_t superCapacity_frame_counter;
+    } CircuitCounterPtr;
+    struct
+    {
+        uint8_t chassisMotorError[4];
+        uint8_t yawMotorError;
+        uint8_t stirMotorError;
+        uint8_t jointMotorError[4];
+        uint8_t caterpillarMotorError[2];
+        uint8_t superCapacityError;
+    } ifCircuitError;
+} CircuitMonitor;
+
+static void startup_notice(const float* score, int note_count, int wait_time, float pitch_offset);
+static void error_check(void);
+static CircuitMonitor circuitMonitror;
 void MusicTask(void* argument)
 {
-	static uint32_t last_tick_count, current_tick_count, this_tick_count = 0;
-	static uint16_t task_counter;
-	_taskMonitor->TaskFrameCounterPtr._music_task = &task_counter;
-	_taskMonitor->TaskRunPeriodPtr._music_task = &this_tick_count;
-	
+	static uint32_t last_tick_count, current_tick_count;
+
+	(void)argument;
 	current_tick_count = last_tick_count = xTaskGetTickCount();	
 	while(1)
 	{		
 		/*轮询通讯状态检测*/
-		 Error_check();
+		 error_check();
 		 
-		 short music_receive,a;
+		 short music_receive;
 			 /*蜂鸣器播放有效*/
 		 if (xQueueReceive(g_musicQueue, &music_receive, 0) == pdPASS){
 				switch(music_receive){
@@ -31,35 +60,32 @@ void MusicTask(void* argument)
 					 //StartupNotice(battlefiled, sizeof(battlefiled)/sizeof(float), 150, -8);//CAN错误报警
 				 break;
 				 case 3:
-					 StartupNotice(alone_earth, sizeof(alone_earth)/sizeof(float), 180, -8);
+					 startup_notice(alone_earth, sizeof(alone_earth)/sizeof(float), 180, -8);
 				 break;
 				 default:
-					 a=music_receive;//call of stack
-					 StartupNotice(bleach, sizeof(bleach)/sizeof(float), 100, -8);
+					 startup_notice(bleach, sizeof(bleach)/sizeof(float), 100, -8);
 			 }
 		 }
 		//xPortGetFreeHeapSize();
 		/*任务循环计数更新*/
-		task_counter++;
 		current_tick_count = xTaskGetTickCount();
-		this_tick_count = current_tick_count - last_tick_count;
+		TaskMonitorRecord(TASK_MONITOR_MUSIC,
+		                  current_tick_count - last_tick_count);
 		last_tick_count = current_tick_count;
 		
 		vTaskDelayUntil(&current_tick_count, MUSIC_TASK_PERIOD_SET);
 	}
 }
-static void StartupNotice(const float* puzi, int arr_size, int wait_time, float pintiao)
+static void startup_notice(const float* score, int note_count, int wait_time, float pitch_offset)
 {
 	music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
-	for (int i = 0; i < arr_size; i++)
+	for (int i = 0; i < note_count; i++)
 	{
-		play_music(from_notes_to_pr(puzi[i] + pintiao), wait_time, BUZZER_TIM);
+		play_music(from_notes_to_pr(score[i] + pitch_offset), wait_time, BUZZER_TIM);
 	}
 	__HAL_TIM_SET_COMPARE(&BUZZER_TIM, BUZZER_TIM_CHANNEL, 0);
 }
-extern const DMJ4310MotorRec* _jointMotorEec;
-extern const DMJ4310MotorRec* _caterpillarMotorRec;
-void Error_check()
+static void error_check(void)
 {
 	// =================================================================
 	//                       第一部分：检查数据更新
@@ -136,34 +162,9 @@ void Error_check()
 /*栈溢出回调*/
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
-	
-	xTaskHandle xTask1=xTask;
-	signed char pcTaskName1=*pcTaskName;
+	(void)xTask;
+	(void)pcTaskName;
    /* Run time stack overflow checking is performed if
    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
    called if a stack overflow is detected. */
-}
-
-void CanFix(){
-	static uint8_t count=0;
-	count++;
-	//uint8_t now=count%3;
-	switch(count%100){
-		case 1:
-			if(hfdcan1.ErrorCode!=0x00000000)
-				HAL_FDCAN_ErrorCallback(&hfdcan1);
-				break;
-		case 2:
-			if(hfdcan2.ErrorCode!=0x00000000)
-				HAL_FDCAN_ErrorCallback(&hfdcan2);
-				break;
-		case 3:
-			if(hfdcan3.ErrorCode!=0x00000000)
-				HAL_FDCAN_ErrorCallback(&hfdcan3);
-				break;
-	}
- }
-void Error_fuck(){
-//	 if(circuitMonitror.ifCircuitError.smallpitchMotorError||circuitMonitror.ifCircuitError.yawMotorError)
-		 CanFix();
 }

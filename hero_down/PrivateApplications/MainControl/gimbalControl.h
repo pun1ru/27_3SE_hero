@@ -1,59 +1,67 @@
 #ifndef _GIMBAL_CONTROL_H_
 #define _GIMBAL_CONTROL_H_
 
-#include "pid.h"
-#include "adrc.h"
-#include "DMJ4310.h"
+#include <stdint.h>
 
 /* Sniper 固定 pitch 角模式 */
-#define SNIPER_PITCH_FIXED_DEG             38.0f   /**< 固定吊射角（度） */
-#define SNIPER_PITCH_FIXED_CH1_THRESHOLD   0.1f    /**< CH1 阈值，>此值切固定角，< -此值切回正常 */
+#define SNIPER_PITCH_FIXED_DEG 38.0f          /**< 固定吊射角（度） */
+#define SNIPER_PITCH_FIXED_CH1_THRESHOLD 0.1f /**< CH1 阈值，>此值切固定角，< -此值切回正常 */
 
 /**
  * @brief 云台控制相关结构体
  */
-typedef struct
-{
-	/*云台目标输入*/
-	struct
-	{
-		float yaw_angle_d;		//期望的yaw目标角（DecisionTask设置，B2B 0x220发送）
-		float yaw_angular_velocity_dps; //yaw期望角速度
-		float pitch_angle_d;	//期望的pitch目标角（DecisionTask设置，B2B 0x221发送）
-	}GimbalTargetInput;
-	/*云台控制相关（yaw控制已搬迁至上板）*/
-	struct
-	{
-		uint32_t sniper_pos;
-		uint16_t sniper_max_speed;
-		uint8_t spin_dir;
-	}GimbalMotorControl;
+typedef struct {
+    /*云台目标输入*/
+    struct {
+        float yaw_angle_d; // 期望的yaw目标角（DecisionTask设置，B2B 0x220发送）
+        float yaw_angular_velocity_dps; // yaw期望角速度
+        float pitch_angle_d; // 期望的pitch目标角（DecisionTask设置，B2B 0x221发送）
+    } GimbalTargetInput;
+    /*云台控制相关（yaw控制已搬迁至上板）*/
+    struct {
+        uint32_t sniper_pos;
+        uint16_t sniper_max_speed;
+        uint8_t spin_dir;
+    } GimbalMotorControl;
 
-	/*云台真实姿态观测*/
-	struct
-	{
-		float pitch_angle_d;
-		float pitch_angular_velocity_dps;
-		float small_pitch_actual_angle;
-		float yaw_angle_d;
-		float yaw_angular_velocity_dps;
-		float shoot_window_flag; // 发射窗口标志位: 1.0f窗口内, 0.0f窗口外
+    /*云台真实姿态观测*/
+    struct {
+        float pitch_angle_d;
+        float pitch_angular_velocity_dps;
+        float small_pitch_actual_angle;
+        float yaw_angle_d;
+        float yaw_angular_velocity_dps;
+        float shoot_window_flag; // 发射窗口标志位: 1.0f窗口内, 0.0f窗口外
 
-		float roll_angle_d;
-		float roll_angular_velocity_dps;
+        float roll_angle_d;
+        float roll_angular_velocity_dps;
 
-	}GimbalEstimate;
-}GimbalControl;
+    } GimbalEstimate;
+} GimbalControl;
 
 /* 全局云台控制实例 */
-extern GimbalControl gimbalControl;
-extern const GimbalControl* _gimbalControl;
+extern const GimbalControl *const _gimbalControl;
 
-/* 延时计数器，GimbalPoseUpdate 使用 */
-extern uint8_t shit_delay_count;
+/**
+ * @brief   初始化云台 Decision 阶段运行状态
+ * @param   void
+ * @retval  void
+ */
+void GimbalDecisionInitialize(void);
 
-/* 云台初始化（yaw轴PID/LTD/TD初始化），由 ControlInit 调用 */
-void GimbalInit(void);
+/**
+ * @brief   初始化云台 Control 阶段运行状态
+ * @param   void
+ * @retval  void
+ */
+void GimbalControlInitialize(void);
+
+/**
+ * @brief   将云台目标对齐到当前有效观测
+ * @param   void
+ * @retval  void
+ */
+void GimbalTargetAlignToEstimate(void);
 
 /* 云台yaw输入决策更新，由 DecisionTask 调用 */
 void GimbalInputUpdate(void);
@@ -65,6 +73,8 @@ void GimbalEstimateUpdate(void);
 void GimbalControlUpdate(void);
 
 /* 云台位姿观测更新，由 IMU 任务调用 */
-void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, float yaw_angle_w, float roll_angle, float roll_angle_w);
+void GimbalPoseUpdate(float pitch_angle_d, float pitch_angular_velocity_dps, float yaw_angle_d,
+                      float yaw_angular_velocity_dps, float roll_angle_d,
+                      float roll_angular_velocity_dps);
 
 #endif

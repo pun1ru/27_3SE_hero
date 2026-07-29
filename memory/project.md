@@ -53,7 +53,7 @@ DecisionTask (p5, 10 ms) 独立更新目标输入
 - `EstimateTask`：执行 IMU 姿态解算、观测器和滤波，发布估计状态。
 - `ControlTask`：读取目标和估计状态，执行 PID/ADRC 并发送电机指令。
 - MainControl 模块对应提供 `XxxInputUpdate()`、`XxxEstimateUpdate()`、`XxxControlUpdate()`。
-- 下板通过 `state_task.h` 中的 `CtrlChainTimer` 和 DWT 周期计数器监控各段延迟。
+- 下板通过独立 `task_monitor` 模块记录各任务帧数、周期、故障位和 DWT 控制链延迟；任务只调用监控 API，不直接修改监控状态。
 
 ## 公共接口与所有权
 
@@ -62,11 +62,15 @@ DecisionTask (p5, 10 ms) 独立更新目标输入
 共享状态采用所有权封装：
 
 ```c
-GimbalControl gimbalControl = {0};
-const GimbalControl* _gimbalControl = &gimbalControl;
+static gimbal_runtime_t g_gimbal_runtime = {0};
+const GimbalControl *const _gimbalControl = &g_gimbal_runtime.control;
 ```
 
-模块拥有者保留可写实例，其他任务和模块通过 `extern const ...*` 只读访问。
+模块拥有者只保留一个私有可写 runtime 实例，完整控制主体位于 runtime 的 `control` 成员中；其他任务和模块通过 `extern const ... *const` 只读访问该成员，不得再并列定义独立可写控制实例。
+
+下板 `chassis`、`gimbal`、`shoot` 的持续运行状态分别收口在模块私有的 `chassis_runtime_t`、`gimbal_runtime_t`、`shoot_runtime_t` 中。对应 `*_internal.h` 只供本模块实现使用，公共头不暴露运行时状态和简化宏；三个控制实现文件不再包含 `general_task_include.h`。
+
+下板 QP/C 由 `InitTask` 在任务启动前调用 `QpInit()` 完成 `QF_init`、事件池、发布订阅和 `DecisionAO` 启动。遥控事件组同样在启用 UART/CAN 接收前创建，避免中断先于任务资源初始化。
 
 ## 上下板差异
 

@@ -9,7 +9,6 @@
   * @note 根据输入信号的大小和变化率自适应地调整输出信号的幅值和频率，使得输出信号能够最快地跟踪输入信号，同时抑制噪声和干扰的影响
   *
   */
-extern GimbalControl gimbalControl;
 static float fhan(float x1, float x2, float r, float h)
 {
 	float d, a0, y, a1, a2, sy, a, sa;	

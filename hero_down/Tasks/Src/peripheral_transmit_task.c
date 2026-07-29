@@ -1,21 +1,31 @@
-﻿#include "tim.h"
+#include "peripheral_transmit_task.h"
+
+#include <stdint.h>
+#include <string.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "main.h"
+#include "fdcan.h"
 #include "usart.h"
-#include "general_task_include.h"
-#include "LK_driver.h"
-#include "bsp_dwt.h"
-#include "dm_imu.h"
-#include "LK_485_driver.h"
+
+#include "CAN_driver.h"
+#include "chassisControl.h"
+#include "decision_ao.h"
+#include "DMJ4310.h"
+#include "general_config_label.h"
+#include "general_define.h"
+#include "gimbalControl.h"
+#include "jointControl.h"
+#include "judge_receive.h"
+#include "MIT.h"
+#include "peripheral_receive_task.h"
+#include "state_task.h"
+#include "stirControl.h"
+#include "task_monitor.h"
+#include "UI_design.h"
 #include "../../PrivateDrivers/Board2Borad/Board2Board.h"
-#include "../../PrivateApplications/System_IDF/system_idf.h"
-/* ==================================================================
- * HAL 回调
- * ================================================================== */
-uint8_t uart10_tx_complete = 1;
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == PITCH_UART.Instance)
-        uart10_tx_complete = 1;
-}
 /* ==================================================================
  * MotorControlCANSend — CAN 总线电机控制帧发送 + 双板通信 UART
  *
@@ -31,12 +41,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
  * 带宽预算：FDCAN1=1Mbps(≤7帧/ms), FDCAN2=781Kbps(≤5帧/ms)
  *   FDCAN1 峰值 6帧/slot(40%), FDCAN2 峰值 4帧/slot(24%)
  * ================================================================== */
-extern JointControl        jointControl;
-extern GimbalControl       gimbalControl;
-extern const NormRemoteCmd* _normRemoteCmd;
-extern int                 crawler_rotate_flag;
 /* ---- 双板通信帧 ---- */
-extern JointBodyState g_joint_body_state_body_dbg;
 void MotorControlCANSend(void)
 {
     static uint8_t slot = 0;   /* 20-slot 循环, 20ms 周期 */
@@ -115,11 +120,11 @@ void MotorControlCANSend(void)
             DM_MITControl_Send(&hfdcan1, jids[i], 0, 0, 0, 0, 0);
 #else
             DM_MITControl_Send(&hfdcan1, jids[i],
-                jointControl.JointMotorControl.mit_p[i],
-                jointControl.JointMotorControl.mit_v[i],
-                jointControl.JointMotorControl.mit_Kp[i],
-                jointControl.JointMotorControl.mit_Kd[i],
-                jointControl.JointMotorControl.mit_Tff[i]);
+                _jointControl->JointMotorControl.mit_p[i],
+                _jointControl->JointMotorControl.mit_v[i],
+                _jointControl->JointMotorControl.mit_Kp[i],
+                _jointControl->JointMotorControl.mit_Kd[i],
+                _jointControl->JointMotorControl.mit_Tff[i]);
 #endif
     }
     /* ---- T2: 轮电机 0x200 — 偶数 slot (250Hz) ---- */
@@ -174,14 +179,34 @@ void MotorControlCANSend(void)
     }  /* else: 正常运行态结束 */
     /* ---- 双板通信 CAN：替代 RS485 转发 ---- */
     {
-        B2BSendBodyState(g_joint_body_state_body_dbg.roll_d,
-                         g_joint_body_state_body_dbg.pitch_d,
-                         g_joint_body_state_body_dbg.yaw_d);  /* 0x220 500Hz 机体姿态 */
+        struct
+        {
+            float roll_d;
+            float pitch_d;
+            float yaw_d;
+        } body_snapshot = {
+            .roll_d = g_joint_body_state_body_dbg.roll_d,
+            .pitch_d = g_joint_body_state_body_dbg.pitch_d,
+            .yaw_d = g_joint_body_state_body_dbg.yaw_d,
+        };
+
+        B2BSendBodyState(body_snapshot.roll_d,
+                         body_snapshot.pitch_d,
+                         body_snapshot.yaw_d);  /* 0x220 500Hz 机体姿态 */
         B2BSendStir();                                    /* 0x223 500Hz 拨盘数据 */
         if (slot % 5 == 0)
         {
-            B2BSendGimbalInput(gimbalControl.GimbalTargetInput.yaw_angle_d,
-                               gimbalControl.GimbalTargetInput.pitch_angle_d); /* 0x221 100Hz yaw_cmd+pitch_cmd */
+            struct
+            {
+                float yaw_angle_d;
+                float pitch_angle_d;
+            } gimbal_snapshot = {
+                .yaw_angle_d = _gimbalControl->GimbalTargetInput.yaw_angle_d,
+                .pitch_angle_d = _gimbalControl->GimbalTargetInput.pitch_angle_d,
+            };
+
+            B2BSendGimbalInput(gimbal_snapshot.yaw_angle_d,
+                               gimbal_snapshot.pitch_angle_d); /* 0x221 100Hz yaw_cmd+pitch_cmd */
             B2BSendKeysSwitch();                           /* 0x222 100Hz 键位+开关+HP */
             B2BSendShootState();                           /* 0x224 100Hz shoot_flag+弹速 */
         }
@@ -191,9 +216,6 @@ void MotorControlCANSend(void)
  * DebugTask — 调试数据发送（yaw ADRC 观测值）
  * ================================================================== */
 /* ---- Debug 外部引用 ---- */
-extern const GimbalControl* _gimbalControl;
-extern DMJ4310MotorRec      stirMotorRec;
-extern volatile int16_t     gimbal_fric_rpm_rx_arr[6];
 /* ---- Debug 本地数据 ---- */
 static uint8_t debug_data[42];
 /* ---- Debug 工具函数 ---- */
@@ -239,8 +261,8 @@ static void DebugTransmit(void)
     memcpy(&debug_data[19], (void*)&gimbal_fric_rpm_rx_arr[5], 2);
     memcpy(&debug_data[21], (void*)&gimbal_pitch_rx_d, 4);
     memcpy(&debug_data[25], (void*)&_gimbalControl->GimbalEstimate.yaw_angle_d, 4);
-    memcpy(&debug_data[29], &stirMotorRec.toq, 4);
-    memcpy(&debug_data[33], &stirMotorRec.vel_radps, 4);
+    memcpy(&debug_data[29], &_stirMotorRec->toq, 4);
+    memcpy(&debug_data[33], &_stirMotorRec->vel_radps, 4);
     debug_data[37] = crc8_maxim(debug_data, 37);
     HAL_UART_Transmit_DMA(&huart7, debug_data, 38);
 #elif defined(DEBUG_FRAME_SYSID)
@@ -293,19 +315,17 @@ static void DebugTransmit(void)
 }
 void DebugTask(void* argument)
 {
-    static uint32_t last_tick_count, current_tick_count, this_tick_count;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._debug_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._debug_task = &this_tick_count;
+    static uint32_t last_tick_count, current_tick_count;
+    (void)argument;
     current_tick_count = last_tick_count = xTaskGetTickCount();
     while (1)
     {
 #ifdef DEBUG_MSG_ENABLE
         DebugTransmit();
 #endif
-        task_counter++;
         current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TaskMonitorRecord(TASK_MONITOR_DEBUG,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
         vTaskDelayUntil(&current_tick_count, DEBUG_TASK_PERIOD_SET);
     }
@@ -316,19 +336,19 @@ void DebugTask(void* argument)
  * ================================================================== */
 void UIOperationTask(void* argument)
 {
-    static uint32_t last_tick_count, current_tick_count, this_tick_count;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._ui_operation_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._ui_operation_task = &this_tick_count;
+    static uint32_t last_tick_count, current_tick_count;
+    static uint16_t ui_divider;
+    (void)argument;
     current_tick_count = last_tick_count = xTaskGetTickCount();
     while (1)
     {
         /* 降低发送频率至 ~27.8Hz（3ms×12=36ms），满足裁判系统0x0301的30Hz上限 */
-        if (task_counter % 12 == 0)
+        if (ui_divider == 0U)
             UiOperation();
-        task_counter++;
+        ui_divider = (uint16_t)((ui_divider + 1U) % 12U);
         current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TaskMonitorRecord(TASK_MONITOR_UI_OPERATION,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
         vTaskDelayUntil(&current_tick_count, UI_OPERATION_TASK_PERIOD_SET);
     }

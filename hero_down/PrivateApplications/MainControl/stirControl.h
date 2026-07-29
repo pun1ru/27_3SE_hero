@@ -5,38 +5,20 @@
 #include "pid.h"
 /* ShootControl 类型定义 + 射击相关常量 — 从 robot_control_task.h 搬迁 */
 
-#define STIR_PRESET_ANGLE +35.0f
-#define STIR_CAUTION_SPEED 1.0f
-#define STIR_MAX_SPEED      300
-#define STIR_MAX_SPEED_LOW  300
-#define SHOOT_FINISH 0
-#define SHOOT_BACK   1
-#define SHOOT_READY  2
-#define SHOOT_PUSH   3
-#define SHOOT_WAIT   5
-#define SHOOT_DURING 4
-#ifdef MATCH_MODE
-#define INITIAL_FRIC_SPEED 4700
-#else
-#define INITIAL_FRIC_SPEED 4700
-#endif
-#define TARGET_BULLET_SPEED 15.10
+#define STIR_PRESET_ANGLE_D 35.0f
+#define STIR_CAUTION_SPEED_RADPS 1.0f
+#define STIR_MAX_SPEED_RPS 300.0f
+#define STIR_MAX_SPEED_LOW_PITCH_RPS 300.0f
 
-typedef enum
-{
-    STIR_FIRE_TWO_STEP = 0,
-    STIR_FIRE_SINGLE_STEP
-} StirFireMode;
+typedef enum { STIR_FIRE_TWO_STEP = 0, STIR_FIRE_SINGLE_STEP } StirFireMode;
 
-#define STIR_FIRE_MODE_CH1_THRESHOLD 0.1f
+#define STIR_FIRE_MODE_CH0_THRESHOLD 0.1f
 
 /**
  * @brief 发射控制相关结构体
  */
-typedef struct
-{
-    struct
-    {
+typedef struct {
+    struct {
         float fric_speed_rpm[6];
         float stir_speed_rps;
         float stir_angle_d;
@@ -47,18 +29,16 @@ typedef struct
         float stir_all_target_pos_rad;
         int shoot_flag;
         int shoot_cnt;
-    }ShootTargetInput;
+    } ShootTargetInput;
 
-    struct
-    {
+    struct {
         PIDStruct fric_speed_pid[6];
         int16_t fric_target_output[6];
         float stir_preset_angle;
         float stir_angular_velocity_dps;
-    }ShootMotorControl;
+    } ShootMotorControl;
 
-    struct
-    {
+    struct {
         uint8_t stir_block_flag;
         uint8_t stir_reset_flag;
         uint8_t stir_enableflag_detect;
@@ -71,24 +51,24 @@ typedef struct
         float stir_angle_cur;
         float stir_all_angle_d;
         int quan_shu_r;
-    }ShootEstimate;
-}ShootControl;
+    } ShootEstimate;
+} ShootControl;
 
-/* 全局实例 */
-extern ShootControl shootControl;
+extern const ShootControl *const _shootControl;
 
-/* 模块级变量（跨 task_decision / task_estimate / task_control 共用） */
-extern uint16_t stall_count;
-extern uint8_t  stir_stall_recovery_state;
-extern uint8_t  stir_flag;
-extern uint8_t  stir_two_step_phase;
-extern uint16_t stir_delay_counter;
-extern StirFireMode stir_fire_mode;
+/**
+ * @brief   初始化发射控制目标和运行状态
+ * @param   void
+ * @retval  void
+ */
+void ShootControlInitialize(void);
 
-/* 射击/摩擦轮变量 */
-extern float predict_speed0;
-extern float mardio_speed;
-extern float current_fric_speed;
+/**
+ * @brief   设置拨盘控制使能期望
+ * @param   is_enabled 非零表示使能
+ * @retval  void
+ */
+void ShootSetEnabled(uint8_t is_enabled);
 
 /* 输入决策（DecisionTask 调用） */
 void ShootInputUpdate(void);
@@ -98,6 +78,27 @@ void ShootEstimateUpdate(void);
 
 /* 闭环控制（ControlTask 调用） */
 void ShootControlUpdate(void);
+
+/**
+ * @brief   将一次发射计入 42 mm 虚拟热量
+ * @param   void
+ * @retval  void
+ */
+void ShootVirtualHeatAddShot(void);
+
+/**
+ * @brief   使用裁判系统热量下限同步虚拟热量
+ * @param   measured_heat 裁判系统报告的 42 mm 枪口热量
+ * @retval  void
+ */
+void ShootVirtualHeatSynchronize(uint16_t measured_heat);
+
+/**
+ * @brief   获取当前 42 mm 虚拟热量
+ * @param   void
+ * @retval  当前虚拟热量
+ */
+uint16_t ShootVirtualHeatGet(void);
 
 /* 拨盘辅助函数 */
 void GetStirRealAngle(void);

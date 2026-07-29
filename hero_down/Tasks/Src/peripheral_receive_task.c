@@ -1,16 +1,43 @@
+#include "peripheral_receive_task.h"
+
+#include <stdint.h>
+#include <string.h>
+
+#include "FreeRTOS.h"
+#include "event_groups.h"
+#include "queue.h"
+#include "task.h"
+
+#include "main.h"
+#include "fdcan.h"
 #include "tim.h"
+#include "usart.h"
 #include "usbd_cdc_if.h"
 #include "usb_device.h"
 
-#include "general_task_include.h"
-#include "dt7_remote_driver.h"
-#include "VT13_rc_ctrl.h"
-#include "ekf_imu_solver.h"
-#include "LK_driver.h"
-#include "dm_imu.h"
-#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
+#include "algorism.h"
+#include "bsp_dwt.h"
+#include "CAN_driver.h"
+#include "decision_ao.h"
+#include "distance_check.h"
 #include "distance_measure.h"
+#include "dm_imu.h"
+#include "DMJ4310.h"
+#include "dt7_remote_driver.h"
+#include "ekf_imu_solver.h"
+#include "general_config_label.h"
+#include "general_define.h"
+#include "gimbalControl.h"
+#include "initial_task.h"
+#include "judge_receive.h"
 #include "LK_485_driver.h"
+#include "LK_driver.h"
+#include "music_task.h"
+#include "peripheral_transmit_task.h"
+#include "state_task.h"
+#include "task_monitor.h"
+#include "VT13_rc_ctrl.h"
+#include "../../PrivateDrivers/Board2Borad/Board2Board.h"
 
 /* ==================================================================
  * 共享 UART 接收缓冲区
@@ -44,26 +71,27 @@ static void DT7ToNormCmd(NormRemoteCmd* norm_remote_cmd, const DT7CmdData* dt7_c
 
 const TickType_t RCDelay = pdMS_TO_TICKS(500);
 
+void RemoteRecInitialize(void)
+{
+    remoteRecEventGroup = xEventGroupCreate();
+    configASSERT(remoteRecEventGroup != NULL);
+    NormRemoteCmdInit(&normRemoteCmd);
+}
+
 void RemoteRecTask(void* argument)
 {
     static EventBits_t currentEventGroupBits;
-    remoteRecEventGroup = xEventGroupCreate();
+    static uint32_t last_tick_count, current_tick_count;
 
-    static uint32_t last_tick_count, current_tick_count, this_tick_count;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._remote_rec_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._remote_rec_task = &this_tick_count;
-
+    (void)argument;
+    configASSERT(remoteRecEventGroup != NULL);
     current_tick_count = last_tick_count = xTaskGetTickCount();
-    NormRemoteCmdInit(&normRemoteCmd);
 
     while (1)
     {
         currentEventGroupBits = xEventGroupWaitBits(remoteRecEventGroup,
             (EVENT_GROUP_BIT_ERROR | EVENT_GROUP_BIT_DT7 | EVENT_GROUP_BIT_VT3),
             pdTRUE, pdFALSE, RCDelay);
-
-        task_counter++;
 
         if (currentEventGroupBits & EVENT_GROUP_BIT_DT7) {
             DT7RawDataUpdate(&dt7RecData, dt7RecBuffer);
@@ -83,7 +111,8 @@ void RemoteRecTask(void* argument)
         }
 
         current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TaskMonitorRecord(TASK_MONITOR_REMOTE_RECEIVE,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
     }
 }
@@ -390,11 +419,9 @@ static void PoseUpdateFromIMU(Pose* pose, const IMUUseEKFSolver* imu_use_ekf)
 /* ---- IMU 任务 ---- */
 void IMUTask(void* argument)
 {
-    static uint32_t last_tick_count, current_tick_count, this_tick_count = 0;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._imu_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._imu_task    = &this_tick_count;
+    static uint32_t last_tick_count, current_tick_count;
 
+    (void)argument;
     current_tick_count = last_tick_count = xTaskGetTickCount();
     while (1)
     {
@@ -404,17 +431,14 @@ void IMUTask(void* argument)
         OnboardIMUTemperatureControl(imuRecData.temperature);
         PoseUpdateFromIMU(&gimbalPose, &imuUseEKFSolver);
 
-        task_counter++;
         current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TaskMonitorRecord(TASK_MONITOR_IMU,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
 
-        extern TaskHandle_t estimateTaskHandle;
+        TaskMonitorMarkImuNotify(DWT->CYCCNT);
         if (estimateTaskHandle != NULL)
             xTaskNotifyGive(estimateTaskHandle);
-
-        /* 控制链监控：记录 IMU 通知发出的时刻 */
-        g_chain_timer.cyc_imu_notify = DWT->CYCCNT;
 
         vTaskDelayUntil(&current_tick_count, IMU_TASK_PERIOD_SET);
     }
@@ -426,15 +450,12 @@ void IMUTask(void* argument)
 UpperComputerComm upperComputerComm;
 const UpperComputerComm* _upperComputerComm = &upperComputerComm;
 
-extern uint8_t shit_last_PC_Receive_shoot_mode;
-
 void UpperCommRecHandler(uint8_t* rec_buf, uint32_t size)
 {
     if (UPPER_PC_COMM_REC_SOF == rec_buf[0]
         && UPPER_PC_COMM_REC_EOF == rec_buf[size - 1]
         && size == UPPER_PC_COMM_REC_LENGTH)
     {
-        shit_last_PC_Receive_shoot_mode = upperComputerComm.Receive.shoot_mode;
         memcpy(&upperComputerComm.Receive, rec_buf, sizeof(upperComputerComm.Receive));
         DoubleEdgeLimiter(upperComputerComm.Receive.target_pitch_angle_d, 0, 30);
         DoubleEdgeLimiter(upperComputerComm.Receive.target_yaw_angle_d, -10, 10);
@@ -444,11 +465,9 @@ void UpperCommRecHandler(uint8_t* rec_buf, uint32_t size)
 
 void UpperPCCommTask(void* argument)
 {
-    static uint32_t last_tick_count, current_tick_count, this_tick_count = 0;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._upper_pc_comm_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._upper_pc_comm_task    = &this_tick_count;
+    static uint32_t last_tick_count, current_tick_count;
 
+    (void)argument;
     upperComputerComm.Send.sof = UPPER_PC_COMM_REC_SOF;
     upperComputerComm.Send.eof = UPPER_PC_COMM_REC_EOF;
 
@@ -457,8 +476,6 @@ void UpperPCCommTask(void* argument)
     {
         static uint16_t no_rec_counter = 0;
         static uint16_t last_rec_counter = 0;
-
-        task_counter++;
 
         if (upperComputerComm.rec_counter == last_rec_counter) {
             no_rec_counter++;
@@ -482,11 +499,16 @@ void UpperPCCommTask(void* argument)
         upperComputerComm.Send.gimbal_yaw_dps = _gimbalControl->GimbalEstimate.yaw_angular_velocity_dps;
 
 #ifdef UPPER_PC_TRANSMIT_ENABLE
-        CDC_Transmit_HS((uint8_t*)&upperComputerComm.Send, UPPER_PC_COMM_SEND_LENGTH);
+        {
+            UpperComputerComm send_snapshot = {0};
+            send_snapshot.Send = upperComputerComm.Send;
+            CDC_Transmit_HS((uint8_t*)&send_snapshot.Send, UPPER_PC_COMM_SEND_LENGTH);
+        }
 #endif
 
         current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TaskMonitorRecord(TASK_MONITOR_UPPER_COMM,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
         vTaskDelayUntil(&current_tick_count, UPPER_COMM_TASK_PERIOD_SET);
     }
@@ -594,8 +616,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 }
 
 /* ---- UART 错误回调 ---- */
-extern QueueHandle_t g_musicQueue;
-
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_FEF | UART_CLEAR_PEF);
@@ -627,7 +647,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 
 void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan)
 {
-    extern CANTxMonitor canMonitor[3];
     uint8_t idx = 0;
     if (hfdcan == &hfdcan2) idx = 1;
     else if (hfdcan == &hfdcan3) idx = 2;

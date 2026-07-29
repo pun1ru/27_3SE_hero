@@ -1,50 +1,21 @@
-﻿/*
- *                        _oo0oo_
- *                       o8888888o
- *                       88" . "88
- *                       (| -_- |)
- *                       0\  =  /0
- *                     ___/`---'\___
- *                   .' \\|     |// '.
- *                  / \\|||  :  |||// \
- *                 / _||||| -:- |||||- \
- *                |   | \\\  - /// |   |
- *                | \_|  ''\---/''  |_/ |
- *                \  .-\__  '-'  ___/-. /
- *              ___'. .'  /--.--\  `. .'___
- *           ."" '<  `.___\_<|>_/___.' >' "".
- *          | | :  `- \`.;`\ _ /`;.`/ - ` : | |
- *          \  \ `_.   \_ __\ /__ _/   .-` /  /
- *      =====`-.____`.___ \_____/___.-`___.-'=====
- *                        `=---='
- * 
- * 
- *      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * 
- *            佛祖保佑     永不宕机     永无BUG
- * 
- *        佛曰:  
- *                写字楼里写字间，写字间里程序员；  
- *                程序人员写程序，又拿程序换酒钱。  
- *                酒醒只在网上坐，酒醉还来网下眠；  
- *                酒醉酒醒日复日，网上网下年复年。  
- *                但愿老死电脑间，不愿鞠躬老板前；  
- *                奔驰宝马贵者趣，公交自行程序员。  
- *                别人笑我忒疯癫，我笑自己命太贱；  
- *                不见满街漂亮妹，哪个归得程序员？
- */
+#include "initial_task.h"
 
-
+#include "main.h"
+#include "queue.h"
 
 #include "general_define.h"
-#include "tim.h"
-#include "usart.h"
-
-#include "general_task_include.h"
 #include "bsp_dwt.h"
-
-#include "ws2812.h"
 #include "music_mardio.h"
+#include "music_task.h"
+#include "peripheral_receive_task.h"
+#include "peripheral_transmit_task.h"
+#include "qpc_init.h"
+#include "state_task.h"
+#include "task_control.h"
+#include "task_decision.h"
+#include "task_estimate.h"
+#include "task_monitor.h"
+#include "tim.h"
 
 TaskHandle_t decisionTaskHandle;
 TaskHandle_t stateMachineTaskHandle;
@@ -58,63 +29,98 @@ TaskHandle_t imuTaskHandle;
 TaskHandle_t debugTaskHandle;
 TaskHandle_t musicTaskHandle;
 
-QueueHandle_t g_musicQueue;//报错音乐的队列
+QueueHandle_t g_musicQueue;
 
-static void StartupNotice();
-/*外设及freertos相关初始化所需的其他源文件中的全局变量*/
-void InitTask(void const * argument)
+static void startup_notice(void);
+static void create_task(TaskFunction_t task_function,
+                        const char* task_name,
+                        configSTACK_DEPTH_TYPE stack_depth,
+                        UBaseType_t priority,
+                        TaskHandle_t* task_handle);
+
+/**
+ * @brief   初始化板级运行资源并创建 hero_down 任务
+ * @param   argument 未使用
+ * @retval  void
+ */
+void InitTask(void const* argument)
 {
-	taskENTER_CRITICAL();
-	DWT_Init(480);
-	/*初始化PWM，让蜂鸣器先狗叫*/
-	HAL_TIM_PWM_Start(&htim12,TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);//升温
-	
-	StartupNotice();//奏乐！
-	
-	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2,500);//蜂鸣器！我的心跳！
-	
-	xTaskCreate(MonitorTask,        "MonitorTask_",      128,  NULL,  4,  &monitorTaskHandle      );
-	xTaskCreate(RemoteRecTask,      "RemoteRecTask_",    256,  NULL,  7,  &remoteRecTaskHandle    );
-	xTaskCreate(StateMachineTask,   "StateMachineTask_", 2048, NULL,  6,  &stateMachineTaskHandle );	
-	xTaskCreate(DecisionTask, 	    "DecisionTask_", 	 512,  NULL,  5,  &decisionTaskHandle     );
-	xTaskCreate(EstimateTask, 	    "EstimateTask_", 	 512,  NULL,  5,  &estimateTaskHandle     );
-	xTaskCreate(ControlTask,        "ControlTask_",      512,  NULL,  5,  &controlTaskHandle      );
-	xTaskCreate(IMUTask, 			"IMUTask_",			 512,  NULL,  7,  &imuTaskHandle			 		 );
-	xTaskCreate(DebugTask,          "DebugTask_",        256,  NULL,  4,  &debugTaskHandle        );
-	xTaskCreate(UIOperationTask,    "UIOperationTask_",  512,  NULL,  3,  &uiOperationTaskHandle  );
-	xTaskCreate(UpperPCCommTask,  	"UpperPCCommTask_",  256,  NULL,  5,  &upperPCCommTaskHandle	 );	
-	xTaskCreate(MusicTask,			"MusicTaskHandle_",  512,	 NULL,  2,  &musicTaskHandle				 );
-	/*下面不是轮询，而是阻塞任务,*/
-	//消息队列
-	g_musicQueue=xQueueCreate(1,2);
-	/*信号量创建*/
-	// 任务创建结束，进入除了PWM之外的外设初始化，WS2812变黄
-	/* Enable 5V给舵机用 */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
-	PeripheralRecEnable();
+    (void)argument;
 
-	__HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 0);//关掉蜂鸣器
-	QpInit();	   	
-	vTaskDelete(NULL);   
-	taskEXIT_CRITICAL();   
+    DWT_Init(480U);
+    HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+    startup_notice();
+    __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 500U);
+
+    taskENTER_CRITICAL();
+
+    g_musicQueue = xQueueCreate(1U, sizeof(int16_t));
+    configASSERT(g_musicQueue != NULL);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
+    RemoteRecInitialize();
+    PeripheralRecEnable();
+    QpInit();
+
+    create_task(MonitorTask, "MonitorTask", 128U, 4U, &monitorTaskHandle);
+    create_task(RemoteRecTask, "RemoteRecTask", 256U, 7U, &remoteRecTaskHandle);
+    create_task(StateMachineTask, "StateMachineTask", 2048U, 6U,
+                &stateMachineTaskHandle);
+    create_task(DecisionTask, "DecisionTask", 512U, 5U, &decisionTaskHandle);
+    create_task(EstimateTask, "EstimateTask", 512U, 5U, &estimateTaskHandle);
+    create_task(ControlTask, "ControlTask", 512U, 5U, &controlTaskHandle);
+    create_task(IMUTask, "IMUTask", 512U, 7U, &imuTaskHandle);
+    create_task(DebugTask, "DebugTask", 256U, 4U, &debugTaskHandle);
+    create_task(UIOperationTask, "UIOperationTask", 512U, 3U,
+                &uiOperationTaskHandle);
+    create_task(UpperPCCommTask, "UpperPCCommTask", 256U, 5U,
+                &upperPCCommTaskHandle);
+    create_task(MusicTask, "MusicTask", 512U, 2U, &musicTaskHandle);
+
+    __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 0U);
+
+    taskEXIT_CRITICAL();
+    vTaskDelete(NULL);
 }
 
-static void StartupNotice()
+static void create_task(TaskFunction_t task_function,
+                        const char* task_name,
+                        configSTACK_DEPTH_TYPE stack_depth,
+                        UBaseType_t priority,
+                        TaskHandle_t* task_handle)
 {
-	music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
-	int size = 0;
-		
-	#define playThis alone_earth
-	size = sizeof(playThis) / sizeof(float);
+    BaseType_t result = xTaskCreate(task_function,
+                                    task_name,
+                                    stack_depth,
+                                    NULL,
+                                    priority,
+                                    task_handle);
 
-	for (int i = 0; i < size; i++)
-	{
-		play_music(from_notes_to_pr(playThis[i]-8), 100, BUZZER_TIM);
-		//HAL_IWDG_Refresh(&hiwdg1);
-	}
+    configASSERT(result == pdPASS);
+    if(result != pdPASS)
+    {
+        Error_Handler();
+    }
 }
 
+static void startup_notice(void)
+{
+    int note_index;
+    int note_count;
 
+#define STARTUP_MELODY alone_earth
+
+    music_init(BUZZER_TIM, BUZZER_TIM_CHANNEL);
+    note_count = (int)(sizeof(STARTUP_MELODY) / sizeof(STARTUP_MELODY[0]));
+    for(note_index = 0; note_index < note_count; note_index++)
+    {
+        play_music(from_notes_to_pr(STARTUP_MELODY[note_index] - 8.0f),
+                   100,
+                   BUZZER_TIM);
+    }
+
+#undef STARTUP_MELODY
+}

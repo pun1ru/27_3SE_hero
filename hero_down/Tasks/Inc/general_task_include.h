@@ -17,12 +17,14 @@
 
 #include "general_define.h"
 #include "general_config_label.h"
- 
+
+#include "initial_task.h"
 #include "state_task.h"
 #include "peripheral_transmit_task.h"
 #include "peripheral_receive_task.h"
 #include "music_task.h"
 #include "judge_receive.h"
+#include "task_monitor.h"
 #include "task_estimate.h"
 #include "task_decision.h"
 #include "task_control.h"
@@ -47,18 +49,6 @@
 #include "qpc_init.h"      /* QpInit(), QF_onStartup 等 */
 #include "decision_ao.h"   /* DecisionAO 类型, 信号枚举, AO_DecisionAO */
 
-extern TaskHandle_t estimateTaskHandle;   /* 新增: EstimateTask 句柄 */
-
-/*该头文件只extern共享各任务共需的全局变量*/
-extern TaskHandle_t decisionTaskHandle;
-extern TaskHandle_t stateMachineTaskHandle;
-extern TaskHandle_t controlTaskHandle;
-extern TaskHandle_t upperPCCommTaskHandle;
-extern TaskHandle_t remoteRecTaskHandle;
-extern TaskHandle_t uiOperationTaskHandle;
-extern TaskHandle_t monitorTaskHandle;
-extern TaskHandle_t imuTaskHandle;
-
 void StateMachineTask(void* argument);
 void DecisionTask(void* argument);
 void ControlTask(void* argument);
@@ -71,26 +61,11 @@ void DebugTask(void* argument);
 void MusicTask(void* argument);
 
 /*每个task.c文件中定义的全局变量只能在当前源文件中被操作更改，其它task只能通过一下全局指针常量读取,各const ptr的初始化在对应的.c文件中*/
-extern TaskMonitor* _taskMonitor;		//该结构体内部均为常量指针
-extern const DJIGMotorRec *_chassisMotorRec;
-extern const RobotState* _robotState;
-extern const DMJ4310MotorRec* _stirMotorRec;
-extern const DJIGMotorRec *_chassisMotorRec;
-extern const DJIGMotorRec *_fricMotorRec;
 extern const DJIGMotorRec* _pitchMotorRec;
 extern const DJIGMotorRec* _smallpitchMotorRec;
-extern const NormRemoteCmd* _normRemoteCmd;
-extern const ChassisControl* _chassisControl;
 extern const JointControl* _jointControl;
-extern const GimbalControl* _gimbalControl;
-extern const ShootControl* _shootControl;
-extern const Pose* _gimbalPose;
-extern const UpperComputerComm* _upperComputerComm;
-extern const SuperCapacity* _superCapacity;
 extern const DataFromJudge* _bulletSpeed;
 extern const Distance_Check_t* _distance_check;
-extern const RobotState* _lastRobotState;
-extern RobotState lastRobotState;
 extern EventGroupHandle_t remoteRecEventGroup;
 
 #endif

@@ -1,6 +1,10 @@
 #ifndef _PERIPHERAL_RECEIVE_TASK_H_
 #define _PERIPHERAL_RECEIVE_TASK_H_
 
+#include <stdint.h>
+
+#include "cmsis_compiler.h"
+
 /*遥操作接收数据来源事件组BIT宏定义*/
 #define EVENT_GROUP_BIT_ERROR 			(1UL << 0UL)	//传输错误,一段时间内都未接收到正确信号
 #define EVENT_GROUP_BIT_DT7 			(1UL << 1UL)	//DT7
@@ -18,14 +22,15 @@ typedef enum
 typedef struct
 {
 	uint8_t remote_source;
-	__packed struct
+	__PACKED_STRUCT
 	{
 		unsigned switch_L1   : 2;
 		unsigned switch_R1   : 2;
 		unsigned reserved 	 : 4;
 	}Switch;
 	
-	__packed struct{
+	__PACKED_STRUCT
+	{
 		unsigned level_key_W : 1;
 		unsigned level_key_A : 1;
 		unsigned level_key_S : 1;
@@ -57,6 +62,15 @@ typedef struct
 		int16_t mouse_speed_z;
 	}PCMouse;
 }NormRemoteCmd;
+
+extern const NormRemoteCmd* _normRemoteCmd;
+extern volatile float gimbal_yaw_rx_d;
+extern volatile float gimbal_yaw_dps_rx;
+extern volatile float gimbal_pitch_rx_d;
+extern volatile float gimbal_pitch_dps_rx;
+extern volatile float gimbal_yaw_target_rx_d;
+extern volatile uint8_t gimbal_yaw_rx_valid;
+extern volatile int16_t gimbal_fric_rpm_rx_arr[6];
 
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /**
@@ -94,6 +108,11 @@ typedef struct
 
 }DMJ4310MotorRec;
 
+extern const DMJ4310MotorRec* _stirMotorRec;
+extern const DMJ4310MotorRec* _jointMotorEec;
+extern const DMJ4310MotorRec* _caterpillarMotorRec;
+extern const DJIGMotorRec* _fricMotorRec;
+
 typedef struct
 {
 	uint16_t frame_counter;
@@ -102,6 +121,9 @@ typedef struct
 	float power_limit;
 	float real_power;
 }SuperCapacity;
+
+extern const DJIGMotorRec* _chassisMotorRec;
+extern const SuperCapacity* _superCapacity;
 
 
 /// @brief 瓴控电机接收结构体
@@ -164,8 +186,20 @@ typedef struct
 	float accel_z;
 }Pose;
 
+extern const Pose* _gimbalPose;
+
 
 void PeripheralRecEnable(void);
 void RemoteRecRestart(void);
+
+/**
+ * @brief   初始化遥控接收任务所需的共享资源
+ * @param   void
+ * @retval  void
+ */
+void RemoteRecInitialize(void);
+void RemoteRecTask(void* argument);
+void IMUTask(void* argument);
+void UpperPCCommTask(void* argument);
 
 #endif

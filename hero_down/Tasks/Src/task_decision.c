@@ -1,5 +1,16 @@
 #include "task_decision.h"
-#include "general_task_include.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "main.h"
+#include "general_config_label.h"
+#include "chassisControl.h"
+#include "gimbalControl.h"
+#include "jointControl.h"
+#include "shoot_speed_best_contrl.h"
+#include "stirControl.h"
+#include "task_monitor.h"
 
 /*============================================================================
  * DecisionTask — 输入决策任务
@@ -12,15 +23,14 @@ static void DecisionInit(void);
 
 void DecisionTask(void* argument)
 {
-    static uint32_t last_tick_count, current_tick_count, this_tick_count;
-    static uint16_t task_counter;
-    _taskMonitor->TaskFrameCounterPtr._decision_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._decision_task = &this_tick_count;
+    TickType_t last_tick_count;
+
+    (void)argument;
 
     DecisionInit();
     BulletKF_Init();
 
-    current_tick_count = last_tick_count = xTaskGetTickCount();
+    last_tick_count = xTaskGetTickCount();
 
     while (1)
     {
@@ -31,9 +41,9 @@ void DecisionTask(void* argument)
         ShootInputUpdate();         /* stirControl.c */
 
         /* 任务周期监控 */
-        task_counter++;
-        current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
+        TickType_t current_tick_count = xTaskGetTickCount();
+        TaskMonitorRecord(TASK_MONITOR_DECISION,
+                          current_tick_count - last_tick_count);
         last_tick_count = current_tick_count;
 
         vTaskDelayUntil(&current_tick_count, DECISION_TASK_PERIOD_SET);
@@ -45,10 +55,6 @@ void DecisionTask(void* argument)
  *============================================================================*/
 static void DecisionInit(void)
 {
-    extern SmoothFilter MouseFilterX;
-    extern SmoothFilter MouseFilterY;
-    SmoothFilterInitialize(&MouseFilterX, 0.7);
-    SmoothFilterInitialize(&MouseFilterY, 0.7);
-
+    GimbalDecisionInitialize();
     ChassisDecisionInitialize();
 }

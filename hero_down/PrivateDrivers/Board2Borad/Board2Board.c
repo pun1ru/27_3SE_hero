@@ -14,7 +14,7 @@
 
 /* ---- 遥控器归一化指令（只读） ---- */
 extern const NormRemoteCmd* _normRemoteCmd;
-extern const RobotState* _robotState;
+extern const RobotState* const _robotState;
 
 /* ======================================================================
  * 内部辅助 — int16 BE 编码

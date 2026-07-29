@@ -1,5 +1,8 @@
 #ifndef _PERIPHERAL_TRANSMIT_TASK_
 #define _PERIPHERAL_TRANSMIT_TASK_
+
+#include <stdint.h>
+
 /**
  * @brief 电机的CAN信号帧发送
  * @note  总线挂载情况：CAN1-(4*M3508底盘电机)+(GM6020yaw电机+电容控制板通信)；CAN2-(GM6020pitch电机+2*M3508摩擦轮电机)+MS4010拨盘电机
@@ -67,4 +70,10 @@ typedef struct
 		
 	}Send;
 }UpperComputerComm;
+
+extern const UpperComputerComm* _upperComputerComm;
+
+void DebugTask(void* argument);
+void UIOperationTask(void* argument);
+
 #endif

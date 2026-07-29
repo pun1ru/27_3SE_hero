@@ -1,5 +1,6 @@
 /** Include Header Files **/
 #include "judge_receive.h"
+#include "stirControl.h"
 #include "string.h"
 /*
 quu..__
@@ -206,9 +207,7 @@ void Referee_Receive_Data_Processing(uint16_t SOF, uint16_t CmdID, uint8_t* judg
     case POWER_HEAT_DATA:
         if (RefereeCopyFixedData(&ext_power_heat_data, sizeof(ext_power_heat_data), data_length, payload)) {
             /*校准虚拟热量*/
-            extern uint16_t xvni;
-            if(xvni < ext_power_heat_data.shooter_42mm_barrel_heat)
-                xvni = ext_power_heat_data.shooter_42mm_barrel_heat;
+            ShootVirtualHeatSynchronize(ext_power_heat_data.shooter_42mm_barrel_heat);
         }
         break;
 

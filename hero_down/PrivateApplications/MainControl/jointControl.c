@@ -7,8 +7,9 @@ const JointControl* _jointControl = &jointControl;
 extern const DMJ4310MotorRec* _jointMotorEec;
 extern float distance;
 extern Pose gimbalPose;
-extern RobotState robotState;
 float k_toq_sign_map[JOINT_CTRL_MOTOR_NUM] = {1.0f, -1.0f, -1.0f, 1.0f};
+static const QEvt stair_detected_event = {.sig = STAIR_OK_SIG};
+static uint8_t stair_detected_event_posted;
 
 matrix_data_t g_joint_rot_leg_to_body_data[9] = {0};
 matrix_data_t g_joint_rot_body_to_imu_data[9] = {0};
@@ -1250,15 +1251,17 @@ void JointEstimateUpdate(void)
 	if (pDecisionAO->joint_mode == JOINT_PRESTAIR)
 	{
 		JointStairUpDetect();
+		if (JointStairUpIsDetected() && stair_detected_event_posted == 0U)
+		{
+			QACTIVE_POST(AO_DecisionAO, &stair_detected_event, NULL);
+			stair_detected_event_posted = 1U;
+		}
 	}
 	else if (pDecisionAO->joint_mode == JOINT_NORMAL
 	         || _robotState->stand_mode == ROBOT_STAND_MODE_PRE_DOWN_STAIR) /* TODO: migrate PRE_DOWN_STAIR to HSM */
 	{
 		JointStairUpDetectReset();
-	}
-	if (JointStairUpIsDetected())
-	{
-		DecisionAO_inst.joint_mode = JOINT_STAIRUP;
+		stair_detected_event_posted = 0U;
 	}
 }//代办:检查速度映射
 
@@ -1534,7 +1537,7 @@ void JointControlUpdate(void)
 
 		/* 检测急停边沿：目标速度从高位骤降至低位 */
 		if (last_speed_y_mps > decel_enter_speed_mps &&
-		    chassisControl.ChassisRealNeedInput.speed_y_mps < decel_exit_speed_mps)
+		    _chassisControl->ChassisRealNeedInput.speed_y_mps < decel_exit_speed_mps)
 		{
 			decel_hold_cnt = decel_hold_cycles;
 			/* 记录急停瞬间的前腿关节角作为位控目标 */
@@ -1564,7 +1567,7 @@ void JointControlUpdate(void)
 			}
 		}
 
-		last_speed_y_mps = chassisControl.ChassisRealNeedInput.speed_y_mps;
+		last_speed_y_mps = _chassisControl->ChassisRealNeedInput.speed_y_mps;
 	}
 
 	/* X方向移动时前腿位控保持，防止横向惯性压弯前腿角度突变 */
@@ -1578,7 +1581,7 @@ void JointControlUpdate(void)
 
 		/* 检测X方向速度输入开始边沿：从静止到运动，记录输入前的关节角 */
 		if (fabs(last_speed_x_mps) < x_speed_deadband &&
-		    fabs(chassisControl.ChassisRealNeedInput.speed_x_mps) >= x_speed_deadband)
+		    fabs(_chassisControl->ChassisRealNeedInput.speed_x_mps) >= x_speed_deadband)
 		{
 			x_hold_angle_rad[0] = jointControl.JointEstimate.motor_angles_rad[LEG_LF];
 			x_hold_angle_rad[1] = jointControl.JointEstimate.motor_angles_rad[LEG_RF];
@@ -1586,7 +1589,7 @@ void JointControlUpdate(void)
 		}
 
 		/* X方向速度输入结束，释放保持 */
-		if (fabs(chassisControl.ChassisRealNeedInput.speed_x_mps) < x_speed_deadband)
+		if (fabs(_chassisControl->ChassisRealNeedInput.speed_x_mps) < x_speed_deadband)
 		{
 			x_hold_active = 0;
 		}
@@ -1612,6 +1615,6 @@ void JointControlUpdate(void)
 			}
 		}
 
-		last_speed_x_mps = chassisControl.ChassisRealNeedInput.speed_x_mps;
+		last_speed_x_mps = _chassisControl->ChassisRealNeedInput.speed_x_mps;
 	}
 }

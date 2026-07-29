@@ -416,6 +416,11 @@
               <FilePath>..\Tasks\Src\initial_task.c</FilePath>
             </File>
             <File>
+              <FileName>initial_task.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\initial_task.h</FilePath>
+            </File>
+            <File>
               <FileName>state_task.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Tasks\Inc\state_task.h</FilePath>
@@ -424,6 +429,16 @@
               <FileName>state_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Tasks\Src\state_task.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_monitor.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\task_monitor.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_monitor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Tasks\Src\task_monitor.c</FilePath>
             </File>
             <File>
               <FileName>peripheral_transmit_task.h</FileName>
@@ -1303,6 +1318,11 @@
               <FilePath>..\PrivateApplications\MainControl\gimbalControl.h</FilePath>
             </File>
             <File>
+              <FileName>gimbalControl_internal.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\gimbalControl_internal.h</FilePath>
+            </File>
+            <File>
               <FileName>chassisControl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\PrivateApplications\MainControl\chassisControl.c</FilePath>
@@ -1313,6 +1333,11 @@
               <FilePath>..\PrivateApplications\MainControl\chassisControl.h</FilePath>
             </File>
             <File>
+              <FileName>chassisControl_internal.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\chassisControl_internal.h</FilePath>
+            </File>
+            <File>
               <FileName>stirControl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\PrivateApplications\MainControl\stirControl.c</FilePath>
@@ -1321,6 +1346,11 @@
               <FileName>stirControl.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\PrivateApplications\MainControl\stirControl.h</FilePath>
+            </File>
+            <File>
+              <FileName>stirControl_internal.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateApplications\MainControl\stirControl_internal.h</FilePath>
             </File>
           </Files>
         </Group>
