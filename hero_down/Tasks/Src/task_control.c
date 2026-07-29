@@ -14,11 +14,7 @@ extern float kdfric;
 
 static void ControlInit(void)
 {
-    /* 底盘电机 PID */
-    PIDInitialize(&(chassisControl.WheelMotorControl.speed_control_pid[LF]), 8, 0, 2.0, 0, M3508_MAX_OUTPUT_CURRENT);
-    PIDInitialize(&(chassisControl.WheelMotorControl.speed_control_pid[RF]), 8, 0, 2.0, 0, M3508_MAX_OUTPUT_CURRENT);
-    PIDInitialize(&(chassisControl.WheelMotorControl.speed_control_pid[RB]), 7, 0, 1.5, 0, M3508_MAX_OUTPUT_CURRENT);
-    PIDInitialize(&(chassisControl.WheelMotorControl.speed_control_pid[LB]), 7, 0, 1.5, 0, M3508_MAX_OUTPUT_CURRENT);
+    ChassisControlInitialize();
 
     /* 云台 LADRC 初始化 */
     GimbalInit();
@@ -27,10 +23,6 @@ static void ControlInit(void)
     shootControl.ShootMotorControl.stir_preset_angle = STIR_PRESET_ANGLE;
     shootControl.ShootTargetInput.stir_target_vol = STIR_MAX_SPEED;
     shootControl.ShootEstimate.stir_enableflag_desire = DISABLE;
-
-    /* 功率滤波器 */
-    extern AverageFilter PowerFilter;
-    AverageFilterInitialize(&PowerFilter);
 
     /* 关节力控 */
     JointForceControlInit(30, 0.003);

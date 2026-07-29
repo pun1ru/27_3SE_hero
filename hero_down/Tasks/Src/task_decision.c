@@ -50,8 +50,5 @@ static void DecisionInit(void)
     SmoothFilterInitialize(&MouseFilterX, 0.7);
     SmoothFilterInitialize(&MouseFilterY, 0.7);
 
-    PIDInitialize(&chassisControl.ChassisFollowControl.follow_speed_need_pid, -0.02, 0, 0.008, 0, 3);
-    PIDInitialize(&chassisControl.ChassisFollowControl.follow_speed_need_pid, -0.02, 0, 0.008, 0, 3);
-    PIDInitialize(&chassisControl.GimbalCoordinateInput.speed_x_compensate_pid, 0.1, 0.1, 0, 1, 3);
-    PIDInitialize(&chassisControl.GimbalCoordinateInput.speed_y_compensate_pid, 0.1, 0.1, 0, 1, 3);
+    ChassisDecisionInitialize();
 }

@@ -81,6 +81,18 @@ typedef struct
 /* 全局实例 */
 extern ChassisControl chassisControl;
 
+/**
+ * @brief   初始化 Decision 阶段使用的底盘控制器
+ * @retval  void
+ */
+void ChassisDecisionInitialize(void);
+
+/**
+ * @brief   初始化 Control 阶段使用的底盘控制器
+ * @retval  void
+ */
+void ChassisControlInitialize(void);
+
 /* 输入决策（DecisionTask 调用） */
 void ChassisInputUpdate(void);
 
@@ -89,7 +101,6 @@ void ChassisEstimateUpdate(void);
 
 /* 闭环控制（ControlTask 调用） */
 void ChassisControlUpdate(void);
-float ChassisPriorPowerCalc(float* target_motor_mps);
 
 /* 观测用到的模块级变量 */
 extern int temp_yaw;
