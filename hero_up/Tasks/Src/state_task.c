@@ -233,7 +233,6 @@ static void StateInit(RobotState* robot_state)
 	robot_state->chassis_mode = CHASSIS_FOLLOW;
 	robot_state->fric_mode = FRIC_OFF;
 	robot_state->stir_mode = STIR_LOCK;
-	robot_state->auto_slope = 0;
 	robot_state->follow=FOLLOW_OFF;//FOLLOW应该是SNIPER的子状态
 	robot_state->sniper=SNIPER_OFF;
 	robot_state->lens=LENS_OFF;//这个看情况
@@ -507,9 +506,6 @@ static void StateUpdateFromNewRec(RobotState* robot_state, const NormRemoteCmd* 
 			}
 			else if(norm_remote_cmd->RelativeCH.ch4 < -0.1){
 				robot_state->chassis_mode = CHASSIS_FOLLOW_BACK;
-			}
-			else {
-				robot_state->auto_slope = 0;
 			}
 			//遥控器左拨下 脉冲触发
 			if(normRemoteCmdLast.Switch.switch_L1 != NORM_RC_SW_UP && norm_remote_cmd->Switch.switch_L1 == NORM_RC_SW_UP)

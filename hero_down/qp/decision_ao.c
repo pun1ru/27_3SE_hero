@@ -100,7 +100,7 @@ QState DecisionAO_initial(DecisionAO * const me, void const * const par) {
 //${Hero_Demo::DecisionAO::SM::Protected} ....................................
 QState DecisionAO_Protected(DecisionAO * const me, QEvt const * const e) {
     QState status_;
-    switch (e->sig) {//手动更新,entry进不去
+    switch (e->sig) {
         //${Hero_Demo::DecisionAO::SM::Protected}
         case Q_ENTRY_SIG: {
             me->ctrl_terminal = CTRL_STOP;
@@ -134,8 +134,8 @@ QState DecisionAO_Protected(DecisionAO * const me, QEvt const * const e) {
             status_ = Q_TRAN(&DecisionAO_NormalMode);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::SWITCH_FINAL}
-        case SWITCH_FINAL_SIG: {
+        //${Hero_Demo::DecisionAO::SM::Protected::Switch_protected}
+        case Switch_protected_SIG: {
             status_ = Q_HANDLED();
             break;
         }
@@ -147,11 +147,11 @@ QState DecisionAO_Protected(DecisionAO * const me, QEvt const * const e) {
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode} ........................
+//${Hero_Demo::DecisionAO::SM::NormalMode} ...................................
 QState DecisionAO_NormalMode(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode}
+        //${Hero_Demo::DecisionAO::SM::NormalMode}
         case Q_ENTRY_SIG: {
             //switch2Normal
             me->chassis_mode = CHS_FOLLOW;
@@ -167,83 +167,83 @@ QState DecisionAO_NormalMode(DecisionAO * const me, QEvt const * const e) {
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_FINAL}
-        case SWITCH_FINAL_SIG: {
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Switch_protected}
+        case Switch_protected_SIG: {
             status_ = Q_TRAN(&DecisionAO_Protected);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_SNIPER}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_SNIPER}
         case SWITCH_SNIPER_SIG: {
             status_ = Q_TRAN(&DecisionAO_SniperMode);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAND}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_STAND}
         case SWITCH_STAND_SIG: {
             status_ = Q_TRAN(&DecisionAO_Stand_High);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_REVOLVE}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_REVOLVE}
         case SWITCH_REVOLVE_SIG: {
             status_ = Q_TRAN(&DecisionAO_Revolve);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAIR}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_STAIR}
         case SWITCH_STAIR_SIG: {
             status_ = Q_TRAN(&DecisionAO_PreStair);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_BACK}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_BACK}
         case SWITCH_BACK_SIG: {
             status_ = Q_TRAN(&DecisionAO_FollowBck);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_PC}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Switch_PC}
         case Switch_PC_SIG: {
             me->ctrl_terminal = CTRL_PC;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_RC}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Switch_RC}
         case Switch_RC_SIG: {
             me->ctrl_terminal = CTRL_REMOTE;
             status_ = Q_HANDLED();
             break;
         }
         default: {
-            status_ = Q_SUPER(&DecisionAO_Protected);
+            status_ = Q_SUPER(&QHsm_top);
             break;
         }
     }
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode} ............
+//${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode} .......................
 QState DecisionAO_SniperMode(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode}
         case Q_ENTRY_SIG: {
             me->sniper = SNIPER_ON;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode}
         case Q_EXIT_SIG: {
             me->sniper = SNIPER_OFF;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SwitchR_down}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SwitchR_down}
         case SwitchR_down_SIG: {
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_SNIPER}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SWITCH_SNIPER}
         case SWITCH_SNIPER_SIG: {
             status_ = Q_TRAN(&DecisionAO_NormalMode);
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_WORLD}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SWITCH_WORLD}
         case SWITCH_WORLD_SIG: {
             status_ = Q_TRAN(&DecisionAO_WorldGimbal);
             break;
@@ -256,23 +256,23 @@ QState DecisionAO_SniperMode(DecisionAO * const me, QEvt const * const e) {
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal}
+//${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal} ..........
 QState DecisionAO_WorldGimbal(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal}
         case Q_ENTRY_SIG: {
             me->world_enable = WORLD_ENABLE_ON;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal}
         case Q_EXIT_SIG: {
             me->world_enable = WORLD_ENABLE_OFF;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal::SWITCH_WORLD}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal::SWITCH_WORLD}
         case SWITCH_WORLD_SIG: {
             status_ = Q_TRAN(&DecisionAO_SniperMode);
             break;
@@ -285,80 +285,23 @@ QState DecisionAO_WorldGimbal(DecisionAO * const me, QEvt const * const e) {
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair} ..............
-QState DecisionAO_PreStair(DecisionAO * const me, QEvt const * const e) {
-    QState status_;
-    switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair}
-        case Q_ENTRY_SIG: {
-            me->joint_mode = JOINT_PRESTAIR;
-            status_ = Q_HANDLED();
-            break;
-        }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::SWITCH_STAIR}
-        case SWITCH_STAIR_SIG: {
-            status_ = Q_TRAN(&DecisionAO_NormalMode);
-            break;
-        }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::STAIR_OK}
-        case STAIR_OK_SIG: {
-            status_ = Q_TRAN(&DecisionAO_StairUp);
-            break;
-        }
-        default: {
-            status_ = Q_SUPER(&DecisionAO_NormalMode);
-            break;
-        }
-    }
-    return status_;
-}
-
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp} ...............
-QState DecisionAO_StairUp(DecisionAO * const me, QEvt const * const e) {
-    QState status_;
-    switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp}
-        case Q_ENTRY_SIG: {
-            me->joint_mode = JOINT_STAIRUP;
-            status_ = Q_HANDLED();
-            break;
-        }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp}
-        case Q_EXIT_SIG: {
-            me->joint_mode = JOINT_NORMAL;
-            status_ = Q_HANDLED();
-            break;
-        }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp::SWITCH_STAIR}
-        case SWITCH_STAIR_SIG: {
-            status_ = Q_TRAN(&DecisionAO_NormalMode);
-            break;
-        }
-        default: {
-            status_ = Q_SUPER(&DecisionAO_NormalMode);
-            break;
-        }
-    }
-    return status_;
-}
-
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High} ............
+//${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High} .......................
 QState DecisionAO_Stand_High(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High}
         case Q_ENTRY_SIG: {
             me->stand_mode = STAND_HIGH;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High}
         case Q_EXIT_SIG: {
             me->stand_mode = STAND_NORMAL;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High::SWITCH_STAND}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High::SWITCH_STAND}
         case SWITCH_STAND_SIG: {
             status_ = Q_TRAN(&DecisionAO_NormalMode);
             break;
@@ -371,23 +314,23 @@ QState DecisionAO_Stand_High(DecisionAO * const me, QEvt const * const e) {
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve} ...............
+//${Hero_Demo::DecisionAO::SM::NormalMode::Revolve} ..........................
 QState DecisionAO_Revolve(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Revolve}
         case Q_ENTRY_SIG: {
             me->chassis_mode = CHS_REVOLVE;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Revolve}
         case Q_EXIT_SIG: {
             me->chassis_mode = CHS_FOLLOW;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve::SWITCH_REVOLVE}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::Revolve::SWITCH_REVOLVE}
         case SWITCH_REVOLVE_SIG: {
             status_ = Q_TRAN(&DecisionAO_NormalMode);
             break;
@@ -400,24 +343,81 @@ QState DecisionAO_Revolve(DecisionAO * const me, QEvt const * const e) {
     return status_;
 }
 
-//${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck} .............
+//${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck} ........................
 QState DecisionAO_FollowBck(DecisionAO * const me, QEvt const * const e) {
     QState status_;
     switch (e->sig) {
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck}
         case Q_ENTRY_SIG: {
             me->chassis_mode = CHS_FOLLOW_BACK;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck}
         case Q_EXIT_SIG: {
             me->chassis_mode = CHS_FOLLOW;
             status_ = Q_HANDLED();
             break;
         }
-        //${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck::SWITCH_BACK}
+        //${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck::SWITCH_BACK}
         case SWITCH_BACK_SIG: {
+            status_ = Q_TRAN(&DecisionAO_NormalMode);
+            break;
+        }
+        default: {
+            status_ = Q_SUPER(&DecisionAO_NormalMode);
+            break;
+        }
+    }
+    return status_;
+}
+
+//${Hero_Demo::DecisionAO::SM::NormalMode::PreStair} .........................
+QState DecisionAO_PreStair(DecisionAO * const me, QEvt const * const e) {
+    QState status_;
+    switch (e->sig) {
+        //${Hero_Demo::DecisionAO::SM::NormalMode::PreStair}
+        case Q_ENTRY_SIG: {
+            me->joint_mode = JOINT_PRESTAIR;
+            status_ = Q_HANDLED();
+            break;
+        }
+        //${Hero_Demo::DecisionAO::SM::NormalMode::PreStair::STAIR_OK}
+        case STAIR_OK_SIG: {
+            status_ = Q_TRAN(&DecisionAO_StairUp);
+            break;
+        }
+        //${Hero_Demo::DecisionAO::SM::NormalMode::PreStair::SWITCH_STAIR}
+        case SWITCH_STAIR_SIG: {
+            status_ = Q_TRAN(&DecisionAO_NormalMode);
+            break;
+        }
+        default: {
+            status_ = Q_SUPER(&DecisionAO_NormalMode);
+            break;
+        }
+    }
+    return status_;
+}
+
+//${Hero_Demo::DecisionAO::SM::NormalMode::StairUp} ..........................
+QState DecisionAO_StairUp(DecisionAO * const me, QEvt const * const e) {
+    QState status_;
+    switch (e->sig) {
+        //${Hero_Demo::DecisionAO::SM::NormalMode::StairUp}
+        case Q_ENTRY_SIG: {
+            me->joint_mode = JOINT_STAIRUP;
+            status_ = Q_HANDLED();
+            break;
+        }
+        //${Hero_Demo::DecisionAO::SM::NormalMode::StairUp}
+        case Q_EXIT_SIG: {
+            me->joint_mode = JOINT_NORMAL;
+            status_ = Q_HANDLED();
+            break;
+        }
+        //${Hero_Demo::DecisionAO::SM::NormalMode::StairUp::SWITCH_STAIR}
+        case SWITCH_STAIR_SIG: {
             status_ = Q_TRAN(&DecisionAO_NormalMode);
             break;
         }

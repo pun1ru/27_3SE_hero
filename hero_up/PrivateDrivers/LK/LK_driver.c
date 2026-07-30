@@ -389,7 +389,7 @@ void LK_SingleLoop_angleControl(uint8_t* adata, uint8_t spin_dir, uint16_t angle
  * @return: void
  * @note: 
  */
-void LK_SingleLoop_angleControl_limited(uint8_t* adata, uint8_t spin_dir, uint16_t max_speed, uint16_t angle_control)
+void LK_SingleLoop_angleControl_limited(uint8_t* adata, uint8_t spin_dir, uint16_t max_speed, uint32_t angle_control)
 {
 	adata[0] = 0xA6;		
 	adata[1] = spin_dir;
@@ -397,8 +397,8 @@ void LK_SingleLoop_angleControl_limited(uint8_t* adata, uint8_t spin_dir, uint16
 	adata[3] = *((uint8_t *)(&max_speed)+1);
 	adata[4] = *(uint8_t *)(&angle_control);
 	adata[5] = *((uint8_t *)(&angle_control)+1);
-	adata[6] = 0;
-	adata[7] = 0;		
+	adata[6] = *((uint8_t *)(&angle_control)+2);
+	adata[7] = *((uint8_t *)(&angle_control)+3);
 }
 
 

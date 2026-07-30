@@ -92,9 +92,9 @@ me-&gt;fric_mode = FRIC_OFF;
 me-&gt;stir_mode = STIR_LOCK;
 me-&gt;joint_mode = JOINT_NORMAL;
 me-&gt;stand_mode = STAND_NORMAL;
-me-&gt;mouse_fix = MOUSE_FIX_ON;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
 me-&gt;cam_target = CAM_TARGET_MID;
-me-&gt;world_enable = WORLD_ENABLE_ON;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
 me-&gt;can_enable = CAN_DISABLE;</entry>
      <!--${Hero_Demo::DecisionAO::SM::Protected::RC_LOST}-->
      <tran trig="RC_LOST" target="..">
@@ -103,28 +103,32 @@ me-&gt;can_enable = CAN_DISABLE;</entry>
       </tran_glyph>
      </tran>
      <!--${Hero_Demo::DecisionAO::SM::Protected::Switch_RC}-->
-     <tran trig="Switch_RC" target="../4">
+     <tran trig="Switch_RC" target="../../2">
       <action>me-&gt;ctrl_terminal = CTRL_REMOTE;</action>
       <tran_glyph conn="172,14,0,0,12">
        <action box="0,-2,10,2"/>
       </tran_glyph>
      </tran>
      <!--${Hero_Demo::DecisionAO::SM::Protected::Switch_PC}-->
-     <tran trig="Switch_PC" target="../4">
+     <tran trig="Switch_PC" target="../../2">
       <action>me-&gt;ctrl_terminal = CTRL_PC;</action>
       <tran_glyph conn="161,14,0,0,12">
        <action box="0,-2,10,2"/>
       </tran_glyph>
      </tran>
-     <!--${Hero_Demo::DecisionAO::SM::Protected::SWITCH_FINAL}-->
-     <tran trig="SWITCH_FINAL">
+     <!--${Hero_Demo::DecisionAO::SM::Protected::Switch_protected}-->
+     <tran trig="Switch_protected">
       <tran_glyph conn="150,14,0,-1,5">
        <action box="-6,-2,19,2"/>
       </tran_glyph>
      </tran>
-     <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode}-->
-     <state name="NormalMode">
-      <entry>//switch2Normal
+     <state_glyph node="16,14,193,8">
+      <entry box="0,3,6,2"/>
+     </state_glyph>
+    </state>
+    <!--${Hero_Demo::DecisionAO::SM::NormalMode}-->
+    <state name="NormalMode">
+     <entry>//switch2Normal
 me-&gt;chassis_mode = CHS_FOLLOW;
 me-&gt;sniper = SNIPER_OFF;
 me-&gt;fric_mode = FRIC_OFF;
@@ -135,186 +139,182 @@ me-&gt;mouse_fix = MOUSE_FIX_OFF;
 me-&gt;cam_target = CAM_TARGET_MID;
 me-&gt;world_enable = WORLD_ENABLE_OFF;
 me-&gt;can_enable = CAN_ENABLE;</entry>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_FINAL}-->
-      <tran trig="SWITCH_FINAL" target="../..">
-       <tran_glyph conn="191,26,0,1,-4,18">
-        <action box="4,-3,14,2"/>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::Switch_protected}-->
+     <tran trig="Switch_protected" target="../../1">
+      <tran_glyph conn="191,26,0,1,-6,18">
+       <action box="4,-3,14,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_SNIPER}-->
+     <tran trig="SWITCH_SNIPER" target="../8">
+      <tran_glyph conn="135,26,0,0,29">
+       <action box="0,16,15,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_STAND}-->
+     <tran trig="SWITCH_STAND" target="../9">
+      <tran_glyph conn="16,48,3,3,12">
+       <action box="0,-2,13,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_REVOLVE}-->
+     <tran trig="SWITCH_REVOLVE" target="../10">
+      <tran_glyph conn="16,63,3,3,12">
+       <action box="0,-2,16,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_STAIR}-->
+     <tran trig="SWITCH_STAIR" target="../12">
+      <tran_glyph conn="16,79,3,3,13">
+       <action box="0,-2,13,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SWITCH_BACK}-->
+     <tran trig="SWITCH_BACK" target="../11">
+      <tran_glyph conn="16,33,3,3,12">
+       <action box="0,-2,15,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::Switch_PC}-->
+     <tran trig="Switch_PC">
+      <action>me-&gt;ctrl_terminal = CTRL_PC;</action>
+      <tran_glyph conn="163,26,0,-1,5">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::Switch_RC}-->
+     <tran trig="Switch_RC">
+      <action>me-&gt;ctrl_terminal = CTRL_REMOTE;</action>
+      <tran_glyph conn="174,26,0,-1,5">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode}-->
+     <state name="SniperMode">
+      <entry>me-&gt;sniper = SNIPER_ON;</entry>
+      <exit>me-&gt;sniper = SNIPER_OFF;</exit>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SwitchR_down}-->
+      <tran trig="SwitchR_down">
+       <tran_glyph conn="119,61,3,-1,11">
+        <action box="0,-2,12,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_SNIPER}-->
-      <tran trig="SWITCH_SNIPER" target="../8">
-       <tran_glyph conn="135,26,0,0,29">
-        <action box="0,16,15,2"/>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SWITCH_SNIPER}-->
+      <tran trig="SWITCH_SNIPER" target="../..">
+       <tran_glyph conn="128,55,0,0,-29">
+        <action box="-14,-12,15,3"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAND}-->
-      <tran trig="SWITCH_STAND" target="../11">
-       <tran_glyph conn="16,48,3,3,12">
-        <action box="0,-2,13,2"/>
-       </tran_glyph>
-      </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_REVOLVE}-->
-      <tran trig="SWITCH_REVOLVE" target="../12">
-       <tran_glyph conn="16,63,3,3,12">
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::SWITCH_WORLD}-->
+      <tran trig="SWITCH_WORLD" target="../3">
+       <tran_glyph conn="119,99,3,3,8">
         <action box="0,-2,16,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_STAIR}-->
-      <tran trig="SWITCH_STAIR" target="../9">
-       <tran_glyph conn="16,79,3,3,12">
-        <action box="0,-2,13,2"/>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal}-->
+      <state name="WorldGimbal">
+       <entry>me-&gt;world_enable = WORLD_ENABLE_ON;</entry>
+       <exit>me-&gt;world_enable = WORLD_ENABLE_OFF;</exit>
+       <!--${Hero_Demo::DecisionAO::SM::NormalMode::SniperMode::WorldGimbal::SWITCH_WORLD}-->
+       <tran trig="SWITCH_WORLD" target="../..">
+        <tran_glyph conn="127,103,3,3,-8">
+         <action box="-8,-2,15,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="127,89,34,21">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph node="119,55,90,62">
+       <entry box="0,3,6,2"/>
+       <exit box="0,5,6,2"/>
+      </state_glyph>
+     </state>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High}-->
+     <state name="Stand_High">
+      <entry>me-&gt;stand_mode = STAND_HIGH;</entry>
+      <exit>me-&gt;stand_mode = STAND_NORMAL;</exit>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::Stand_High::SWITCH_STAND}-->
+      <tran trig="SWITCH_STAND" target="../..">
+       <tran_glyph conn="28,51,3,3,-12">
+        <action box="-12,-2,16,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SWITCH_BACK}-->
-      <tran trig="SWITCH_BACK" target="../13">
-       <tran_glyph conn="16,33,3,3,12">
-        <action box="0,-2,15,2"/>
+      <state_glyph node="28,43,18,12">
+       <entry box="0,3,6,2"/>
+       <exit box="0,5,6,2"/>
+      </state_glyph>
+     </state>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::Revolve}-->
+     <state name="Revolve">
+      <entry>me-&gt;chassis_mode = CHS_REVOLVE;</entry>
+      <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::Revolve::SWITCH_REVOLVE}-->
+      <tran trig="SWITCH_REVOLVE" target="../..">
+       <tran_glyph conn="28,67,3,3,-12">
+        <action box="-12,-2,17,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_PC}-->
-      <tran trig="Switch_PC">
-       <action>me-&gt;ctrl_terminal = CTRL_PC;</action>
-       <tran_glyph conn="163,26,0,-1,5">
+      <state_glyph node="28,59,18,13">
+       <entry box="0,3,6,2"/>
+       <exit box="0,5,6,2"/>
+      </state_glyph>
+     </state>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck}-->
+     <state name="FollowBck">
+      <entry>me-&gt;chassis_mode = CHS_FOLLOW_BACK;</entry>
+      <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::FollowBck::SWITCH_BACK}-->
+      <tran trig="SWITCH_BACK" target="../..">
+       <tran_glyph conn="28,37,3,3,-12">
+        <action box="-12,-2,13,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="28,29,18,12">
+       <entry box="0,3,6,2"/>
+       <exit box="0,5,6,2"/>
+      </state_glyph>
+     </state>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::PreStair}-->
+     <state name="PreStair">
+      <entry>me-&gt;joint_mode = JOINT_PRESTAIR;</entry>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::PreStair::STAIR_OK}-->
+      <tran trig="STAIR_OK" target="../../13">
+       <tran_glyph conn="47,81,1,3,10">
         <action box="0,-2,10,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Switch_RC}-->
-      <tran trig="Switch_RC">
-       <action>me-&gt;ctrl_terminal = CTRL_REMOTE;</action>
-       <tran_glyph conn="174,26,0,-1,5">
-        <action box="0,-2,10,2"/>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::PreStair::SWITCH_STAIR}-->
+      <tran trig="SWITCH_STAIR" target="../..">
+       <tran_glyph conn="29,83,3,3,-13">
+        <action box="-12,-2,13,2"/>
        </tran_glyph>
       </tran>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode}-->
-      <state name="SniperMode">
-       <entry>me-&gt;sniper = SNIPER_ON;</entry>
-       <exit>me-&gt;sniper = SNIPER_OFF;</exit>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SwitchR_down}-->
-       <tran trig="SwitchR_down">
-        <tran_glyph conn="119,61,3,-1,11">
-         <action box="0,-2,12,2"/>
-        </tran_glyph>
-       </tran>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_SNIPER}-->
-       <tran trig="SWITCH_SNIPER" target="../..">
-        <tran_glyph conn="128,55,0,0,-29">
-         <action box="-14,-12,15,3"/>
-        </tran_glyph>
-       </tran>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::SWITCH_WORLD}-->
-       <tran trig="SWITCH_WORLD" target="../3">
-        <tran_glyph conn="119,99,3,3,8">
-         <action box="0,-2,16,2"/>
-        </tran_glyph>
-       </tran>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal}-->
-       <state name="WorldGimbal">
-        <entry>me-&gt;world_enable = WORLD_ENABLE_ON;</entry>
-        <exit>me-&gt;world_enable = WORLD_ENABLE_OFF;</exit>
-        <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::SniperMode::WorldGimbal::SWITCH_WORLD}-->
-        <tran trig="SWITCH_WORLD" target="../..">
-         <tran_glyph conn="127,103,3,3,-8">
-          <action box="-8,-2,15,2"/>
-         </tran_glyph>
-        </tran>
-        <state_glyph node="127,89,34,21">
-         <entry box="0,3,6,2"/>
-         <exit box="0,5,6,2"/>
-        </state_glyph>
-       </state>
-       <state_glyph node="119,55,90,62">
-        <entry box="0,3,6,2"/>
-        <exit box="0,5,6,2"/>
-       </state_glyph>
-      </state>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair}-->
-      <state name="PreStair">
-       <entry>me-&gt;joint_mode = JOINT_PRESTAIR;</entry>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::SWITCH_STAIR}-->
-       <tran trig="SWITCH_STAIR" target="../..">
-        <tran_glyph conn="28,83,3,3,-12">
-         <action box="-12,-2,13,2"/>
-        </tran_glyph>
-       </tran>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::PreStair::STAIR_OK}-->
-       <tran trig="STAIR_OK" target="../../10">
-        <tran_glyph conn="46,81,1,3,11">
-         <action box="0,-2,10,2"/>
-        </tran_glyph>
-       </tran>
-       <state_glyph node="28,76,18,13">
-        <entry box="0,3,6,2"/>
-       </state_glyph>
-      </state>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp}-->
-      <state name="StairUp">
-       <entry>me-&gt;joint_mode = JOINT_STAIRUP;</entry>
-       <exit>me-&gt;joint_mode = JOINT_NORMAL;</exit>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::StairUp::SWITCH_STAIR}-->
-       <tran trig="SWITCH_STAIR" target="../..">
-        <tran_glyph conn="66,89,2,3,4,-50">
-         <action box="-13,4,15,2"/>
-        </tran_glyph>
-       </tran>
-       <state_glyph node="57,76,18,13">
-        <entry box="0,3,6,2"/>
-        <exit box="0,5,6,2"/>
-       </state_glyph>
-      </state>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High}-->
-      <state name="Stand_High">
-       <entry>me-&gt;stand_mode = STAND_HIGH;</entry>
-       <exit>me-&gt;stand_mode = STAND_NORMAL;</exit>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Stand_High::SWITCH_STAND}-->
-       <tran trig="SWITCH_STAND" target="../..">
-        <tran_glyph conn="28,51,3,3,-12">
-         <action box="-12,-2,16,2"/>
-        </tran_glyph>
-       </tran>
-       <state_glyph node="28,43,18,12">
-        <entry box="0,3,6,2"/>
-        <exit box="0,5,6,2"/>
-       </state_glyph>
-      </state>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve}-->
-      <state name="Revolve">
-       <entry>me-&gt;chassis_mode = CHS_REVOLVE;</entry>
-       <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::Revolve::SWITCH_REVOLVE}-->
-       <tran trig="SWITCH_REVOLVE" target="../..">
-        <tran_glyph conn="28,67,3,3,-12">
-         <action box="-12,-2,17,2"/>
-        </tran_glyph>
-       </tran>
-       <state_glyph node="28,59,18,13">
-        <entry box="0,3,6,2"/>
-        <exit box="0,5,6,2"/>
-       </state_glyph>
-      </state>
-      <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck}-->
-      <state name="FollowBck">
-       <entry>me-&gt;chassis_mode = CHS_FOLLOW_BACK;</entry>
-       <exit>me-&gt;chassis_mode = CHS_FOLLOW;</exit>
-       <!--${Hero_Demo::DecisionAO::SM::Protected::NormalMode::FollowBck::SWITCH_BACK}-->
-       <tran trig="SWITCH_BACK" target="../..">
-        <tran_glyph conn="28,37,3,3,-12">
-         <action box="-12,-2,13,2"/>
-        </tran_glyph>
-       </tran>
-       <state_glyph node="28,29,18,12">
-        <entry box="0,3,6,2"/>
-        <exit box="0,5,6,2"/>
-       </state_glyph>
-      </state>
-      <state_glyph node="16,26,193,91">
+      <state_glyph node="29,76,18,13">
        <entry box="0,3,6,2"/>
       </state_glyph>
      </state>
-     <state_glyph node="14,14,195,104">
-      <entry box="0,3,57,26"/>
+     <!--${Hero_Demo::DecisionAO::SM::NormalMode::StairUp}-->
+     <state name="StairUp">
+      <entry>me-&gt;joint_mode = JOINT_STAIRUP;</entry>
+      <exit>me-&gt;joint_mode = JOINT_NORMAL;</exit>
+      <!--${Hero_Demo::DecisionAO::SM::NormalMode::StairUp::SWITCH_STAIR}-->
+      <tran trig="SWITCH_STAIR" target="../..">
+       <tran_glyph conn="66,89,2,3,4,-50">
+        <action box="-13,4,15,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="57,76,18,13">
+       <entry box="0,3,6,2"/>
+       <exit box="0,5,6,2"/>
+      </state_glyph>
+     </state>
+     <state_glyph node="16,26,193,91">
+      <entry box="0,3,6,2"/>
      </state_glyph>
     </state>
-    <state_diagram size="222,133"/>
+    <state_diagram size="222,98"/>
    </statechart>
   </class>
  </package>

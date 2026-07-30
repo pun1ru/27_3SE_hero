@@ -13,7 +13,7 @@
 #define __WS2812_H__
 
 #include "main.h"
-#include "general_define.h"
+#include "device_define.h"
 
 #define WS2812_SPI_UNIT BOARD_LED_SPI
 extern SPI_HandleTypeDef WS2812_SPI_UNIT;

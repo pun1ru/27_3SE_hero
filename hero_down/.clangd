@@ -5,6 +5,23 @@
 CompileFlags:
   CompilationDatabase: MDK-ARM/out/Hero_Reeeee64/Hero_Reeeee64
   Add:
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/GeneralHeader
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/Tasks/Inc
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Controller/ADRC
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Controller/PID
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Debugger/Music
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Debugger/Music/Song
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Filter/kalman_filter
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Filter/LvBo
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Filter/shoot_speed
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Official/judge_rec
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Official/UI_operation
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Robot_module/chassis
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Robot_module/gimbal
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Robot_module/joint
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Robot_module/stir
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateApplications/Solver/IMU_solver
+    - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateDrivers/superSee
     - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/PrivateDrivers/MIT
     - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/qp/qpc/include
     - -Ic:/Users/liaoz/Desktop/rm/Code/27_3SE_hero/hero_down/qp/qpc/ports

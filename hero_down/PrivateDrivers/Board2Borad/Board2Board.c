@@ -10,6 +10,7 @@
 
 #include "Board2Board.h"
 #include "general_task_include.h"
+#include "tim.h"
 #include <math.h>
 
 /* ---- 遥控器归一化指令（只读） ---- */
@@ -128,7 +129,7 @@ uint8_t B2BSendBodyState(float roll_d, float pitch_d, float yaw_d)
 uint8_t B2BSendStir(void)
 {
     uint8_t data[8] = {0};
-    extern DMJ4310MotorRec stirMotorRec;
+    extern DMMotorRec stirMotorRec;
 
     int16_t stir_toq = (int16_t)(stirMotorRec.toq       * 100.0f);
     int16_t stir_vel = (int16_t)(stirMotorRec.vel_radps * 100.0f);
@@ -168,7 +169,7 @@ static inline float b2bReadF32(const uint8_t* src)
 }
 
 /**
- * @brief   解析 0x200 云台姿态 → gimbal_*_rx
+ * @brief   解析 0x228 云台姿态 → gimbal_*_rx
  */
 static void b2bParseGimbalPose(uint8_t* data,
                                 float* yaw_deg,
@@ -187,7 +188,7 @@ static void b2bParseGimbalVelocity(uint8_t* data,
 }
 
 /**
- * @brief   解析 0x201 云台目标 → gimbal_*_target_rx
+ * @brief   解析 0x229 云台目标 → gimbal_*_target_rx
  */
 static void b2bParseGimbalTarget(uint8_t* data,
                                   float* target_yaw,
@@ -219,7 +220,7 @@ void B2B_PoseAliveTick(void)
         gimbal_yaw_rx_valid = 0;
     }
 
-    /* 心跳丢失 → 直接短促"嘀"(500ms周期/前50ms响)，不经过music_task */
+    /* 心跳丢失 → 直接短促"嘀"(500ms周期/前50ms响)，不经过音乐任务队列 */
     if (gimbal_yaw_rx_valid == 0) {
         lost_beep_timer++;
         if (lost_beep_timer >= 250U) {      /* 500ms = 250×2ms */

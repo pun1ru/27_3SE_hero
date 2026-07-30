@@ -151,7 +151,7 @@ typedef struct
 	unsigned chassis_mode : 2;		//底盘当前模式
 	unsigned fric_mode : 1;
 	unsigned stir_mode : 2;
-	unsigned auto_slope : 1;
+	unsigned : 1;
 	unsigned aim_mode : 1;
 	unsigned capacity_mode : 1;
 	unsigned cam_target : 2;

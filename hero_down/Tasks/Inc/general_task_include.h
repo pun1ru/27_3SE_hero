@@ -16,13 +16,13 @@
 #include "event_groups.h"
 
 #include "general_define.h"
-#include "general_config_label.h"
+#include "device_define.h"
+#include "robot_define.h"
 
 #include "initial_task.h"
-#include "state_task.h"
-#include "peripheral_transmit_task.h"
-#include "peripheral_receive_task.h"
-#include "music_task.h"
+#include "task_state.h"
+#include "task_transmit.h"
+#include "task_receive.h"
 #include "judge_receive.h"
 #include "task_monitor.h"
 #include "task_estimate.h"
@@ -34,12 +34,11 @@
 //包含共通的算法文件
 #include "algorism.h"
 #include "pid.h"
-#include "shoot_speed_best_contrl.h"
 #include "adrc.h"
 #include "arm_math.h"
 #include "gimbalControl.h"
 #include "jointControl.h"
-#include "DMJ4310.h"
+#include "DM_driver.h"
 #include "MIT.h"
 #include "CAN_driver.h"
 #include "chassisControl.h"
@@ -58,7 +57,6 @@ void RemoteRecTask(void* argument);
 void MonitorTask(void* argument);
 void IMUTask(void* argument);
 void DebugTask(void* argument);
-void MusicTask(void* argument);
 
 /*每个task.c文件中定义的全局变量只能在当前源文件中被操作更改，其它task只能通过一下全局指针常量读取,各const ptr的初始化在对应的.c文件中*/
 extern const DJIGMotorRec* _pitchMotorRec;

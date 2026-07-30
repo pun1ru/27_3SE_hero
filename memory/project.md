@@ -26,7 +26,7 @@ HAL 层              STM32H7 HAL、CMSIS 和 CubeMX 生成代码
 
 - `Core`：CubeMX 生成的初始化和中断代码。
 - `Drivers`、`Middlewares`：CMSIS、HAL、FreeRTOS 和 USB 库。
-- `PrivateApplications`：控制算法和应用模块。
+- `PrivateApplications`：控制算法和应用模块；下板按 `Controller`、`Filter`、`Solver`、`Official`、`Debugger` 和 `Robot_module` 分类。
 - `PrivateDrivers`：CAN、电机、遥控器、IMU 和其他外设驱动。
 - `Tasks/Inc`、`Tasks/Src`：FreeRTOS 任务。
 - `GeneralHeader`：硬件映射、全局配置和编译开关。
@@ -52,7 +52,7 @@ DecisionTask (p5, 10 ms) 独立更新目标输入
 - `DecisionTask`：解析遥控器、PC 或板间指令，更新目标输入。
 - `EstimateTask`：执行 IMU 姿态解算、观测器和滤波，发布估计状态。
 - `ControlTask`：读取目标和估计状态，执行 PID/ADRC 并发送电机指令。
-- MainControl 模块对应提供 `XxxInputUpdate()`、`XxxEstimateUpdate()`、`XxxControlUpdate()`。
+- 下板 `PrivateApplications/Robot_module` 中的控制模块提供 `XxxInputUpdate()`、`XxxEstimateUpdate()`、`XxxControlUpdate()`。
 - 下板通过独立 `task_monitor` 模块记录各任务帧数、周期、故障位和 DWT 控制链延迟；任务只调用监控 API，不直接修改监控状态。
 
 ## 公共接口与所有权
@@ -68,7 +68,9 @@ const GimbalControl *const _gimbalControl = &g_gimbal_runtime.control;
 
 模块拥有者只保留一个私有可写 runtime 实例，完整控制主体位于 runtime 的 `control` 成员中；其他任务和模块通过 `extern const ... *const` 只读访问该成员，不得再并列定义独立可写控制实例。
 
-下板 `chassis`、`gimbal`、`shoot` 的持续运行状态分别收口在模块私有的 `chassis_runtime_t`、`gimbal_runtime_t`、`shoot_runtime_t` 中。对应 `*_internal.h` 只供本模块实现使用，公共头不暴露运行时状态和简化宏；三个控制实现文件不再包含 `general_task_include.h`。
+下板 `Robot_module/chassis`、`Robot_module/gimbal`、`Robot_module/stir` 的持续运行状态分别收口在模块私有的 `chassis_runtime_t`、`gimbal_runtime_t`、`shoot_runtime_t` 中。对应 `*_internal.h` 只供本模块实现使用，公共头不暴露运行时状态和简化宏；三个控制实现文件不再包含 `general_task_include.h`。
+
+下板 `GeneralHeader` 的定义按职责拆分：`robot_define.h` 保存机器人几何和物理换算，`device_define.h` 保存外设映射、电机参数和通信 ID，`general_define.h` 保存编译开关、遥控输入和任务周期等通用定义。`general_config_label.h` 仅作为兼容聚合头保留。
 
 下板 QP/C 由 `InitTask` 在任务启动前调用 `QpInit()` 完成 `QF_init`、事件池、发布订阅和 `DecisionAO` 启动。遥控事件组同样在启用 UART/CAN 接收前创建，避免中断先于任务资源初始化。
 
@@ -136,6 +138,6 @@ Keil 导出的数据库通常缺失 `PrivateApplications` 和 `PrivateDrivers` �
 
 ## 其他稳定信息
 
-- 常用编译开关位于 `general_config_label.h`，包括 `MATCH_MODE`、`SHOOT_OFF`、`CHASSIS_OFF`、`GIMBAL_OFF`、`OLD_CAPACITY`、`CENTRIFUGE_REVOLVE`、`DEBUG_PCB_EN`。
+- 下板常用编译开关位于 `general_define.h`；上板仍使用 `general_config_label.h` 保存板级编译开关。
 - `hero_down` ADRC 版本包含额外 `isfinite` 安全检查，同步时不能无意移除。
-- 调试信息通过 `peripheral_transmit_task.c` 发送至 DT7 上位机。
+- 下板调试信息通过 `task_transmit.c` 发送至 DT7 上位机。

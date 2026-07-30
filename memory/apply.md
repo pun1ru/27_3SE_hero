@@ -4,7 +4,7 @@
 
 ## 阅读说明
 
-本文依据实机连接确认，以及当前代码的 CubeMX 初始化、`general_define.h` 映射、`PeripheralRecEnable()`、任务循环和实际发送函数整理。实机连接由用户确认时，其优先级高于仅从初始化代码推断出的用途。
+本文依据实机连接确认，以及当前代码的 CubeMX 初始化、`device_define.h` 映射、`PeripheralRecEnable()`、任务循环和实际发送函数整理。实机连接由用户确认时，其优先级高于仅从初始化代码推断出的用途。
 
 - **运行**：当前构建路径会初始化并实际调用。
 - **条件运行**：受编译宏、运行模式或数据到达事件控制。
@@ -131,7 +131,7 @@ UART 接收主要采用 DMA + Receive-to-idle，中断回调解析后立即重�
 
 - `Board2Board.h` 文件头仍有 `hfdcan1` 旧描述，但 `B2B_CAN` 宏和实际调用均为 `hfdcan3`。
 - 上板 `B2BSendGimbalTarget()` 注释写 100 Hz，但当前位于 4 ms 的 `UpperPCCommTask` 中且没有分频，实际约 250 Hz。
-- `general_define.h` 的 USART2/3、USART10 波特率注释存在旧值，本文采用 `Core/Src/usart.c` 的实际配置。
+- `device_define.h` 只负责端口映射；USART2/3、USART10 的实际波特率以 `Core/Src/usart.c` 为准。
 - `DEBUG_UART` 宏映射 UART9，但当前上下板 `DebugTransmit()` 都直接使用 UART7。
 - 上板 UART7 同时承担 MiniPC DMA 接收与调试 DMA 发送；修改协议或提高负载时必须检查共用端口冲突。
 - 上板 USART1、USART10 和下板 USB CDC 存在“软件仍初始化但实机未连接”的情况，排查通信问题时不能仅凭 HAL 初始化判断设备存在。

@@ -5,6 +5,14 @@
 
 #define LK_STDID 0x140
 
+typedef struct
+{
+    int8_t temperature;
+    int16_t iq;
+    float speed_rps;
+    uint16_t encoder;
+    uint8_t frame_counter;
+}LKMotorRec;
 
 /** Function Declaration **/
 void LK_pidRead(uint8_t* adata);

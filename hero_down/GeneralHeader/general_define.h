@@ -1,29 +1,33 @@
-#ifndef __GENERAL_DEFINE_H_
-#define __GENERAL_DEFINE_H_
-// #define DEBUG_PCB_EN 1
+#ifndef GENERAL_DEFINE_H_
+#define GENERAL_DEFINE_H_
 
-/* 设备端口映射 ================================================================================*/
-// 蜂鸣器
-// PB15
-#define BUZZER_TIM htim12                // Tim
-#define BUZZER_TIM_CHANNEL TIM_CHANNEL_2 // Tim_Channel
-// 板载LED SPI6
-// WS2812
-// PA07
-/*各种UART的那个那个*/
-#define BOARD_LED_SPI hspi6 // SPI
-// 裁判uart，自瞄uart，遥控器uart
-#define REFEREE_UART huart1 // 注意这个uart1，手册上写错，最后一页写成uart3了了
-#define RC_UART huart5      // 记得改回来
-/*8和9都在拓展*/
-// #define MINIPC_UART huart7//100 000  //原来7是
-#define DEBUG_UART huart9       // 100 000 不行太高了256000
-#define LASER_UART huart10      // 9600
-#define PITCH_UART huart8       // 这个世界就是一个巨大的唐氏临空 115200
-#define MASTER_485_UART huart2  // 115200
-#define SERVENT_485_UART huart3 // 9600,改成电磁铁控制
+/* Build and debug switches ================================================= */
+#define DEBUG_STOP_IWDG() __HAL_DBGMCU_FREEZE_IWDG()
+#define DEBUG_RESUME_IWDG() __HAL_DBGMCU_UNFREEZE_IWDG()
 
-/* 归一化遥控输入 ==============================================================================*/
+#ifndef YAW_ANGLE_FROM_MOTO
+#define YAW_ANGLE_FROM_IMU 1
+#endif
+
+#define UPPER_PC_TRANSMIT_ENABLE
+#define DEBUG_MSG_ENABLE
+#define MATCH_MODE
+#define MUSIC_OFF
+
+/* Common values =========================================================== */
+#define LEFT 0
+#define RIGHT 1
+#define UP 2
+#define LEFT1 3
+#define RIGHT1 4
+#define UP1 5
+
+/* Normalized remote switch values ======================================== */
+#define NORM_RC_SW_UP 1
+#define NORM_RC_SW_MID 3
+#define NORM_RC_SW_DOWN 2
+
+/* Normalized remote input ================================================= */
 #define rc_ch0 (_normRemoteCmd->RelativeCH.ch0)
 #define rc_ch1 (_normRemoteCmd->RelativeCH.ch1)
 #define rc_ch2 (_normRemoteCmd->RelativeCH.ch2)
@@ -47,5 +51,28 @@
 #define key_ad_direction (key_d - key_a)
 #define key_ws_direction (key_w - key_s)
 
+/* Input edge detection ===================================================== */
+#ifndef TRUE
+#define TRUE 1U
 #endif
-/*CAN口见transmit*/
+
+#ifndef FALSE
+#define FALSE 0U
+#endif
+
+#define UPTRIG(now, last) ((now == TRUE) && (last == FALSE))
+#define DOWNTRIG(now, last) ((now == FALSE) && (last == TRUE))
+
+/* Task periods, milliseconds ============================================= */
+#define MONITOR_TASK_PERIOD_SET 50
+#define STATE_TASK_PERIOD_SET 10
+#define DECISION_TASK_PERIOD_SET 10
+#define CONTROL_TASK_PERIOD_SET 3
+#define IMU_TASK_PERIOD_SET 2
+#define DEBUG_TASK_PERIOD_SET 1
+#define UPPER_COMM_TASK_PERIOD_SET 4
+#define UI_OPERATION_TASK_PERIOD_SET 3
+#define MUSIC_TASK_PERIOD_SET 20
+#define ESTIMATE_TASK_PERIOD_SET 1
+
+#endif

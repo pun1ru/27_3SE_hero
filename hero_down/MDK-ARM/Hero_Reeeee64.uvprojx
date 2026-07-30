@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32H723xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateApplications/Algorism;../PrivateApplications/PID;../PrivateDrivers/CBoardIMU;../PrivateApplications/kalman_filter;../PrivateApplications/IMU_solver;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateApplications/judge_rec;../PrivateApplications/ADRC;../PrivateDrivers/DMJ4310;../PrivateApplications/UI_operation;../PrivateApplications/Song;../PrivateApplications/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateApplications/Music;../PrivateApplications/LvBo;../PrivateApplications/Shoot_Speed_contrl;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;..\PrivateApplications\MainControl;..\PrivateDrivers\MIT;..\qp;..\qp\qm;..\qp\qpc\include;..\qp\qpc\ports;..\qp\qpc\src;..\PrivateApplications\System_IDF</IncludePath>
+              <IncludePath>../Core/Inc;../USB_DEVICE/App;../USB_DEVICE/Target;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Tasks/Inc;../GeneralHeader;../PrivateApplications/Algorism;../PrivateApplications/Controller/PID;../PrivateApplications/Controller/ADRC;../PrivateApplications/Filter/kalman_filter;../PrivateApplications/Filter/LvBo;../PrivateApplications/Filter/shoot_speed;../PrivateApplications/Solver/IMU_solver;../PrivateApplications/Official/judge_rec;../PrivateApplications/Official/UI_operation;../PrivateApplications/Debugger/Music;../PrivateApplications/Debugger/Music/Song;../PrivateApplications/Robot_module/chassis;../PrivateApplications/Robot_module/gimbal;../PrivateApplications/Robot_module/joint;../PrivateApplications/Robot_module/stir;../PrivateApplications/System_IDF;../PrivateDrivers/CAN;../PrivateDrivers/DT7;../PrivateDrivers/CBoardIMU;../PrivateDrivers/LK;../PrivateDrivers/WheelTecIMU;../PrivateDrivers/WT901IMU;../PrivateDrivers/DM_driver;../PrivateDrivers/superSee;../PrivateDrivers/DWT;../PrivateDrivers/WS2812;../PrivateDrivers/DM-IMU;../PrivateDrivers/VT13A;../PrivateDrivers/MIT;../PrivateDrivers/Board2Borad;../qp;../qp/qm;../qp/qpc/include;../qp/qpc/ports;../qp/qpc/src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -401,9 +401,19 @@
               <FilePath>..\GeneralHeader\general_define.h</FilePath>
             </File>
             <File>
+              <FileName>device_define.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\GeneralHeader\device_define.h</FilePath>
+            </File>
+            <File>
+              <FileName>robot_define.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\GeneralHeader\robot_define.h</FilePath>
+            </File>
+            <File>
               <FileName>song.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\Song\song.h</FilePath>
+              <FilePath>..\PrivateApplications\Debugger\Music\Song\song.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -421,14 +431,14 @@
               <FilePath>..\Tasks\Inc\initial_task.h</FilePath>
             </File>
             <File>
-              <FileName>state_task.h</FileName>
+              <FileName>task_state.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Tasks\Inc\state_task.h</FilePath>
+              <FilePath>..\Tasks\Inc\task_state.h</FilePath>
             </File>
             <File>
-              <FileName>state_task.c</FileName>
+              <FileName>task_state.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Tasks\Src\state_task.c</FilePath>
+              <FilePath>..\Tasks\Src\task_state.c</FilePath>
             </File>
             <File>
               <FileName>task_monitor.h</FileName>
@@ -436,39 +446,34 @@
               <FilePath>..\Tasks\Inc\task_monitor.h</FilePath>
             </File>
             <File>
+              <FileName>task_monitor_internal.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Tasks\Inc\task_monitor_internal.h</FilePath>
+            </File>
+            <File>
               <FileName>task_monitor.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Tasks\Src\task_monitor.c</FilePath>
             </File>
             <File>
-              <FileName>peripheral_transmit_task.h</FileName>
+              <FileName>task_transmit.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Tasks\Inc\peripheral_transmit_task.h</FilePath>
+              <FilePath>..\Tasks\Inc\task_transmit.h</FilePath>
             </File>
             <File>
-              <FileName>peripheral_transmit_task.c</FileName>
+              <FileName>task_transmit.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Tasks\Src\peripheral_transmit_task.c</FilePath>
+              <FilePath>..\Tasks\Src\task_transmit.c</FilePath>
             </File>
             <File>
-              <FileName>peripheral_receive_task.c</FileName>
+              <FileName>task_receive.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Tasks\Src\peripheral_receive_task.c</FilePath>
+              <FilePath>..\Tasks\Src\task_receive.c</FilePath>
             </File>
             <File>
-              <FileName>peripheral_receive_task.h</FileName>
+              <FileName>task_receive.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Tasks\Inc\peripheral_receive_task.h</FilePath>
-            </File>
-            <File>
-              <FileName>music_task.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Tasks\Inc\music_task.h</FilePath>
-            </File>
-            <File>
-              <FileName>music_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Tasks\Src\music_task.c</FilePath>
+              <FilePath>..\Tasks\Inc\task_receive.h</FilePath>
             </File>
             <File>
               <FileName>task_control.c</FileName>
@@ -518,33 +523,23 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Users/PrivateDrivers/DMJ4310</GroupName>
+          <GroupName>Users/PrivateDrivers/DM_driver</GroupName>
           <Files>
             <File>
-              <FileName>DMJ4310.h</FileName>
+              <FileName>DM_driver.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateDrivers\DMJ4310\DMJ4310.h</FilePath>
+              <FilePath>..\PrivateDrivers\DM_driver\DM_driver.h</FilePath>
             </File>
             <File>
-              <FileName>DMJ4310.c</FileName>
+              <FileName>DM_driver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateDrivers\DMJ4310\DMJ4310.c</FilePath>
+              <FilePath>..\PrivateDrivers\DM_driver\DM_driver.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>Users/PrivateApplications/LK</GroupName>
+          <GroupName>Users/PrivateDrivers/LK</GroupName>
           <Files>
-            <File>
-              <FileName>LK_driver.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\LK\LK_driver.c</FilePath>
-            </File>
-            <File>
-              <FileName>LK_driver.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\LK\LK_driver.h</FilePath>
-            </File>
             <File>
               <FileName>LK_485_driver.c</FileName>
               <FileType>1</FileType>
@@ -554,6 +549,16 @@
               <FileName>LK_485_driver.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\PrivateDrivers\LK\LK_485_driver.h</FilePath>
+            </File>
+            <File>
+              <FileName>LK_driver.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PrivateDrivers\LK\LK_driver.c</FilePath>
+            </File>
+            <File>
+              <FileName>LK_driver.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PrivateDrivers\LK\LK_driver.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -643,7 +648,7 @@
             <File>
               <FileName>ekf_quaternion.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\IMU_solver\ekf_quaternion.h</FilePath>
+              <FilePath>..\PrivateApplications\Solver\IMU_solver\ekf_quaternion.h</FilePath>
             </File>
             <File>
               <FileName>WS2812.c</FileName>
@@ -688,32 +693,32 @@
             <File>
               <FileName>pid.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\PID\pid.h</FilePath>
+              <FilePath>..\PrivateApplications\Controller\PID\pid.h</FilePath>
             </File>
             <File>
               <FileName>pid.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\PID\pid.c</FilePath>
+              <FilePath>..\PrivateApplications\Controller\PID\pid.c</FilePath>
             </File>
             <File>
               <FileName>kalman_filter.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\kalman_filter\kalman_filter.h</FilePath>
+              <FilePath>..\PrivateApplications\Filter\kalman_filter\kalman_filter.h</FilePath>
             </File>
             <File>
               <FileName>kalman_filter.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\kalman_filter\kalman_filter.c</FilePath>
+              <FilePath>..\PrivateApplications\Filter\kalman_filter\kalman_filter.c</FilePath>
             </File>
             <File>
               <FileName>adrc.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\ADRC\adrc.h</FilePath>
+              <FilePath>..\PrivateApplications\Controller\ADRC\adrc.h</FilePath>
             </File>
             <File>
               <FileName>adrc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\ADRC\adrc.c</FilePath>
+              <FilePath>..\PrivateApplications\Controller\ADRC\adrc.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -723,17 +728,17 @@
             <File>
               <FileName>ekf_quaternion.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\IMU_solver\ekf_quaternion.c</FilePath>
+              <FilePath>..\PrivateApplications\Solver\IMU_solver\ekf_quaternion.c</FilePath>
             </File>
             <File>
               <FileName>ekf_imu_solver.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\IMU_solver\ekf_imu_solver.h</FilePath>
+              <FilePath>..\PrivateApplications\Solver\IMU_solver\ekf_imu_solver.h</FilePath>
             </File>
             <File>
               <FileName>ekf_imu_solver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\IMU_solver\ekf_imu_solver.c</FilePath>
+              <FilePath>..\PrivateApplications\Solver\IMU_solver\ekf_imu_solver.c</FilePath>
             </File>
             <File>
               <FileName>bsp_dwt.c</FileName>
@@ -748,42 +753,42 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Users/PrivateApplications/judge_receive</GroupName>
+          <GroupName>Users/PrivateApplications/Official/judge_receive</GroupName>
           <Files>
             <File>
               <FileName>judge_receive.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\judge_rec\judge_receive.h</FilePath>
+              <FilePath>..\PrivateApplications\Official\judge_rec\judge_receive.h</FilePath>
             </File>
             <File>
               <FileName>judge_receive.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\judge_rec\judge_receive.c</FilePath>
+              <FilePath>..\PrivateApplications\Official\judge_rec\judge_receive.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>User/PrivateApplications/superSee</GroupName>
+          <GroupName>User/PrivateDrivers/superSee</GroupName>
           <Files>
             <File>
               <FileName>distance_check.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\superSee\distance_check.c</FilePath>
+              <FilePath>..\PrivateDrivers\superSee\distance_check.c</FilePath>
             </File>
             <File>
               <FileName>distance_check.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\superSee\distance_check.h</FilePath>
+              <FilePath>..\PrivateDrivers\superSee\distance_check.h</FilePath>
             </File>
             <File>
               <FileName>distance_mearsure.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\superSee\distance_mearsure.c</FilePath>
+              <FilePath>..\PrivateDrivers\superSee\distance_mearsure.c</FilePath>
             </File>
             <File>
               <FileName>distance_measure.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\superSee\distance_measure.h</FilePath>
+              <FilePath>..\PrivateDrivers\superSee\distance_measure.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -793,22 +798,22 @@
             <File>
               <FileName>UI_driver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\UI_operation\UI_driver.c</FilePath>
+              <FilePath>..\PrivateApplications\Official\UI_operation\UI_driver.c</FilePath>
             </File>
             <File>
               <FileName>UI_design.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\UI_operation\UI_design.c</FilePath>
+              <FilePath>..\PrivateApplications\Official\UI_operation\UI_design.c</FilePath>
             </File>
             <File>
               <FileName>UI_design.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\UI_operation\UI_design.h</FilePath>
+              <FilePath>..\PrivateApplications\Official\UI_operation\UI_design.h</FilePath>
             </File>
             <File>
               <FileName>UI_driver.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\UI_operation\UI_driver.h</FilePath>
+              <FilePath>..\PrivateApplications\Official\UI_operation\UI_driver.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1250,17 +1255,17 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>User/PrivateApplications/Music</GroupName>
+          <GroupName>User/PrivateApplications/Debugger/Music</GroupName>
           <Files>
             <File>
               <FileName>music_mardio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\Music\music_mardio.c</FilePath>
+              <FilePath>..\PrivateApplications\Debugger\Music\music_mardio.c</FilePath>
             </File>
             <File>
               <FileName>music_mardio.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\Music\music_mardio.h</FilePath>
+              <FilePath>..\PrivateApplications\Debugger\Music\music_mardio.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1270,87 +1275,87 @@
             <File>
               <FileName>Notch_filter.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\LvBo\Notch_filter.c</FilePath>
+              <FilePath>..\PrivateApplications\Filter\LvBo\Notch_filter.c</FilePath>
             </File>
             <File>
               <FileName>Notch_filter.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\LvBo\Notch_filter.h</FilePath>
+              <FilePath>..\PrivateApplications\Filter\LvBo\Notch_filter.h</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>Users/PrivateApplications/Shoot_Speed_contrl</GroupName>
+          <GroupName>Users/PrivateApplications/ShootSpeedFilter</GroupName>
           <Files>
             <File>
               <FileName>shoot_speed_best_contrl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\Shoot_Speed_contrl\shoot_speed_best_contrl.c</FilePath>
+              <FilePath>..\PrivateApplications\Filter\shoot_speed\shoot_speed_best_contrl.c</FilePath>
             </File>
             <File>
               <FileName>shoot_speed_best_contrl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\Shoot_Speed_contrl\shoot_speed_best_contrl.h</FilePath>
+              <FilePath>..\PrivateApplications\Filter\shoot_speed\shoot_speed_best_contrl.h</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>Users/PrivateApllications/MainControl</GroupName>
+          <GroupName>Users/PrivateApplications/Robot_module</GroupName>
           <Files>
             <File>
               <FileName>jointControl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\MainControl\jointControl.c</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\joint\jointControl.c</FilePath>
             </File>
             <File>
               <FileName>jointControl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\jointControl.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\joint\jointControl.h</FilePath>
             </File>
             <File>
               <FileName>gimbalControl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\MainControl\gimbalControl.c</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\gimbal\gimbalControl.c</FilePath>
             </File>
             <File>
               <FileName>gimbalControl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\gimbalControl.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\gimbal\gimbalControl.h</FilePath>
             </File>
             <File>
               <FileName>gimbalControl_internal.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\gimbalControl_internal.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\gimbal\gimbalControl_internal.h</FilePath>
             </File>
             <File>
               <FileName>chassisControl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\MainControl\chassisControl.c</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\chassis\chassisControl.c</FilePath>
             </File>
             <File>
               <FileName>chassisControl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\chassisControl.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\chassis\chassisControl.h</FilePath>
             </File>
             <File>
               <FileName>chassisControl_internal.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\chassisControl_internal.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\chassis\chassisControl_internal.h</FilePath>
             </File>
             <File>
               <FileName>stirControl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\PrivateApplications\MainControl\stirControl.c</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\stir\stirControl.c</FilePath>
             </File>
             <File>
               <FileName>stirControl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\stirControl.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\stir\stirControl.h</FilePath>
             </File>
             <File>
               <FileName>stirControl_internal.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\PrivateApplications\MainControl\stirControl_internal.h</FilePath>
+              <FilePath>..\PrivateApplications\Robot_module\stir\stirControl_internal.h</FilePath>
             </File>
           </Files>
         </Group>

@@ -20,13 +20,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
-#include "peripheral_receive_task.h"
-#include "peripheral_transmit_task.h"
-extern UpperComputerComm upperComputerComm;
-extern uint8_t shit_last_PC_Receive_shoot_mode;
-#include "algorism.h"
-#include "math.h"
 /* USER CODE BEGIN INCLUDE */
+#include "task_receive.h"
 
 /* USER CODE END INCLUDE */
 
@@ -269,19 +264,10 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 11 */
-	/*数据处理*/
-	int a;
-	a++;
-//	if(UPPER_PC_COMM_REC_SOF == Buf[0] && UPPER_PC_COMM_REC_EOF == Buf[*Len - 1] && *Len == UPPER_PC_COMM_REC_LENGTH)
-//	{
-//		shit_last_PC_Receive_shoot_mode=upperComputerComm.Receive.shoot_mode;
-		memcpy(&upperComputerComm.Receive, Buf, sizeof(upperComputerComm.Receive));
-		AbsLimiter(upperComputerComm.Receive.target_pitch_angle_d,+180);
-		
-		AbsLimiter(upperComputerComm.Receive.target_yaw_angle_d,+180);
-		upperComputerComm.rec_counter++;
-//	}
-  USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
+  if(Len != NULL){
+    UpperCommRecHandler(Buf, *Len);
+  }
+  USBD_CDC_SetRxBuffer(&hUsbDeviceHS, Buf);
   USBD_CDC_ReceivePacket(&hUsbDeviceHS);
   return (USBD_OK);
   /* USER CODE END 11 */

@@ -4,7 +4,7 @@
 #include "task.h"
 
 #include "main.h"
-#include "general_config_label.h"
+#include "general_define.h"
 #include "chassisControl.h"
 #include "gimbalControl.h"
 #include "jointControl.h"

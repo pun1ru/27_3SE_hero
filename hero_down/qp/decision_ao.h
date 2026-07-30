@@ -81,11 +81,11 @@ QState DecisionAO_Protected(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_NormalMode(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_SniperMode(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_WorldGimbal(DecisionAO * const me, QEvt const * const e);
-QState DecisionAO_PreStair(DecisionAO * const me, QEvt const * const e);
-QState DecisionAO_StairUp(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_Stand_High(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_Revolve(DecisionAO * const me, QEvt const * const e);
 QState DecisionAO_FollowBck(DecisionAO * const me, QEvt const * const e);
+QState DecisionAO_PreStair(DecisionAO * const me, QEvt const * const e);
+QState DecisionAO_StairUp(DecisionAO * const me, QEvt const * const e);
 //$enddecl${Hero_Demo::DecisionAO} ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 //$declare${Hero_Shared} vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

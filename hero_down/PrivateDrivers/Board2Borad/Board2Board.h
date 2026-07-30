@@ -12,30 +12,15 @@
 
 #include "fdcan.h"
 #include <stdint.h>
+#include "device_define.h"
 
 /* ===================================================================
- * CAN ID 分配 — B2B 专用段 0x220-0x22F (hfdcan1, 双板直连)
+ * CAN ID 分配 — B2B 专用段 0x220-0x22F (hfdcan3, 双板直连)
  *
  * 不与 CAN1 现有 ID 冲突：
  *   CAN1 电机: 0x01-0x08(MIT)   0x141(LK pitch)
  *   滤波器:    RANGE [0x000,0x300] → 0x220-0x22F 全部放行
  * =================================================================== */
-#define B2B_CAN                hfdcan3  /**< 双板通信用 CAN 总线（CAN3 独立通道，不抢电机帧优先级） */
-
-/* ── 下板→上板 ───────────────────────────── */
-#define B2B_DOWN_BODY_STATE    0x220U  /**< 机体姿态                   500Hz(2ms) */
-#define B2B_DOWN_GIMBAL_INPUT  0x221U  /**< 云台目标(yaw_cmd+pitch_cmd) 100Hz(10ms) */
-#define B2B_DOWN_KEYS_SWITCH   0x222U  /**< 键位 + 开关 + HP            100Hz(10ms,同RC) */
-#define B2B_DOWN_STIR          0x223U  /**< 拨盘力矩+速度               500Hz(2ms) */
-#define B2B_DOWN_SHOOT_STATE   0x224U  /**< 射击标志+弹速               100Hz(10ms) */
-
-/* ── 上板→下板 ───────────────────────────── */
-#define B2B_UP_GIMBAL_POSE     0x228U  /**< 云台姿态（高频）                 */
-#define B2B_UP_GIMBAL_TARGET   0x229U  /**< 云台目标（低频）                 */
-#define B2B_UP_FRIC_RPM_A      0x22AU  /**< 摩擦轮转速 0..3                  */
-#define B2B_UP_FRIC_RPM_B      0x22BU  /**< 摩擦轮转速 4..5                  */
-#define B2B_UP_GIMBAL_VELOCITY 0x22CU  /**< 云台 yaw/pitch 角速度（float）    */
-
 /* ============================= API =================================== */
 
 void B2BInit(void);

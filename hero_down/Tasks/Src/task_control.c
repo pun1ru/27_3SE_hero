@@ -5,10 +5,10 @@
 
 #include "main.h"
 #include "chassisControl.h"
-#include "DMJ4310.h"
+#include "DM_driver.h"
 #include "gimbalControl.h"
 #include "jointControl.h"
-#include "peripheral_transmit_task.h"
+#include "task_transmit.h"
 #include "stirControl.h"
 #include "task_monitor.h"
 
@@ -63,7 +63,7 @@ void ControlTask(void* argument)
         JointControlUpdate();        /* jointControl.c */
 
         /* 统一 CAN 发送 */
-        MotorControlCANSend();       /* peripheral_transmit_task.c */
+        MotorControlCANSend();       /* task_transmit.c */
 
         /* 控制链监控：记录 Control 执行完毕 + 刷新各段微秒延迟 */
         TaskMonitorMarkControlExit(DWT->CYCCNT);
