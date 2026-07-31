@@ -201,10 +201,16 @@ void GimbalInit(void)
                                0.30f*eso_wo*eso_wo*eso_wo, 2000.0f};                /* h,b,β01,β02,β03,z3_limit */
         LADRCInitialize(&gimbalControl.GimbalMotorControl.pitch_angle_adrc, td_init, lesf_init, eso_init, 0.0f, 0.0f);
     }
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_min = -15;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z1_max = +36;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_min = -200;
-    gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso.z2_max = +200;
+    /* pitch 观测量按机械量程限幅：z1 为角度(deg)，z2 为角速度(dps) */
+    ESOSetStateLimit(&gimbalControl.GimbalMotorControl.pitch_angle_adrc.eso,
+                     PITCH_ESO_Z1_MIN_D, PITCH_ESO_Z1_MAX_D,
+                     PITCH_ESO_Z2_MIN_DPS, PITCH_ESO_Z2_MAX_DPS);
+
+    /* pitch 接线：LTD 微分器 + pitch 实测角速度作为二阶误差参考 */
+    ADRCBindTrackDiffLTD(&gimbalControl.GimbalMotorControl.pitch_angle_adrc,
+                         &gimbalControl.GimbalMotorControl.pitch_LTD);
+    ADRCBindVelocityRef(&gimbalControl.GimbalMotorControl.pitch_angle_adrc,
+                        ADRCVelocityFromPitchEstimate);
     /* ---- yaw 控制初始化 (从下板搬迁) ---- */
     int yaw_wc = 6, yaw_w0 = 22; //w0 = 3~10*wc
     /* yaw LADRC */
@@ -212,6 +218,9 @@ void GimbalInit(void)
     float lesf_init[5] = {0.0f, (float)(yaw_wc*yaw_wc), (float)(2*yaw_wc), 0.0f, 50000.0f}; // k_0, k_1, k_2, e_0_max, output_limit
     float eso_init[6]  = {0.002f, 40, (float)(3*yaw_w0), (float)(3*yaw_w0*yaw_w0), (float)(yaw_w0*yaw_w0*yaw_w0), 10000.0f}; // h, b, β01, β02, β03, z3_limit
     LADRCInitialize(&gimbalControl.GimbalMotorControl.yaw_ADRC, td_init, lesf_init, eso_init, -3.14159f, 3.14159f);
+    /* yaw 观测器整定：z2支路Fal线性区取10倍步长；未给定 z1/z2 边界，故不开状态限幅 */
+    ESOSetFalTuning(&gimbalControl.GimbalMotorControl.yaw_ADRC.eso,
+                    YAW_ESO_FAL_DELTA_GAIN_Z2, ESO_FAL_DELTA_GAIN_UNIT);
     SmoothFilterInitialize(&yawEncFilter, 0.7f);
     ScalarKalmanFilterInit(&yawEncKalmanFilter, 0.0000001f, 0.0000188825f, 0.002f);
 
@@ -247,7 +256,10 @@ void GimbalControlUpdate(void)
     /*不同状态参数不一样
     是否有吊射状态*/
         float output_limit=800;//gimbalControl.GimbalEstimate.pitch_angular_velocity_dps
-        LTDADRCUpdate(&gimbalControl.GimbalMotorControl.pitch_angle_adrc,&gimbalControl.GimbalMotorControl.pitch_LTD, gimbalControl.GimbalTargetInput.pitch_angle_d,gimbalControl.GimbalEstimate.pitch_angle_d);
+        /* 微分器与速度来源已在 GimbalInit 绑定，此处只需统一入口 */
+        ADRCUpdate(&gimbalControl.GimbalMotorControl.pitch_angle_adrc,
+                   gimbalControl.GimbalTargetInput.pitch_angle_d,
+                   gimbalControl.GimbalEstimate.pitch_angle_d);
         uint32_t zero_pos=244360;//测一下
         fl_u=gimbalControl.GimbalMotorControl.pitch_angle_adrc.u*1+fl_u*0;
         if(_robotState->sniper==SNIPER_ON)//右下吊射模式用编码器精度为0.01°
@@ -305,9 +317,9 @@ void GimbalControlUpdate(void)
 		gimbalControl.GimbalTargetInput.yaw_angular_velocity_dps = gimbalControl.GimbalMotorControl.yaw_pos_pid.output;
 #else
 		/* ===== LADRC 角度环控制 ===== */
-		YawLADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
-		            gimbalControl.GimbalTargetInput.yaw_angle_d * (3.141592f / 180.0f),
-		            gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f));
+		ADRCUpdate(&gimbalControl.GimbalMotorControl.yaw_ADRC,
+		           gimbalControl.GimbalTargetInput.yaw_angle_d * (3.141592f / 180.0f),
+		           gimbalControl.GimbalEstimate.yaw_angle_d * (3.141592f / 180.0f));
 		gimbalControl.GimbalMotorControl.yaw_target_output = -(gimbalControl.GimbalMotorControl.yaw_ADRC.u);
 #endif
 

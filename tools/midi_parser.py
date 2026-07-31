@@ -168,32 +168,48 @@ def parse_midi(filepath):
                 offset += 2
 
     us_per_tick = tempo / tick_per_qn
+    # A piano arrangement can retrigger the same pitch before the previous
+    # note-off arrives.  Keep a FIFO of pending note-ons per channel/pitch;
+    # a single value here silently discarded those overlapping notes and
+    # produced zero-length notes after the next note-off.
     on_map = {}
     notes_raw = []
 
     for evt in sorted(raw_events,
-                      key=lambda e: (e.abs_tick, 0 if e.type == 'on' else 1)):
+                      # A same-tick note-off closes the previous articulation
+                      # before a retriggered note-on is opened.
+                      key=lambda e: (e.abs_tick, 0 if e.type == 'off' else 1)):
         k = (evt.channel, evt.note)
         if evt.type == 'on':
-            on_map[k] = evt.abs_tick
+            on_map.setdefault(k, []).append((evt.abs_tick, evt.velocity))
         else:
-            if k in on_map:
-                start = on_map.pop(k)
+            pending = on_map.get(k)
+            if pending:
+                # MIDI note-ons are paired FIFO when a malformed/overlapping
+                # stream contains more than one active articulation.
+                start, _ = pending.pop(0)
                 dur_tick = evt.abs_tick - start
-                notes_raw.append(NoteInfo(
-                    pitch    = evt.note,
-                    channel  = evt.channel,
-                    start_ms = start * us_per_tick / 1000.0,
-                    dur_ms   = dur_tick * us_per_tick / 1000.0,
-                ))
+                if dur_tick > 0:
+                    notes_raw.append(NoteInfo(
+                        pitch    = evt.note,
+                        channel  = evt.channel,
+                        start_ms = start * us_per_tick / 1000.0,
+                        dur_ms   = dur_tick * us_per_tick / 1000.0,
+                    ))
+                if not pending:
+                    del on_map[k]
 
-    for k, start in on_map.items():
-        notes_raw.append(NoteInfo(
-            pitch    = k[1],
-            channel  = k[0],
-            start_ms = start * us_per_tick / 1000.0,
-            dur_ms   = (tick_per_qn // 4) * us_per_tick / 1000.0,
-        ))
+    # Gracefully close unterminated notes at one sixteenth note.  This keeps
+    # malformed files usable without manufacturing a zero-length event.
+    fallback_tick = max(1, tick_per_qn // 4)
+    for (channel, pitch), pending in on_map.items():
+        for start, _ in pending:
+            notes_raw.append(NoteInfo(
+                pitch    = pitch,
+                channel  = channel,
+                start_ms = start * us_per_tick / 1000.0,
+                dur_ms   = fallback_tick * us_per_tick / 1000.0,
+            ))
 
     notes_raw.sort(key=lambda n: n.start_ms)
 
@@ -209,9 +225,15 @@ def parse_midi(filepath):
 #  提取策略
 # ============================================================
 
-def extract_monophonic(notes, time_tol_ms=8):
-    """从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音
-从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音"""
+def extract_monophonic(notes, time_tol_ms=35):
+    """从多音中提取单旋律: 同时间窗口取最高音, 合并连续同音。
+
+    Humanized/chordal MIDI commonly spreads a chord over 20--30 ms.  The
+    previous 8 ms default split those notes into separate pseudo-melody
+    events, so the highest note of a chord was not selected consistently.
+    ``time_tol_ms`` remains configurable for files with a different timing
+    style.
+    """
     if not notes:
         return []
 

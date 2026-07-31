@@ -9,6 +9,12 @@
 
 #define PITCH_OFFSET_MACHENICAL_ANGLE (56183)
 
+/* pitch 观测器状态限幅：按 pitch 机械量程与最大角速度整定 */
+#define PITCH_ESO_Z1_MIN_D      (-15.0f)
+#define PITCH_ESO_Z1_MAX_D      (36.0f)
+#define PITCH_ESO_Z2_MIN_DPS    (-200.0f)
+#define PITCH_ESO_Z2_MAX_DPS    (200.0f)
+
 /**
  * @brief 云台控制相关结构体
  */

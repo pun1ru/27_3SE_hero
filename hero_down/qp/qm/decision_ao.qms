@@ -9,7 +9,7 @@
   <item name="backups">0</item>
  </group>
  <group name="windows">
-  <item id="Hero_Demo::DecisionAO::SM">0,0,998,612,*</item>
+  <item id="Hero_Demo::DecisionAO::SM">0,0,998,828,*</item>
   <item id="../::decision_ao.h">0,0,596,300</item>
   <item id="../::decision_ao.c">170,2,596,300</item>
  </group>

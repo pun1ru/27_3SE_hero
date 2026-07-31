@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Designer"
+  short_description: "按照项目记忆与嵌入式规范安全修改代码并完成分层验证"
+  default_prompt: "Use $code-designer to make and verify the requested embedded-code changes."

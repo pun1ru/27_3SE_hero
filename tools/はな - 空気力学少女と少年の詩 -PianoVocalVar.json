@@ -1,0 +1,76 @@
+{
+  "source": "はな - 空気力学少女と少年の詩 -PianoVocalVar.-.mid",
+  "algorithm": "partitura-contig-mapping-voice-separation",
+  "candidate_count": 2763,
+  "voice_count": 6,
+  "selected_voice": 1,
+  "parameters": {
+    "min_pitch": 70,
+    "max_pitch": 99,
+    "min_duration_ms": 35.0,
+    "onset_tolerance_ms": 35.0,
+    "merge_gap_ms": 80.0
+  },
+  "voices": {
+    "1": {
+      "note_count": 4,
+      "min_pitch": 85,
+      "max_pitch": 95
+    },
+    "2": {
+      "note_count": 120,
+      "min_pitch": 70,
+      "max_pitch": 96
+    },
+    "3": {
+      "note_count": 25,
+      "min_pitch": 70,
+      "max_pitch": 95
+    },
+    "4": {
+      "note_count": 649,
+      "min_pitch": 70,
+      "max_pitch": 98
+    },
+    "5": {
+      "note_count": 580,
+      "min_pitch": 70,
+      "max_pitch": 97
+    },
+    "6": {
+      "note_count": 334,
+      "min_pitch": 70,
+      "max_pitch": 99
+    }
+  },
+  "notes": [
+    {
+      "pitch": 90,
+      "frequency": 1479.978,
+      "start_ms": 2381,
+      "duration_ms": 93,
+      "gap_ms": 6216
+    },
+    {
+      "pitch": 87,
+      "frequency": 1244.508,
+      "start_ms": 8690,
+      "duration_ms": 128,
+      "gap_ms": 20143
+    },
+    {
+      "pitch": 85,
+      "frequency": 1108.731,
+      "start_ms": 28961,
+      "duration_ms": 185,
+      "gap_ms": 201519
+    },
+    {
+      "pitch": 95,
+      "frequency": 1975.533,
+      "start_ms": 230665,
+      "duration_ms": 116,
+      "gap_ms": 0
+    }
+  ]
+}
