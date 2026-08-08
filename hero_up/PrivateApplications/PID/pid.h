@@ -21,6 +21,10 @@ typedef struct {
 	* \brief pid output
 	*/
 	float output;
+	/**
+	* \brief filtered derivative term (D low-pass)
+	*/
+	float deriv_filtered;
 	
 	/**
 	* \brief Constrain parameters
@@ -33,6 +37,7 @@ void PIDReset(PIDStruct *const pid);
 void PIDInitialize(PIDStruct *const pid, float kp, float ki, float kd, float sum_error_max, float output_max);
 float PIDUpdate(PIDStruct *const pid, const float error);
 float PIDUpdatePrior(PIDStruct pid, const float error);
+float PIDUpdateWithFilteredD(PIDStruct *const pid, const float error, const float alpha);
 
 /*optimize pid compute*/
 float PIDUpdateIntergrateRefresh(PIDStruct* const pid, const float error, const float error_limit);

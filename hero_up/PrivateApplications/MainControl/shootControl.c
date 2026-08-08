@@ -8,6 +8,9 @@
 #include "general_task_include.h"
 #include "judge_receive.h"   // DataFromJudge
 
+/* 单级摩擦轮模式：只给 LEFT、RIGHT、UP1 目标转速。 */
+//#define SHOOT_SINGLE_STAGE_MODE
+
 /* === 全局变量 === */
 ShootControl shootControl={0};            //hxg
 const ShootControl* _shootControl = &shootControl;
@@ -25,8 +28,8 @@ int16_t fric_speed_left_target , fric_speed_right_target,fric_speed_up_target;
 int16_t fric_speed_left_target1 , fric_speed_right_target1,fric_speed_up_target1;
 float current_fric_speed =3110;   // 吊射模式弹速; 3500,4650,dansu,4580-16.77//4785
 float default_fric_speed = 3110;//常 规模式弹速
-float front_fric_speed = 4300;//4550
-float back_fric_speed = 4320;
+float front_fric_speed = 3210;//4550
+float back_fric_speed = 4140;
 float deltaspeed;
 float emergesee;
 
@@ -84,7 +87,7 @@ void ShootInputUpdate(void)
 		shootControl.ShootTargetInput.fric_speed_rpm[LEFT] =+front_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT] = -front_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP] = +back_fric_speed;
-    shootControl.ShootTargetInput.fric_speed_rpm[LEFT1] =+back_fric_speed;
+    	shootControl.ShootTargetInput.fric_speed_rpm[LEFT1] =+back_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] = -back_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP1] = +front_fric_speed;
 		}
@@ -93,7 +96,7 @@ void ShootInputUpdate(void)
 		shootControl.ShootTargetInput.fric_speed_rpm[LEFT] =+default_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT] = -default_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP] = +default_fric_speed;
-    shootControl.ShootTargetInput.fric_speed_rpm[LEFT1] =+default_fric_speed;
+    	shootControl.ShootTargetInput.fric_speed_rpm[LEFT1] =+default_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] = -default_fric_speed;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP1] = +default_fric_speed;
 		}
@@ -115,6 +118,12 @@ void ShootInputUpdate(void)
 		shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] =0;
 		shootControl.ShootTargetInput.fric_speed_rpm[UP1] =0;
 	}
+
+#ifdef SHOOT_SINGLE_STAGE_MODE
+	shootControl.ShootTargetInput.fric_speed_rpm[UP] = 0.0f;
+	shootControl.ShootTargetInput.fric_speed_rpm[LEFT1] = 0.0f;
+	shootControl.ShootTargetInput.fric_speed_rpm[RIGHT1] = 0.0f;
+#endif
 
 	/* 拨盘在hero_down，shoot_flag同步stir_mode状态（debug帧/上位机消费） */
 	shootControl.ShootTargetInput.shoot_flag = (_robotState->stir_mode != STIR_LOCK) ? 1 : 0;

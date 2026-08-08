@@ -67,6 +67,12 @@ void GimbalEstimateUpdate(void);
 void GimbalControlUpdate(void);
 void GimbalPoseUpdate(float pitch_angle, float pitch_angle_w, float yaw_angle, float yaw_angle_w, float roll_angle, float roll_angle_w);
 
+/**
+ * @brief   获取用于 SNIPER_ON yaw PID 位置反馈的终端观测角度
+ * @retval  观测角度，单位 deg
+ */
+float GimbalControlGetYawObservationAngleD(void);
+
 extern GimbalControl gimbalControl;
 extern const GimbalControl* _gimbalControl;
 extern SmoothFilter MouseFilterX;

@@ -24,7 +24,7 @@ uint8_t uart10_tx_complete=1;
  uint8_t tx[8] = {0};
 
 	/* 调试零值宏: 注释=正常输出, 取消注释=强制该组电机零力矩 */
-	#define ZERO_YAW
+	//#define ZERO_YAW
 	//#define ZERO_PITCH
 	//#define ZERO_FRIC
 /* IMU数据快速发送：IMUTask调用，PoseUpdateFromIMU后立即发出，消除任务调度延迟 */
@@ -254,8 +254,8 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     }
     return crc;
 }
-#define DEBUG_FRAME_ORIGINAL
-//#define DEBUG_FRAME_YAW_ADRC
+//#define DEBUG_FRAME_ORIGINAL
+#define DEBUG_FRAME_YAW_ADRC
 static void DebugTransmit(void)
 {
 	cnt++;
@@ -271,7 +271,7 @@ static void DebugTransmit(void)
 	 * - DM编码器数据：FDCAN3响应中断异步更新，此处读取最新值，标称约500 Hz。
 	 * [0-1]   0xAA 0xBB  帧头
 	 * [2-5]   float       td_x1_deg       TD跟踪位置 (deg, ControlTask 500 Hz)
-	 * [6-9]   float       adrc_u          ADRC最终控制量u (ControlTask 500 Hz)
+	 * [6-9]   float       yaw_observation_d SNIPER_ON PID位置反馈角度 (deg, IMU积分+编码器低频校正)
 	 * [10-13] float       eso_z3          ESO扰动估计z3 (ControlTask 500 Hz)
 	 * [14-17] float       eso_z2          ESO速度估计z2 (deg/s, ControlTask 500 Hz)
 	 * [18-21] float       esf_e1_deg      位置误差e1 (deg, ControlTask 500 Hz)
@@ -286,7 +286,7 @@ static void DebugTransmit(void)
 	extern Pose gimbalPose;
 	const ADRC* adrc = &gimbalControl.GimbalMotorControl.yaw_ADRC;
 	float td_x1_d    = adrc->td.x1 * 57.29578f;
-	float adrc_u     = adrc->u;
+	float yaw_observation_d = GimbalControlGetYawObservationAngleD();
 	float eso_z3     = adrc->eso.z3;
 	float eso_z2     = adrc->eso.z2 * 57.29578f;   /* rad/s→deg/s */
 	float esf_e1_d   = adrc->esf.e_1 * 57.29578f;
@@ -299,7 +299,7 @@ static void DebugTransmit(void)
 	debug_data[0] = 0xAA;
 	debug_data[1] = 0xBB;
 	memcpy(&debug_data[2],  (void*)&td_x1_d,     4);
-	memcpy(&debug_data[6],  (void*)&adrc_u,      4);
+	memcpy(&debug_data[6],  (void*)&yaw_observation_d, 4);
 	memcpy(&debug_data[10], (void*)&eso_z3,      4);
 	memcpy(&debug_data[14], (void*)&eso_z2,      4);
 	memcpy(&debug_data[18], (void*)&esf_e1_d,    4);
