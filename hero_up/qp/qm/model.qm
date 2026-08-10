@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model version="7.0.3" links="0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.state-machine.com/qm/qm7.xsd">
+ <framework name="qpc"/>
+ <package name="HeroUp" stereotype="0x00">
+  <class name="DecisionAO" superclass="qpc::QActive">
+   <attribute name="ctrl_terminal" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="fric_mode" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="sniper" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="mouse_fix" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="world_enable" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="cam_target" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <attribute name="inst" type="DecisionAO" visibility="0x00" properties="0x01"/>
+   <attribute name="rc_lost_flag" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <attribute name="can_enable" type="uint8_t" visibility="0x00" properties="0x00"/>
+   <statechart properties="0x00">
+    <initial target="../1">
+     <initial_glyph conn="41,2,4,0,3">
+      <action box="0,-2,10,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="Protected">
+     <entry>me-&gt;ctrl_terminal = CONTROL_STOP;
+me-&gt;fric_mode = FRIC_OFF;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;can_enable = CAN_DISABLE;</entry>
+     <tran trig="RC_LOST" target="..">
+      <tran_glyph conn="109,5,0,1,4,11">
+       <action box="1,2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_PC" target="../../2">
+      <action>me-&gt;ctrl_terminal = CONTROL_FROM_PC;</action>
+      <tran_glyph conn="101,13,2,0,2">
+       <action box="-3,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_RC" target="../../2">
+      <action>me-&gt;ctrl_terminal = CONTROL_FROM_REMOTE;</action>
+      <tran_glyph conn="94,13,2,0,2">
+       <action box="-5,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_protected">
+      <tran_glyph conn="94,5,0,-1,3">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="17,5,103,8">
+      <entry box="0,3,6,2"/>
+     </state_glyph>
+    </state>
+    <state name="NormalMode">
+     <entry>me-&gt;fric_mode = FRIC_OFF;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;can_enable = CAN_ENABLE;</entry>
+     <tran trig="SWITCH_SNIPER" target="../5">
+      <tran_glyph conn="109,15,0,0,14">
+       <action box="-6,-2,16,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_RC">
+      <action>me-&gt;ctrl_terminal = CONTROL_FROM_REMOTE;</action>
+      <tran_glyph conn="86,15,0,-1,6">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_PC">
+      <action>me-&gt;ctrl_terminal = CONTROL_FROM_PC;</action>
+      <tran_glyph conn="76,15,0,-1,5">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="Switch_protected" target="../../1">
+      <tran_glyph conn="72,15,0,2,-2">
+       <action box="-6,-26,17,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="RC_LOST" target="../../1">
+      <tran_glyph conn="58,15,0,2,-2">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state name="SniperMode">
+      <entry>me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;sniper = SNIPER_ON;</entry>
+      <tran trig="SWITCH_WORLD" target="../2">
+       <tran_glyph conn="69,29,0,0,20">
+        <action box="0,3,14,3"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="SWITCH_SNIPER" target="../..">
+       <tran_glyph conn="112,29,0,0,-14">
+        <action box="0,-7,15,2"/>
+       </tran_glyph>
+      </tran>
+      <state name="WorldGimbal">
+       <entry>me-&gt;world_enable = WORLD_ENABLE_ON;</entry>
+       <tran trig="SWITCH_WORLD" target="../..">
+        <tran_glyph conn="64,49,0,0,-20">
+         <action box="-14,-18,15,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph node="54,49,40,32">
+        <entry box="0,3,6,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph node="52,29,68,52">
+       <entry box="0,3,6,2"/>
+      </state_glyph>
+     </state>
+     <state_glyph node="17,15,103,66">
+      <entry box="0,3,6,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="80,50"/>
+   </statechart>
+  </class>
+ </package>
+ <package name="HeroUpShared" stereotype="0x00">
+  <attribute name="StateMachineSig" type="enum" visibility="0x04" properties="0x00">
+   <code>{
+    SwitchR_up_SIG=Q_USER_SIG,
+    SwitchR_mid_SIG,
+    SwitchR_down_SIG,
+    SwitchL_up_SIG,
+    SwitchL_mid_SIG,
+    SwitchL_down_SIG,
+    Switch_protected_SIG,
+    Switch_PC_SIG,
+    Switch_RC_SIG,
+    RC_LOST_SIG,
+
+    SWITCH_SNIPER_SIG,
+    SWITCH_WORLD_SIG,
+
+    SWITCH_FRIC_SIG,
+
+    SWITCH_MOUSE_FIX_SIG,
+    NEXT_CAM_TARGET_SIG,
+
+    MAX_PUB_SIG,
+    TIMEOUT_SIG,
+};</code>
+  </attribute>
+  <attribute name="CtrlTerminalEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{
+    CONTROL_STOP = 0, CONTROL_FROM_REMOTE, CONTROL_FROM_PC
+};</code>
+  </attribute>
+  <attribute name="FricModeEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ FRIC_OFF = 0, FRIC_ON };</code>
+  </attribute>
+  <attribute name="SniperModeEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ SNIPER_OFF = 0, SNIPER_ON };</code>
+  </attribute>
+  <attribute name="MouseFixModeEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ MOUSE_FIX_OFF = 0, MOUSE_FIX_ON };</code>
+  </attribute>
+  <attribute name="WorldModeEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ WORLD_ENABLE_OFF = 0, WORLD_ENABLE_ON };</code>
+  </attribute>
+  <attribute name="CamTargetEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{
+    CAM_TARGET_UP = 1, CAM_TARGET_MID, CAM_TARGET_DOWN
+};</code>
+  </attribute>
+  <operation name="DecisionAO_ctor" type="void" visibility="0x00" properties="0x00">
+   <code>DecisionAO * const me = &amp;DecisionAO_inst;
+
+QActive_ctor(&amp;me-&gt;super, Q_STATE_CAST(&amp;DecisionAO_initial));
+
+me-&gt;ctrl_terminal = CONTROL_STOP;
+me-&gt;fric_mode = FRIC_OFF;
+me-&gt;sniper = SNIPER_OFF;
+me-&gt;mouse_fix = MOUSE_FIX_OFF;
+me-&gt;world_enable = WORLD_ENABLE_OFF;
+me-&gt;cam_target = CAM_TARGET_MID;
+me-&gt;can_enable = CAN_DISABLE;</code>
+  </operation>
+  <attribute name="AO_DecisionAO" type="QActive * const" visibility="0x00" properties="0x00">
+   <code>= &amp;DecisionAO_inst.super;</code>
+  </attribute>
+  <attribute name="pDecisionAO" type="const DecisionAO *" visibility="0x00" properties="0x00">
+   <code>= &amp;DecisionAO_inst;</code>
+  </attribute>
+  <attribute name="CanEnableEnum" type="enum" visibility="0x04" properties="0x00">
+   <code>{ CAN_DISABLE = 0, CAN_ENABLE };</code>
+  </attribute>
+ </package>
+ <directory name="../">
+  <file name="decision_ao.c">
+   <text>#include &quot;decision_ao.h&quot;
+#include &quot;general_task_include.h&quot;
+
+$define ${HeroUpShared}
+$define ${HeroUp::DecisionAO}</text>
+  </file>
+  <file name="decision_ao.h">
+   <text>#ifndef DECISION_AO_H_
+#define DECISION_AO_H_
+
+#include &quot;qpc.h&quot;
+
+$declare ${HeroUp::DecisionAO}
+$declare ${HeroUpShared}
+
+
+#endif</text>
+  </file>
+ </directory>
+</model>

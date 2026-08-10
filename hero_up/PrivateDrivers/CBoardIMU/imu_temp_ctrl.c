@@ -1,56 +1,56 @@
-//#include "main.h"
-//#include "cmsis_os.h"
-//#include "bmi088_driver.h"
-//#include "gpio.h"
-//#include "tim.h"
+// #include "main.h"
+// #include "cmsis_os.h"
+// #include "bmi088_driver.h"
+// #include "gpio.h"
+// #include "tim.h"
 
-//#define DES_TEMP    40.0f
-//#define KP          100.f
-//#define KI          50.f
-//#define KD          10.f
-//#define MAX_OUT     500
+// #define DES_TEMP    40.0f
+// #define KP          100.f
+// #define KI          50.f
+// #define KD          10.f
+// #define MAX_OUT     500
 
-//float gyro[3], accel[3], temp;
-//uint8_t forceStop = 0;
-//float out = 0;
-//float err = 0;
-//float err_l = 0;
-//float err_ll = 0;
+// float gyro[3], accel[3], temp;
+// uint8_t forceStop = 0;
+// float out = 0;
+// float err = 0;
+// float err_l = 0;
+// float err_ll = 0;
 ///**
 //************************************************************************
-//* @brief:      	IMU_TempCtrlTask(void const * argument)
-//* @param:       argument - ÈÎÎñ²ÎÊý
-//* @retval:     	void
-//* @details:    	IMUÎÂ¶È¿ØÖÆÈÎÎñº¯Êý
+//* @brief:          IMU_TempCtrlTask(void const * argument)
+//* @param:       argument - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//* @retval:         void
+//* @details:        IMUï¿½Â¶È¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 //************************************************************************
 //**/
-//void IMU_TempCtrl(void const * argument)
+// void IMU_TempCtrl(void const * argument)
 //{
-//    
+//
 //        //osSemaphoreWait(imuBinarySem01Handle, osWaitForever);
-//        
+//
 ////        BMI088_read(gyro, accel, &temp);
-//			//temp=imu_data_rec->temperature_raw;
+//            //temp=imu_data_rec->temperature_raw;
 //        err_ll = err_l;
 //        err_l = err;
 //        err = DES_TEMP - temp;
 //        out = KP*err + KI*(err + err_l + err_ll) + KD*(err - err_l);
 //        if (out > MAX_OUT) out = MAX_OUT;
 //        if (out < 0) out = 0.f;
-//        
+//
 //        if (forceStop == 1)
 //        {
 //            out = 0.0f;
 //        }
 //        htim3.Instance->CCR4 = (uint16_t)out;
-//    
+//
 //}
 /////**
 ////************************************************************************
-////* @brief:      	HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-////* @param:       GPIO_Pin - ´¥·¢ÖÐ¶ÏµÄGPIOÒý½Å
-////* @retval:     	void
-////* @details:    	GPIOÍâ²¿ÖÐ¶Ï»Øµ÷º¯Êý£¬´¦Àí¼ÓËÙ¶È¼ÆºÍÍÓÂÝÒÇÖÐ¶Ï
+////* @brief:          HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+////* @param:       GPIO_Pin - ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ïµï¿½GPIOï¿½ï¿½ï¿½ï¿½
+////* @retval:         void
+////* @details:        GPIOï¿½â²¿ï¿½Ð¶Ï»Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶È¼Æºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½
 ////************************************************************************
 ////**/
 //////void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)

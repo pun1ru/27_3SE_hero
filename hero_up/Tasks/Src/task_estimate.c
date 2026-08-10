@@ -1,56 +1,43 @@
-/**
- * @file task_estimate.c
- * @brief EstimateTask — 观测估计任务，通知驱动
- * @note  通知链: IMUTask ──Notify──▶ EstimateTask ──Notify──▶ ControlTask
- *         参照 hero_down 三段式架构
- */
-
 #include "task_estimate.h"
-#include "general_task_include.h"
-#include "worldGimbal.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "main.h"
 #include "gimbalControl.h"
+#include "initial_task.h"
 #include "shootControl.h"
+#include "task_monitor.h"
+#include "worldGimbal.h"
 
-void EstimateTask(void* argument)
-{
-    static uint32_t last_tick_count, current_tick_count, this_tick_count;
-    static uint16_t task_counter;
+void EstimateTask(void *argument){
+    TickType_t last_tick_count;
 
-    _taskMonitor->TaskFrameCounterPtr._estimate_task = &task_counter;
-    _taskMonitor->TaskRunPeriodPtr._estimate_task = &this_tick_count;
+    (void)argument;
 
-    /* 清空初始化阶段可能残留的通知 */
-    ulTaskNotifyTake(pdTRUE, 0);
+    ulTaskNotifyTake(pdTRUE, 0U);
+    last_tick_count = xTaskGetTickCount();
 
-    current_tick_count = last_tick_count = xTaskGetTickCount();
-
-    while (1)
-    {
-        /* 阻塞等待 IMUTask 通知 */
+    while(1){
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        /* 控制链监控：记录 Estimate 开始执行时刻 */
-        g_chain_timer.cyc_est_entry = DWT->CYCCNT;
+        TaskMonitorMarkEstimateEntry(DWT->CYCCNT);
 
-        /* 观测更新 */
-        WorldGimbalEstimateUpdate(&worldGimbal);
+        WorldGimbalEstimateUpdate();
         GimbalEstimateUpdate();
         ShootEstimateUpdate();
 
-        /* 通知 ControlTask */
-        extern TaskHandle_t controlTaskHandle;
-        if (controlTaskHandle != NULL)
-        {
+        TaskMonitorMarkEstimateExit(DWT->CYCCNT);
+
+        if(controlTaskHandle != NULL){
             xTaskNotifyGive(controlTaskHandle);
         }
 
-        /* 控制链监控：记录 Estimate 执行完毕时刻 */
-        g_chain_timer.cyc_est_exit = DWT->CYCCNT;
-
-        /* 任务周期监控 */
-        task_counter++;
-        current_tick_count = xTaskGetTickCount();
-        this_tick_count = current_tick_count - last_tick_count;
-        last_tick_count = current_tick_count;
+        {
+            TickType_t current_tick_count = xTaskGetTickCount();
+            TaskMonitorRecord(TASK_MONITOR_ESTIMATE,
+                              current_tick_count - last_tick_count);
+            last_tick_count = current_tick_count;
+        }
     }
 }

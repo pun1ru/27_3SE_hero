@@ -4,7 +4,7 @@
 #include "stdint.h"
 
 #define BMI088_USE_SPI
-//#define BMI088_USE_IIC
+// #define BMI088_USE_IIC
 
 extern void BMI088_delay_ms(uint16_t ms);
 extern void BMI088_delay_us(uint16_t us);

@@ -12,6 +12,10 @@
 - [ ] 新增 `PrivateApplications` 或 `PrivateDrivers` 源文件后，确认对应 Keil 工程已收录，并运行该板输出目录的 `add_missing.py`。
 - [ ] 修改上下板共用算法或驱动时，检查两侧实现是否同步，并记录必须保留的板级差异。
 - [ ] 修改 Board2Borad 数据定义时，同步核对发送端、接收端、CAN ID、长度、缩放倍率和字节序。
+- [x] [P1] 完成上板 `DecisionAO` 模型生成与运行时接入。
+  - 范围：`hero_up/qp/qm`、生成的 `decision_ao.c/.h`、`hero_up/qp/qpc_init.c` 和需要投递事件的上板 Task。
+  - 完成条件：以 QM 模型生成 `decision_ao.c/.h`；`QpInit()` 完成事件池、发布订阅和 AO 启动；Keil 工程收录生成文件；任务侧只通过 QP 事件改变主干状态。
+  - 验证：QP/C 内核、FreeRTOS port、事件池、发布订阅、AO 队列/栈与启动均已接入；Keil 工程和 clangd 编译数据库已收录生成文件。受影响源文件已通过 ARMClang 6.22.0 语法检查，Keil 工程 XML 可解析且 `decision_ao.c` 只收录一次；完整 Keil 构建因桌面程序审批服务不可用而未启动，仍需实机验证保护、PC/RC、吊射、世界系和 RC 恢复切换。
 - [ ] [P2] 对下板 `chassisControl` 做行为等价的函数拆分与控制逻辑整理。
   - 范围：`hero_down/PrivateApplications/Robot_module/chassis/chassisControl.c/.h`，以及 `task_decision.c`、`task_control.c` 中的底盘初始化；首轮不改变控制参数、任务频率、模式行为和 CAN 输出节拍。
   - 初步函数边界：输入源解析与速度斜坡、云台/底盘坐标变换、跟随/自旋角速度生成、底盘状态估计、轮速运动学、功率预算与限幅、轮速 PID、爬坡/缺轮输出分配、最终停机保护、模块初始化。
@@ -22,7 +26,6 @@
 ## 已知维护问题
 
 - Keil MDK 导出的 `compile_commands.json` 通常只包含 HAL、Middlewares、Core 和 Tasks，缺失 `PrivateApplications` 与 `PrivateDrivers` 源文件。目前通过各板输出目录的 `add_missing.py` 补全。
-- 上板 `PrivateApplications/LK` 仍保留一套与 `PrivateDrivers/LK` 重复的 LK 驱动；下板目录重排后已只使用 `PrivateDrivers/LK`。A6 单圈角度字段已按帧内 4 字节统一为 `uint32_t`，后续清理上板重复实现时需先确认工程实际引用路径。
 
 ## 新增待办格式
 

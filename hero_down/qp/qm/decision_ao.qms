@@ -9,9 +9,9 @@
   <item name="backups">0</item>
  </group>
  <group name="windows">
-  <item id="Hero_Demo::DecisionAO::SM">0,0,998,828,*</item>
-  <item id="../::decision_ao.h">0,0,596,300</item>
-  <item id="../::decision_ao.c">170,2,596,300</item>
+  <item id="Hero_Demo::DecisionAO::SM">-232,0,998,828</item>
+  <item id="../::decision_ao.h">0,0,704,600,*</item>
+  <item id="../::decision_ao.c">170,218,596,300</item>
  </group>
  <group name="search">
   <item name="options">2033152</item>

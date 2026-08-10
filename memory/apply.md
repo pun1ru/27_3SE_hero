@@ -16,7 +16,7 @@
 ## 实机连接基线
 
 - 裁判系统只连接在 `hero_down`；`hero_up` 没有直连裁判系统。
-- `hero_up` 仅通过 FDCAN3 B2B 获取下板筛选回传的部分裁判数据，目前包括 0x222 中的 HP，以及 0x224 中的射击标志和弹速。
+- `hero_up` 仅通过 FDCAN3 B2B 获取下板筛选回传的部分裁判数据；0x222 仍携带 HP 字节但上板当前不消费，0x224 的射击标志和弹速仍在使用。
 - `hero_up` 实机没有激光测距模块；USART10 的初始化和接收代码属于遗留配置。
 - `hero_down` 没有连接算法上位机 CDC；USB CDC 相关任务代码不代表存在实际链路。
 - 上下板均没有实际连接或调用舵机；下板 TIM2 CH1 的 50 Hz PWM 启动属于遗留/预留配置。
@@ -112,7 +112,7 @@ UART 接收主要采用 DMA + Receive-to-idle，中断回调解析后立即重�
 | IMU 加热片 | TIM3 CH4，1 kHz PWM | 运行 | `IMUTask` 每 2 ms更新温控输出 |
 | DT7/VT13 遥控器 | UART5，100000，8E2，DMA idle | 运行 | UART 帧到达触发；500 ms 超时保护 |
 | 裁判系统直连 | USART1，115200 8N1 | 未连接 | 上板没有裁判系统物理连接；相关 USART1 DMA 初始化和解析代码属于遗留路径 |
-| 裁判数据子集 | FDCAN3 B2B，1 Mbit/s | 运行 | 从下板获取部分裁判数据：0x222 携带 HP，0x224 携带射击标志和弹速；上板不能据此获得完整裁判协议数据 |
+| 裁判数据子集 | FDCAN3 B2B，1 Mbit/s | 运行 | 从下板获取部分裁判数据：0x222 的键位/开关用于遥控输入，HP 字节暂不消费；0x224 携带的射击标志和弹速仍在使用；上板不能据此获得完整裁判协议数据 |
 | MiniPC 串口 | UART7，921600 8N1，DMA idle | 运行 | 接收按帧到达，调用 `UpperCommRecHandler()` |
 | 算法上位机 | USB CDC FS | 运行 | CDC 接收异步；`UpperPCCommTask` 每 4 ms发送，250 Hz |
 | 调试数据 | UART7，921600 8N1，DMA TX | 运行 | `DebugTask` 1 kHz，函数内隔次发送，实际约 500 Hz；与 MiniPC 共用 UART7 |

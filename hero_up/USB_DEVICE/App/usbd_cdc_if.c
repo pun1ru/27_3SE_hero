@@ -20,10 +20,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
-#include "peripheral_receive_task.h"
-#include "peripheral_transmit_task.h"
+#include "task_receive.h"
+#include "task_transmit.h"
 extern UpperComputerComm upperComputerComm;
-extern uint8_t shit_last_PC_Receive_shoot_mode;
 #include "algorism.h"
 #include "math.h"
 /* USER CODE BEGIN INCLUDE */
@@ -270,11 +269,8 @@ static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 11 */
 	/*数据处理*/
-	int a;
-	a++;
 //	if(UPPER_PC_COMM_REC_SOF == Buf[0] && UPPER_PC_COMM_REC_EOF == Buf[*Len - 1] && *Len == UPPER_PC_COMM_REC_LENGTH)
 //	{
-//		shit_last_PC_Receive_shoot_mode=upperComputerComm.Receive.shoot_mode;
 		memcpy(&upperComputerComm.Receive, Buf, sizeof(upperComputerComm.Receive));
 		AbsLimiter(upperComputerComm.Receive.target_pitch_angle_d,+180);
 		

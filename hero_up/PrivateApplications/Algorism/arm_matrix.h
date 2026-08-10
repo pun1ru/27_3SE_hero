@@ -9,9 +9,9 @@
 typedef float matrix_data_t;
 
 /**
- * \brief 矩阵类型定义 
+ * \brief 矩阵类型定义
  */
-typedef arm_matrix_instance_f32 matrix_t ;
+typedef arm_matrix_instance_f32 matrix_t;
 
 /**
  * \brief 矩阵初始化
@@ -20,7 +20,7 @@ typedef arm_matrix_instance_f32 matrix_t ;
  * \param[in] row 矩阵行数
  * \param[in] buffer 矩阵数据缓冲
  */
-#define matrix_init(mat, row, col, buffer)   arm_mat_init_f32(mat, row, col, buffer)
+#define matrix_init(mat, row, col, buffer) arm_mat_init_f32(mat, row, col, buffer)
 
 /**
  * \brief 矩阵乘法 Res = A * B
@@ -28,8 +28,7 @@ typedef arm_matrix_instance_f32 matrix_t ;
  * \param[in] pB 输入矩阵B指针
  * \param[out] pRes 结果矩阵指针
  */
-#define matrix_mult(pA, pB, pRes)   arm_mat_mult_f32(pA, pB, pRes)
-
+#define matrix_mult(pA, pB, pRes) arm_mat_mult_f32(pA, pB, pRes)
 
 /**
  * \brief 矩阵减法 Res = A - B
@@ -37,16 +36,16 @@ typedef arm_matrix_instance_f32 matrix_t ;
  * \param[in] pB 输入矩阵B指针
  * \param[out] pRes 结果矩阵指针
  */
-#define matrix_sub(pA, pB, pRes)   arm_mat_sub_f32(pA, pB, pRes)
+#define matrix_sub(pA, pB, pRes) arm_mat_sub_f32(pA, pB, pRes)
 
-//矩阵求逆
-#define matrix_inv    arm_mat_inverse_f32
+// 矩阵求逆
+#define matrix_inv arm_mat_inverse_f32
 /**
  * \brief 矩阵转置 Res = A^T
  * \param[in] pSrc 输入矩阵指针
  * \param[out] pDst 结果矩阵指针
  因为矩阵求逆计算量大，对于角度矩阵，用求逆代替转置
  */
-#define matrix_trans(pSrc, pDst)   arm_mat_trans_f32(pSrc, pDst)
+#define matrix_trans(pSrc, pDst) arm_mat_trans_f32(pSrc, pDst)
 
 #endif

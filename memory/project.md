@@ -26,8 +26,8 @@ HAL 层              STM32H7 HAL、CMSIS 和 CubeMX 生成代码
 
 - `Core`：CubeMX 生成的初始化和中断代码。
 - `Drivers`、`Middlewares`：CMSIS、HAL、FreeRTOS 和 USB 库。
-- `PrivateApplications`：控制算法和应用模块；下板按 `Controller`、`Filter`、`Solver`、`Official`、`Debugger` 和 `Robot_module` 分类。
-- `PrivateDrivers`：CAN、电机、遥控器、IMU 和其他外设驱动。
+- `PrivateApplications`：控制算法和应用模块；上下板均按 `Controller`、`Filter`、`Solver`、`Official`、`Debugger` 和 `Robot_module` 分类，并保留 `Algorism`、`System_IDF` 等公共目录。
+- `PrivateDrivers`：CAN、电机、遥控器、IMU 和其他外设驱动；LK 和激光测距等设备实现统一归属 Driver 层。
 - `Tasks/Inc`、`Tasks/Src`：FreeRTOS 任务。
 - `GeneralHeader`：硬件映射、全局配置和编译开关。
 - `MDK-ARM`：Keil 工程和编译输出。
@@ -47,13 +47,14 @@ DecisionTask (p5) ──共享目标──┘
 ```text
 IMUTask (p5, 2 ms) ──通知──> EstimateTask (p5) ──通知──> ControlTask (p5)
 DecisionTask (p5, 10 ms) 独立更新目标输入
+RemoteRecTask (p7) 由遥控事件组驱动
 ```
 
 - `DecisionTask`：解析遥控器、PC 或板间指令，更新目标输入。
 - `EstimateTask`：执行 IMU 姿态解算、观测器和滤波，发布估计状态。
 - `ControlTask`：读取目标和估计状态，执行 PID/ADRC 并发送电机指令。
 - 下板 `PrivateApplications/Robot_module` 中的控制模块提供 `XxxInputUpdate()`、`XxxEstimateUpdate()`、`XxxControlUpdate()`。
-- 下板通过独立 `task_monitor` 模块记录各任务帧数、周期、故障位和 DWT 控制链延迟；任务只调用监控 API，不直接修改监控状态。
+- 上下板均通过独立 `task_monitor` 模块记录各任务帧数、周期、故障位和 DWT 控制链延迟；任务只调用监控 API，不直接修改监控状态。
 
 ## 公共接口与所有权
 
@@ -70,9 +71,13 @@ const GimbalControl *const _gimbalControl = &g_gimbal_runtime.control;
 
 下板 `Robot_module/chassis`、`Robot_module/gimbal`、`Robot_module/stir` 的持续运行状态分别收口在模块私有的 `chassis_runtime_t`、`gimbal_runtime_t`、`shoot_runtime_t` 中。对应 `*_internal.h` 只供本模块实现使用，公共头不暴露运行时状态和简化宏；三个控制实现文件不再包含 `general_task_include.h`。
 
+上板 `Robot_module/gimbal`、`Robot_module/shoot`、`Robot_module/world_gimbal` 同样由模块私有实例持有可写状态；公共头仅暴露 `extern const ... *const` 只读指针和阶段/API 接口，跨模块写入通过模块 API 完成。三个模块的私有状态访问宏分别位于对应 `*_internal.h`，并已收录到上板 Keil 工程。
+
 下板 `GeneralHeader` 的定义按职责拆分：`robot_define.h` 保存机器人几何和物理换算，`device_define.h` 保存外设映射、电机参数和通信 ID，`general_define.h` 保存编译开关、遥控输入和任务周期等通用定义。`general_config_label.h` 仅作为兼容聚合头保留。
 
 下板 QP/C 由 `InitTask` 在任务启动前调用 `QpInit()` 完成 `QF_init`、事件池、发布订阅和 `DecisionAO` 启动。遥控事件组同样在启用 UART/CAN 接收前创建，避免中断先于任务资源初始化。
+
+上板 `qp` 目录已配置与下板一致的 QP/C 内核、FreeRTOS port、`qp_config.h` 和 Keil 文件组/IncludePath。`InitTask` 在启用外设接收前调用 `QpInit()`，完成事件池、发布订阅、`DecisionAO` 构造和主动对象启动。上板状态任务将保护、PC/RC、吊射和世界系切换作为 QP 事件投递；摩擦轮、鼠标锁定和相机目标作为次要输入直接更新 `DecisionAO`。上板控制与发送链统一通过 `pDecisionAO` 读取状态，不再维护包含底盘、关节和拨弹模式的旧 `RobotState`。
 
 ## 上下板差异
 
@@ -131,7 +136,7 @@ Keil 导出的数据库通常缺失 `PrivateApplications` 和 `PrivateDrivers` �
 
 上板：
 
-- p7：`MonitorTask`、`StateMachineTask`
+- p7：`MonitorTask`、`StateMachineTask`、`RemoteRecTask`
 - p5：`DecisionTask`、`EstimateTask`、`ControlTask`、`IMUTask`、`UpperPCCommTask`
 - p4：`DebugTask`
 - p2：`MusicTask`

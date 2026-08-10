@@ -26,7 +26,7 @@ void WS2812_SPI_Ctrl(uint8_t r, uint8_t g, uint8_t b);
 
 /*---------------------------------------------------------------------------PWM+DMA 灯带（PA00, TIM2_CH1）------------------------------------------------*/
 /** @brief 灯带 LED 数量 */
-#define WS2812_NUM_LEDS    12
+#define WS2812_NUM_LEDS 12
 
 /** @brief 灯带 PWM 初始化（重新配置 TIM2_CH1 为 800kHz，配置 DMA1_Stream0）
  *  @note 调用后 TIM2 不再输出舵机 PWM，原 servo 代码需注释
