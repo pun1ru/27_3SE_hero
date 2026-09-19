@@ -24,7 +24,7 @@ uint8_t uart10_tx_complete=1;
  uint8_t tx[8] = {0};
 
 	/* 调试零值宏: 注释=正常输出, 取消注释=强制该组电机零力矩 */
-	//#define ZERO_YAW
+	#define ZERO_YAW
 	//#define ZERO_PITCH
 	//#define ZERO_FRIC
 /* IMU数据快速发送：IMUTask调用，PoseUpdateFromIMU后立即发出，消除任务调度延迟 */
@@ -254,8 +254,8 @@ static uint8_t crc8_maxim(const uint8_t *data, uint16_t len)
     }
     return crc;
 }
-//#define DEBUG_FRAME_ORIGINAL
-#define DEBUG_FRAME_YAW_ADRC
+#define DEBUG_FRAME_ORIGINAL
+//#define DEBUG_FRAME_YAW_ADRC
 static void DebugTransmit(void)
 {
 	cnt++;

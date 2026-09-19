@@ -28,8 +28,8 @@ int16_t fric_speed_left_target , fric_speed_right_target,fric_speed_up_target;
 int16_t fric_speed_left_target1 , fric_speed_right_target1,fric_speed_up_target1;
 float current_fric_speed =3110;   // 吊射模式弹速; 3500,4650,dansu,4580-16.77//4785
 float default_fric_speed = 3110;//常 规模式弹速
-float front_fric_speed = 3210;//4550
-float back_fric_speed = 4140;
+float front_fric_speed = 4300;//4550
+float back_fric_speed = 4320;
 float deltaspeed;
 float emergesee;
 
